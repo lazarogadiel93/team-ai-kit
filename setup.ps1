@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Team AI Kit — One-command setup for your team's AI development environment.
+    Team AI Kit -- One-command setup for your team's AI development environment.
 .DESCRIPTION
     Installs gentle-ai + engram, configures your IDE, copies team skills based on
     your role, and sets up shared engram sync.
@@ -9,10 +9,10 @@
     Supports both interactive mode (prompts) and non-interactive mode (parameters).
 .EXAMPLE
     .\setup.ps1
-    Interactive mode — prompts for IDE, role, and provider.
+    Interactive mode -- prompts for IDE, role, and provider.
 .EXAMPLE
     .\setup.ps1 -Ide vscode -Role frontend -Provider openai
-    Non-interactive mode — skips prompts, uses provided values.
+    Non-interactive mode -- skips prompts, uses provided values.
 .EXAMPLE
     .\setup.ps1 -Ide opencode -Role devops -Provider anthropic -TargetDir C:\temp\test-setup
     Non-interactive with custom output directory (useful for testing).
@@ -105,14 +105,14 @@ if (-not $SkipPrerequisites) {
         try {
             & scoop install engram 2>$null
             if (-not (Test-EngramInstalled)) {
-                Write-Warn 'Engram not in Scoop — gentle-ai will manage it'
+                Write-Warn 'Engram not in Scoop -- gentle-ai will manage it'
             }
             else {
                 Write-Ok 'engram installed'
             }
         }
         catch {
-            Write-Warn 'Engram install via Scoop failed — gentle-ai will manage it'
+            Write-Warn 'Engram install via Scoop failed -- gentle-ai will manage it'
         }
     }
     else {
@@ -222,7 +222,7 @@ if ($templateDir) {
 
     $templateVars = @{
         ROLE               = $Role
-        ENGRAM_BINARY_PATH = if ($engramBin) { $engramBin } else { '(not-found — run gentle-ai to install)' }
+        ENGRAM_BINARY_PATH = if ($engramBin) { $engramBin } else { '(not-found -- run gentle-ai to install)' }
         PACK_RULES         = $packRulesContent
     }
 
@@ -250,7 +250,7 @@ if ($engramBin) {
     }
 }
 else {
-    Write-Warn 'Engram binary not found — run gentle-ai to configure it'
+    Write-Warn 'Engram binary not found -- run gentle-ai to configure it'
 }
 
 # Generate instructions with pack rules

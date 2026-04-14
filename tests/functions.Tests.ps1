@@ -3,7 +3,7 @@
 
 <#
 .SYNOPSIS
-    Tests for lib/functions.ps1 — Team AI Kit setup functions.
+    Tests for lib/functions.ps1 -- Team AI Kit setup functions.
 #>
 
 BeforeAll {
