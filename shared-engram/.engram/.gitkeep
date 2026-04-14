@@ -1,0 +1,3 @@
+# Shared engram directory
+# This folder syncs team knowledge via `engram sync`
+# Point your engram sync to this directory's parent repo

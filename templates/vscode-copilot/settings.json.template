@@ -1,0 +1,12 @@
+{
+  "github.copilot.chat.codeGeneration.instructions": [
+    {
+      "file": ".github/copilot-instructions.md"
+    }
+  ],
+  "github.copilot.chat.commitMessageGeneration.instructions": [
+    {
+      "text": "Use conventional commits. No Co-Authored-By or AI attribution. Format: type(scope): description"
+    }
+  ]
+}
