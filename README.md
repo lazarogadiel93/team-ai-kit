@@ -503,8 +503,8 @@ team-ai-kit doctor
 ## Roadmap
 
 - [x] Phase 1: CLI entry point + config persistence + Scoop manifest
-- [ ] Phase 2: `--team-repo` support + git clone/pull + 3-layer merge logic
-- [ ] Phase 3: Hash tracking para no-overwrite inteligente en updates
+- [x] Phase 2: `--team-repo` support + git clone/pull + 3-layer merge logic
+- [x] Phase 3: Hash tracking para no-overwrite inteligente en updates
 - [ ] Phase 4: `setup.sh` para macOS/Linux
 
 ---

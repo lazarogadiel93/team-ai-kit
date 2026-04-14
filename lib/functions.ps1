@@ -422,6 +422,341 @@ function Install-TeamSkills {
     return $copied
 }
 
+# ── Team Repo Management ─────────────────────────────────────────────────────
+
+function Get-TeamRepoLocalPath {
+    <#
+    .SYNOPSIS
+        Returns the local path where the team content repo is cloned (~/.team-ai-kit/team-content).
+    #>
+    return Join-Path (Get-TeamAiKitConfigDir) 'team-content'
+}
+
+function Test-TeamRepoConfigured {
+    <#
+    .SYNOPSIS
+        Returns $true if a team repo URL is set in the config.
+    #>
+    $config = Get-TeamAiKitConfig
+    return -not [string]::IsNullOrWhiteSpace($config.teamRepo)
+}
+
+function Test-TeamRepoCloned {
+    <#
+    .SYNOPSIS
+        Returns $true if the team repo has been cloned locally.
+    #>
+    $localPath = Get-TeamRepoLocalPath
+    return Test-Path (Join-Path $localPath '.git')
+}
+
+function Invoke-TeamRepoClone {
+    <#
+    .SYNOPSIS
+        Clones the team content repo to the local cache. If already cloned, pulls instead.
+    .OUTPUTS
+        $true on success, $false on failure.
+    #>
+    param(
+        [Parameter(Mandatory)]
+        [string]$RepoUrl
+    )
+    $localPath = Get-TeamRepoLocalPath
+    if (Test-TeamRepoCloned) {
+        return Invoke-TeamRepoPull
+    }
+    $parentDir = Split-Path $localPath -Parent
+    if (-not (Test-Path $parentDir)) {
+        New-Item -ItemType Directory -Path $parentDir -Force | Out-Null
+    }
+    & git clone $RepoUrl $localPath 2>&1 | Out-Null
+    return $LASTEXITCODE -eq 0
+}
+
+function Invoke-TeamRepoPull {
+    <#
+    .SYNOPSIS
+        Pulls latest changes in the local team repo clone.
+    .OUTPUTS
+        $true on success, $false on failure.
+    #>
+    $localPath = Get-TeamRepoLocalPath
+    if (-not (Test-TeamRepoCloned)) {
+        return $false
+    }
+    Push-Location $localPath
+    try {
+        & git pull 2>&1 | Out-Null
+        return $LASTEXITCODE -eq 0
+    }
+    finally {
+        Pop-Location
+    }
+}
+
+function Get-TeamRepoSkillPaths {
+    <#
+    .SYNOPSIS
+        Returns skill file paths from the local team repo clone for the given role.
+        Includes both shared and role-specific skills from the team repo.
+    #>
+    param(
+        [Parameter(Mandatory)]
+        [string]$Role
+    )
+    $localPath = Get-TeamRepoLocalPath
+    if (-not (Test-Path $localPath)) { return @() }
+
+    [string[]]$all = @()
+
+    $sharedDir = Join-Path $localPath 'skills\shared'
+    if (Test-Path $sharedDir) {
+        $all += @(Get-ChildItem -Path $sharedDir -Filter '*.md' -Recurse | Select-Object -ExpandProperty FullName)
+    }
+
+    $roleDir = Join-Path $localPath "skills\roles\$Role"
+    if (Test-Path $roleDir) {
+        $all += @(Get-ChildItem -Path $roleDir -Filter '*.md' -Recurse | Select-Object -ExpandProperty FullName)
+    }
+
+    return $all
+}
+
+# ── Skill Manifest (hash tracking for no-overwrite) ─────────────────────────
+
+function Get-SkillManifestPath {
+    <#
+    .SYNOPSIS
+        Returns the path to the skill manifest file (~/.team-ai-kit/manifest.json).
+    #>
+    return Join-Path (Get-TeamAiKitConfigDir) 'manifest.json'
+}
+
+function Get-SkillManifest {
+    <#
+    .SYNOPSIS
+        Reads the skill manifest. Returns a hashtable with a 'files' key containing
+        per-file tracking info (hash, source, installedAt).
+    #>
+    $path = Get-SkillManifestPath
+    if (-not (Test-Path $path)) {
+        return @{ files = @{} }
+    }
+    $raw = Get-Content $path -Raw | ConvertFrom-Json
+    $manifest = @{ files = @{} }
+    if ($raw.files) {
+        $raw.files.PSObject.Properties | ForEach-Object {
+            $manifest.files[$_.Name] = @{
+                hash        = $_.Value.hash
+                source      = $_.Value.source
+                installedAt = $_.Value.installedAt
+            }
+        }
+    }
+    return $manifest
+}
+
+function Save-SkillManifest {
+    <#
+    .SYNOPSIS
+        Saves the skill manifest hashtable to manifest.json.
+    .OUTPUTS
+        The path to the saved manifest file.
+    #>
+    param(
+        [Parameter(Mandatory)]
+        [hashtable]$Manifest
+    )
+    $path = Get-SkillManifestPath
+    $dir = Split-Path $path -Parent
+    if (-not (Test-Path $dir)) {
+        New-Item -ItemType Directory -Path $dir -Force | Out-Null
+    }
+    $Manifest | ConvertTo-Json -Depth 5 | Set-Content -Path $path -Encoding UTF8
+    return $path
+}
+
+function Get-FileContentHash {
+    <#
+    .SYNOPSIS
+        Returns the SHA256 hash of a file's content, or $null if file does not exist.
+    #>
+    param(
+        [Parameter(Mandatory)]
+        [string]$FilePath
+    )
+    if (-not (Test-Path $FilePath)) { return $null }
+    return (Get-FileHash -Path $FilePath -Algorithm SHA256).Hash
+}
+
+function Test-SkillModifiedByUser {
+    <#
+    .SYNOPSIS
+        Returns $true if a skill file exists AND has been modified since it was installed
+        (i.e. its current hash differs from the hash recorded in the manifest).
+    #>
+    param(
+        [Parameter(Mandatory)]
+        [string]$FilePath,
+        [Parameter(Mandatory)]
+        [string]$ManifestKey,
+        [Parameter(Mandatory)]
+        [hashtable]$Manifest
+    )
+    if (-not (Test-Path $FilePath)) { return $false }
+    if (-not $Manifest.files.ContainsKey($ManifestKey)) {
+        # File exists but not in manifest -- treat as user-created, don't touch
+        return $true
+    }
+    $currentHash = Get-FileContentHash -FilePath $FilePath
+    $recordedHash = $Manifest.files[$ManifestKey].hash
+    return $currentHash -ne $recordedHash
+}
+
+# ── Skills Merge (3-layer: defaults + team + user) ───────────────────────────
+
+function Install-SingleSkillWithTracking {
+    <#
+    .SYNOPSIS
+        Installs a single skill file with manifest tracking.
+        Returns a hashtable with 'action' key: installed, updated, or skipped.
+    .DESCRIPTION
+        - File does not exist: INSTALL and record hash.
+        - File exists, user modified (hash differs from manifest): SKIP.
+        - File exists, not modified, source has changes: UPDATE and record new hash.
+        - File exists, not modified, source unchanged: SKIP (no-op).
+    #>
+    param(
+        [Parameter(Mandatory)]
+        [string]$SourcePath,
+        [Parameter(Mandatory)]
+        [string]$DestPath,
+        [Parameter(Mandatory)]
+        [string]$ManifestKey,
+        [Parameter(Mandatory)]
+        [string]$Source,
+        [Parameter(Mandatory)]
+        [hashtable]$Manifest,
+        [Parameter(Mandatory)]
+        [string]$Timestamp
+    )
+
+    $destDir = Split-Path $DestPath -Parent
+    if (-not (Test-Path $destDir)) {
+        New-Item -ItemType Directory -Path $destDir -Force | Out-Null
+    }
+
+    $sourceHash = Get-FileContentHash -FilePath $SourcePath
+
+    if (-not (Test-Path $DestPath)) {
+        # File does not exist -> install
+        Copy-Item -Path $SourcePath -Destination $DestPath -Force
+        $Manifest.files[$ManifestKey] = @{
+            hash        = $sourceHash
+            source      = $Source
+            installedAt = $Timestamp
+        }
+        return @{ action = 'installed' }
+    }
+
+    # File exists -- check if user modified it
+    if (Test-SkillModifiedByUser -FilePath $DestPath -ManifestKey $ManifestKey -Manifest $Manifest) {
+        return @{ action = 'skipped' }
+    }
+
+    # Not modified -- check if source has changes
+    $currentHash = Get-FileContentHash -FilePath $DestPath
+    if ($currentHash -eq $sourceHash) {
+        return @{ action = 'skipped' }
+    }
+
+    # Source changed, user hasn't modified -> update
+    Copy-Item -Path $SourcePath -Destination $DestPath -Force
+    $Manifest.files[$ManifestKey] = @{
+        hash        = $sourceHash
+        source      = $Source
+        installedAt = $Timestamp
+    }
+    return @{ action = 'updated' }
+}
+
+function Install-SkillsWithMerge {
+    <#
+    .SYNOPSIS
+        Installs skills using 3-layer merge: package defaults + team repo + user modifications.
+        User modifications are NEVER overwritten.
+    .OUTPUTS
+        Hashtable with keys: installed (array), updated (array), skipped (array).
+    #>
+    param(
+        [Parameter(Mandatory)]
+        [string]$KitRoot,
+        [Parameter(Mandatory)]
+        [string]$Role,
+        [Parameter(Mandatory)]
+        [string]$TargetDir,
+        [switch]$IncludeTeamRepo
+    )
+
+    $manifest = Get-SkillManifest
+    $now = Get-Date -Format 'o'
+    $results = @{
+        installed = @()
+        updated   = @()
+        skipped   = @()
+    }
+
+    # Layer 1: Package defaults
+    $defaultSkills = Get-AllSkillPathsForRole -KitRoot $KitRoot -Role $Role
+    $skillsBase = Join-Path $KitRoot 'skills'
+
+    foreach ($skillPath in $defaultSkills) {
+        $relativePath = $skillPath.Replace($skillsBase, '').TrimStart('\', '/')
+        $manifestKey = "team-skills\$relativePath"
+        $destPath = Join-Path $TargetDir $manifestKey
+
+        $result = Install-SingleSkillWithTracking `
+            -SourcePath $skillPath `
+            -DestPath $destPath `
+            -ManifestKey $manifestKey `
+            -Source 'default' `
+            -Manifest $manifest `
+            -Timestamp $now
+
+        $results[$result.action] += $destPath
+    }
+
+    # Layer 2: Team repo (overlays on top of defaults -- same key = team wins)
+    if ($IncludeTeamRepo) {
+        $teamRepoPath = Get-TeamRepoLocalPath
+        if (Test-Path $teamRepoPath) {
+            $teamSkills = Get-TeamRepoSkillPaths -Role $Role
+            $teamSkillsBase = Join-Path $teamRepoPath 'skills'
+
+            foreach ($skillPath in $teamSkills) {
+                $relativePath = $skillPath.Replace($teamSkillsBase, '').TrimStart('\', '/')
+                $manifestKey = "team-skills\$relativePath"
+                $destPath = Join-Path $TargetDir $manifestKey
+
+                $result = Install-SingleSkillWithTracking `
+                    -SourcePath $skillPath `
+                    -DestPath $destPath `
+                    -ManifestKey $manifestKey `
+                    -Source 'team' `
+                    -Manifest $manifest `
+                    -Timestamp $now
+
+                $results[$result.action] += $destPath
+            }
+        }
+    }
+
+    # Persist manifest (suppress return value to avoid pipeline pollution)
+    $null = Save-SkillManifest -Manifest $manifest
+
+    return $results
+}
+
 # ── Engram Sync Config ────────────────────────────────────────────────────────
 
 function New-EngramSyncConfig {

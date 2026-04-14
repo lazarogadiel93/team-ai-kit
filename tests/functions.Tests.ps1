@@ -643,3 +643,348 @@ Describe 'Test-ValidCommand' {
         Test-ValidCommand -Command '' | Should -BeFalse
     }
 }
+
+# -- Team Repo Management -----------------------------------------------------
+
+Describe 'Get-TeamRepoLocalPath' {
+    It 'returns a path under the config dir' {
+        $configDir = Get-TeamAiKitConfigDir
+        $repoPath = Get-TeamRepoLocalPath
+        $repoPath | Should -BeLike "$configDir*"
+    }
+
+    It 'returns a path ending in team-content' {
+        Get-TeamRepoLocalPath | Should -BeLike '*team-content'
+    }
+}
+
+Describe 'Test-TeamRepoConfigured' {
+    It 'returns $false when no team repo in config' {
+        $originalProfile = $env:USERPROFILE
+        $env:USERPROFILE = Join-Path $env:TEMP "team-ai-kit-teamrepo-$(Get-Random)"
+        try {
+            Test-TeamRepoConfigured | Should -BeFalse
+        }
+        finally {
+            $env:USERPROFILE = $originalProfile
+        }
+    }
+
+    It 'returns $true when team repo is configured' {
+        $originalProfile = $env:USERPROFILE
+        $env:USERPROFILE = Join-Path $env:TEMP "team-ai-kit-teamrepo2-$(Get-Random)"
+        try {
+            Save-TeamAiKitConfig -Config @{ teamRepo = 'https://dev.azure.com/team/knowledge' } | Out-Null
+            Test-TeamRepoConfigured | Should -BeTrue
+        }
+        finally {
+            $env:USERPROFILE = $originalProfile
+            Get-ChildItem $env:TEMP -Directory -Filter 'team-ai-kit-teamrepo2-*' | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+Describe 'Test-TeamRepoCloned' {
+    It 'returns $false when team-content dir does not exist' {
+        $originalProfile = $env:USERPROFILE
+        $env:USERPROFILE = Join-Path $env:TEMP "team-ai-kit-cloned-$(Get-Random)"
+        try {
+            Test-TeamRepoCloned | Should -BeFalse
+        }
+        finally {
+            $env:USERPROFILE = $originalProfile
+        }
+    }
+}
+
+Describe 'Get-TeamRepoSkillPaths' {
+    It 'returns empty array when team repo not cloned' {
+        $originalProfile = $env:USERPROFILE
+        $env:USERPROFILE = Join-Path $env:TEMP "team-ai-kit-reposkills-$(Get-Random)"
+        try {
+            $paths = Get-TeamRepoSkillPaths -Role 'frontend'
+            $paths | Should -BeNullOrEmpty
+        }
+        finally {
+            $env:USERPROFILE = $originalProfile
+        }
+    }
+
+    It 'finds skills in a mock team repo structure' {
+        $originalProfile = $env:USERPROFILE
+        $tempProfile = Join-Path $env:TEMP "team-ai-kit-reposkills2-$(Get-Random)"
+        $env:USERPROFILE = $tempProfile
+        try {
+            # Create mock team repo structure
+            $teamContent = Get-TeamRepoLocalPath
+            $sharedSkill = Join-Path $teamContent 'skills\shared\e2e-testing\SKILL.md'
+            $roleSkill = Join-Path $teamContent 'skills\roles\frontend\storybook.skill.md'
+            New-Item -ItemType Directory -Path (Split-Path $sharedSkill -Parent) -Force | Out-Null
+            New-Item -ItemType Directory -Path (Split-Path $roleSkill -Parent) -Force | Out-Null
+            Set-Content -Path $sharedSkill -Value '# E2E Testing skill'
+            Set-Content -Path $roleSkill -Value '# Storybook skill'
+
+            $paths = Get-TeamRepoSkillPaths -Role 'frontend'
+            $paths.Count | Should -Be 2
+            ($paths | Where-Object { $_ -like '*e2e-testing*' }) | Should -Not -BeNullOrEmpty
+            ($paths | Where-Object { $_ -like '*storybook*' }) | Should -Not -BeNullOrEmpty
+        }
+        finally {
+            $env:USERPROFILE = $originalProfile
+            if (Test-Path $tempProfile) { Remove-Item -Recurse -Force $tempProfile -ErrorAction SilentlyContinue }
+        }
+    }
+}
+
+# -- Skill Manifest & Hash Tracking -------------------------------------------
+
+Describe 'Get-SkillManifestPath' {
+    It 'returns a path ending in manifest.json' {
+        Get-SkillManifestPath | Should -BeLike '*manifest.json'
+    }
+
+    It 'is inside the config dir' {
+        $configDir = Get-TeamAiKitConfigDir
+        Get-SkillManifestPath | Should -BeLike "$configDir*"
+    }
+}
+
+Describe 'Get-SkillManifest' {
+    It 'returns empty manifest when file does not exist' {
+        $originalProfile = $env:USERPROFILE
+        $env:USERPROFILE = Join-Path $env:TEMP "team-ai-kit-manifest-$(Get-Random)"
+        try {
+            $manifest = Get-SkillManifest
+            $manifest | Should -BeOfType [hashtable]
+            $manifest.files | Should -BeOfType [hashtable]
+            $manifest.files.Count | Should -Be 0
+        }
+        finally {
+            $env:USERPROFILE = $originalProfile
+        }
+    }
+}
+
+Describe 'Save-SkillManifest' {
+    BeforeAll {
+        $script:manifestTestDir = Join-Path $env:TEMP "team-ai-kit-manifest-save-$(Get-Random)"
+    }
+
+    AfterAll {
+        if (Test-Path $script:manifestTestDir) {
+            Remove-Item -Path $script:manifestTestDir -Recurse -Force
+        }
+    }
+
+    It 'creates manifest file with tracked files' {
+        $originalProfile = $env:USERPROFILE
+        $env:USERPROFILE = $script:manifestTestDir
+        try {
+            $manifest = @{
+                files = @{
+                    'team-skills\shared\architecture\SKILL.md' = @{
+                        hash        = 'ABC123'
+                        source      = 'default'
+                        installedAt = '2026-04-14T00:00:00'
+                    }
+                }
+            }
+            $path = Save-SkillManifest -Manifest $manifest
+            Test-Path $path | Should -BeTrue
+        }
+        finally {
+            $env:USERPROFILE = $originalProfile
+        }
+    }
+
+    It 'manifest roundtrips through Save + Get' {
+        $originalProfile = $env:USERPROFILE
+        $env:USERPROFILE = $script:manifestTestDir
+        try {
+            $readBack = Get-SkillManifest
+            $readBack.files.Count | Should -Be 1
+            $readBack.files['team-skills\shared\architecture\SKILL.md'].hash | Should -Be 'ABC123'
+            $readBack.files['team-skills\shared\architecture\SKILL.md'].source | Should -Be 'default'
+        }
+        finally {
+            $env:USERPROFILE = $originalProfile
+        }
+    }
+}
+
+Describe 'Get-FileContentHash' {
+    It 'returns a SHA256 hash for existing file' {
+        $tempFile = Join-Path $env:TEMP "team-ai-kit-hash-$(Get-Random).txt"
+        try {
+            Set-Content -Path $tempFile -Value 'test content'
+            $hash = Get-FileContentHash -FilePath $tempFile
+            $hash | Should -Not -BeNullOrEmpty
+            $hash.Length | Should -Be 64  # SHA256 = 64 hex chars
+        }
+        finally {
+            Remove-Item $tempFile -ErrorAction SilentlyContinue
+        }
+    }
+
+    It 'returns $null for nonexistent file' {
+        Get-FileContentHash -FilePath 'C:\nonexistent\file.txt' | Should -BeNullOrEmpty
+    }
+
+    It 'returns same hash for same content' {
+        $tempFile1 = Join-Path $env:TEMP "team-ai-kit-hash1-$(Get-Random).txt"
+        $tempFile2 = Join-Path $env:TEMP "team-ai-kit-hash2-$(Get-Random).txt"
+        try {
+            Set-Content -Path $tempFile1 -Value 'identical content'
+            Set-Content -Path $tempFile2 -Value 'identical content'
+            $hash1 = Get-FileContentHash -FilePath $tempFile1
+            $hash2 = Get-FileContentHash -FilePath $tempFile2
+            $hash1 | Should -Be $hash2
+        }
+        finally {
+            Remove-Item $tempFile1, $tempFile2 -ErrorAction SilentlyContinue
+        }
+    }
+
+    It 'returns different hash for different content' {
+        $tempFile1 = Join-Path $env:TEMP "team-ai-kit-hash3-$(Get-Random).txt"
+        $tempFile2 = Join-Path $env:TEMP "team-ai-kit-hash4-$(Get-Random).txt"
+        try {
+            Set-Content -Path $tempFile1 -Value 'content A'
+            Set-Content -Path $tempFile2 -Value 'content B'
+            $hash1 = Get-FileContentHash -FilePath $tempFile1
+            $hash2 = Get-FileContentHash -FilePath $tempFile2
+            $hash1 | Should -Not -Be $hash2
+        }
+        finally {
+            Remove-Item $tempFile1, $tempFile2 -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+Describe 'Test-SkillModifiedByUser' {
+    It 'returns $false when file does not exist' {
+        $manifest = @{ files = @{} }
+        Test-SkillModifiedByUser -FilePath 'C:\nonexistent.md' -ManifestKey 'key' -Manifest $manifest | Should -BeFalse
+    }
+
+    It 'returns $true when file exists but not in manifest (user-created)' {
+        $tempFile = Join-Path $env:TEMP "team-ai-kit-mod-$(Get-Random).txt"
+        try {
+            Set-Content -Path $tempFile -Value 'user created'
+            $manifest = @{ files = @{} }
+            Test-SkillModifiedByUser -FilePath $tempFile -ManifestKey 'key' -Manifest $manifest | Should -BeTrue
+        }
+        finally {
+            Remove-Item $tempFile -ErrorAction SilentlyContinue
+        }
+    }
+
+    It 'returns $false when file hash matches manifest' {
+        $tempFile = Join-Path $env:TEMP "team-ai-kit-mod2-$(Get-Random).txt"
+        try {
+            Set-Content -Path $tempFile -Value 'original content'
+            $hash = Get-FileContentHash -FilePath $tempFile
+            $manifest = @{
+                files = @{
+                    'mykey' = @{ hash = $hash; source = 'default'; installedAt = 'now' }
+                }
+            }
+            Test-SkillModifiedByUser -FilePath $tempFile -ManifestKey 'mykey' -Manifest $manifest | Should -BeFalse
+        }
+        finally {
+            Remove-Item $tempFile -ErrorAction SilentlyContinue
+        }
+    }
+
+    It 'returns $true when file hash differs from manifest' {
+        $tempFile = Join-Path $env:TEMP "team-ai-kit-mod3-$(Get-Random).txt"
+        try {
+            Set-Content -Path $tempFile -Value 'modified content'
+            $manifest = @{
+                files = @{
+                    'mykey' = @{ hash = 'OLD_HASH_THAT_NO_LONGER_MATCHES'; source = 'default'; installedAt = 'now' }
+                }
+            }
+            Test-SkillModifiedByUser -FilePath $tempFile -ManifestKey 'mykey' -Manifest $manifest | Should -BeTrue
+        }
+        finally {
+            Remove-Item $tempFile -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+# -- Skills Merge (3-layer) ---------------------------------------------------
+
+Describe 'Install-SkillsWithMerge' {
+    BeforeAll {
+        $script:mergeTestDir = Join-Path $env:TEMP "team-ai-kit-merge-$(Get-Random)"
+        $script:mergeTestProfile = Join-Path $env:TEMP "team-ai-kit-merge-profile-$(Get-Random)"
+    }
+
+    AfterAll {
+        if (Test-Path $script:mergeTestDir) { Remove-Item -Recurse -Force $script:mergeTestDir }
+        if (Test-Path $script:mergeTestProfile) { Remove-Item -Recurse -Force $script:mergeTestProfile }
+    }
+
+    It 'installs all default skills on first run' {
+        $originalProfile = $env:USERPROFILE
+        $env:USERPROFILE = $script:mergeTestProfile
+        try {
+            $results = Install-SkillsWithMerge -KitRoot $script:kitRoot -Role 'frontend' -TargetDir $script:mergeTestDir
+            $results.installed.Count | Should -Be 7  # 5 shared + 2 frontend
+            $results.updated.Count | Should -Be 0
+            $results.skipped.Count | Should -Be 0
+        }
+        finally {
+            $env:USERPROFILE = $originalProfile
+        }
+    }
+
+    It 'creates manifest with tracked files' {
+        $originalProfile = $env:USERPROFILE
+        $env:USERPROFILE = $script:mergeTestProfile
+        try {
+            $manifest = Get-SkillManifest
+            $manifest.files.Count | Should -Be 7
+            # All should be source=default
+            $manifest.files.Values | ForEach-Object { $_.source | Should -Be 'default' }
+        }
+        finally {
+            $env:USERPROFILE = $originalProfile
+        }
+    }
+
+    It 'skips all skills on second run (no changes)' {
+        $originalProfile = $env:USERPROFILE
+        $env:USERPROFILE = $script:mergeTestProfile
+        try {
+            $results = Install-SkillsWithMerge -KitRoot $script:kitRoot -Role 'frontend' -TargetDir $script:mergeTestDir
+            $results.installed.Count | Should -Be 0
+            $results.updated.Count | Should -Be 0
+            $results.skipped.Count | Should -Be 7
+        }
+        finally {
+            $env:USERPROFILE = $originalProfile
+        }
+    }
+
+    It 'does not overwrite user-modified files' {
+        $originalProfile = $env:USERPROFILE
+        $env:USERPROFILE = $script:mergeTestProfile
+        try {
+            # Modify one skill file
+            $archSkill = Join-Path $script:mergeTestDir 'team-skills\shared\architecture\SKILL.md'
+            Set-Content -Path $archSkill -Value '# User customized this skill'
+
+            $results = Install-SkillsWithMerge -KitRoot $script:kitRoot -Role 'frontend' -TargetDir $script:mergeTestDir
+            $results.skipped.Count | Should -Be 7  # all skipped, including modified one
+
+            # Verify content was NOT overwritten
+            $content = Get-Content $archSkill -Raw
+            $content | Should -BeLike '*User customized*'
+        }
+        finally {
+            $env:USERPROFILE = $originalProfile
+        }
+    }
+}

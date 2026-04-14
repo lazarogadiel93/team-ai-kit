@@ -311,7 +311,21 @@ function Invoke-SetupCommand {
     Write-Host ''
     Write-Host '  [5/5] Installing team layer...' -ForegroundColor White
 
-    # 5a. Copy role skills to IDE skills directory
+    # 5a. Clone team repo if configured
+    $hasTeamRepo = $false
+    if ($TeamRepo) {
+        Write-Step "Cloning team repo: $TeamRepo"
+        $cloneOk = Invoke-TeamRepoClone -RepoUrl $TeamRepo
+        if ($cloneOk) {
+            Write-Ok 'Team repo cloned'
+            $hasTeamRepo = $true
+        }
+        else {
+            Write-Warn 'Failed to clone team repo -- continuing with defaults only'
+        }
+    }
+
+    # 5b. Install skills with 3-layer merge
     if ($TargetDir) {
         $targetSkillsDir = $TargetDir
     }
@@ -321,10 +335,20 @@ function Invoke-SetupCommand {
 
     Write-Step "Skills target: $targetSkillsDir"
 
-    $copiedSkills = Install-TeamSkills -KitRoot $kitRoot -Role $Role -TargetDir $targetSkillsDir
-    Write-Ok "$($copiedSkills.Count) team skills installed for role: $Role"
+    $mergeParams = @{
+        KitRoot   = $kitRoot
+        Role      = $Role
+        TargetDir = $targetSkillsDir
+    }
+    if ($hasTeamRepo) { $mergeParams.IncludeTeamRepo = $true }
 
-    # 5b. Generate project-level instructions (to be committed to repos)
+    $mergeResults = Install-SkillsWithMerge @mergeParams
+    $totalInstalled = $mergeResults.installed.Count
+    $totalUpdated = $mergeResults.updated.Count
+    $totalSkipped = $mergeResults.skipped.Count
+    Write-Ok "$totalInstalled installed, $totalUpdated updated, $totalSkipped unchanged"
+
+    # 5c. Generate project-level instructions (to be committed to repos)
     $packRulesPath = Get-PackRulesPath -KitRoot $kitRoot -Role $Role
     $packRulesContent = ''
     if ($packRulesPath) {
@@ -351,7 +375,7 @@ function Invoke-SetupCommand {
     # -- Summary ---------------------------------------------------------------
     Write-Host ''
     $gentleAiStatus = if ($gentleAiAgentId -and -not $SkipGentleAi) { 'configured' } else { 'manual setup' }
-    $summary = New-SetupSummary -Ide $Ide -Role $Role -Provider $Provider -SkillsCopied $copiedSkills.Count -GentleAiStatus $gentleAiStatus
+    $summary = New-SetupSummary -Ide $Ide -Role $Role -Provider $Provider -SkillsCopied ($totalInstalled + $totalUpdated) -GentleAiStatus $gentleAiStatus
     Write-Host $summary -ForegroundColor Green
 
     Write-Host ''
@@ -378,7 +402,7 @@ function Invoke-SetupCommand {
     Write-Host ''
 }
 
-# -- Update (Phase 2 placeholder) ---------------------------------------------
+# -- Update --------------------------------------------------------------------
 function Invoke-UpdateCommand {
     Show-Banner
     $config = Get-TeamAiKitConfig
@@ -387,31 +411,73 @@ function Invoke-UpdateCommand {
         exit 1
     }
 
-    Write-Step "Current config: IDE=$($config.ide), Role=$($config.role)"
+    Write-Host "  Updating for: IDE=$($config.ide), Role=$($config.role)" -ForegroundColor White
+    Write-Host ''
 
-    if ($config.teamRepo) {
-        Write-Step "Team repo: $($config.teamRepo)"
-        Write-Warn 'Team repo sync not yet implemented (Phase 2)'
+    # Step 1: Pull team repo if configured
+    $hasTeamRepo = $false
+    if (-not [string]::IsNullOrWhiteSpace($config.teamRepo)) {
+        Write-Step "Pulling team repo: $($config.teamRepo)"
+        if (Test-TeamRepoCloned) {
+            $pullOk = Invoke-TeamRepoPull
+            if ($pullOk) {
+                Write-Ok 'Team repo updated'
+                $hasTeamRepo = $true
+            }
+            else {
+                Write-Warn 'Failed to pull team repo -- continuing with cached version'
+                $hasTeamRepo = $true  # still use cached clone
+            }
+        }
+        else {
+            Write-Step 'Team repo not cloned yet -- cloning...'
+            $cloneOk = Invoke-TeamRepoClone -RepoUrl $config.teamRepo
+            if ($cloneOk) {
+                Write-Ok 'Team repo cloned'
+                $hasTeamRepo = $true
+            }
+            else {
+                Write-Warn 'Failed to clone team repo -- continuing with defaults only'
+            }
+        }
     }
     else {
-        Write-Warn 'No team repo configured. Run "team-ai-kit setup -TeamRepo <url>" to add one.'
+        Write-Step 'No team repo configured (use "team-ai-kit setup -TeamRepo <url>" to add one)'
     }
 
-    # Re-install default skills without overwriting (Phase 2: full merge logic)
-    Write-Step 'Re-applying default skills for role...'
+    # Step 2: Merge skills with no-overwrite
     if ($TargetDir) {
         $targetSkillsDir = $TargetDir
     }
     else {
         $targetSkillsDir = Get-IdeSkillsDirectory -Ide $config.ide
     }
-    $copiedSkills = Install-TeamSkills -KitRoot $kitRoot -Role $config.role -TargetDir $targetSkillsDir
-    Write-Ok "$($copiedSkills.Count) team skills applied for role: $($config.role)"
 
-    # Update timestamp
+    Write-Step "Merging skills to: $targetSkillsDir"
+
+    $mergeParams = @{
+        KitRoot   = $kitRoot
+        Role      = $config.role
+        TargetDir = $targetSkillsDir
+    }
+    if ($hasTeamRepo) { $mergeParams.IncludeTeamRepo = $true }
+
+    $mergeResults = Install-SkillsWithMerge @mergeParams
+
+    Write-Host ''
+    Write-Ok "Installed: $($mergeResults.installed.Count) new skills"
+    if ($mergeResults.updated.Count -gt 0) {
+        Write-Ok "Updated:   $($mergeResults.updated.Count) skills (source changed, yours untouched)"
+    }
+    if ($mergeResults.skipped.Count -gt 0) {
+        Write-Step "Unchanged: $($mergeResults.skipped.Count) skills (already up to date or user-modified)"
+    }
+
+    # Step 3: Update config timestamp
     $config.lastUpdate = Get-Date -Format 'o'
     Save-TeamAiKitConfig -Config $config | Out-Null
-    Write-Ok 'Config updated'
+    Write-Host ''
+    Write-Ok 'Update complete'
     Write-Host ''
 }
 
@@ -436,19 +502,49 @@ function Invoke-StatusCommand {
     Write-Host "    Version:     $(if ($config.version) { $config.version } else { 'unknown' })"
     Write-Host ''
 
-    # Show installed skills
-    $skillsDir = Get-IdeSkillsDirectory -Ide $config.ide
-    $teamSkillsDir = Join-Path $skillsDir 'team-skills'
-    if (Test-Path $teamSkillsDir) {
-        $skillFiles = @(Get-ChildItem -Path $teamSkillsDir -Filter '*.md' -Recurse)
-        Write-Host "  Installed Skills: $($skillFiles.Count)" -ForegroundColor White
-        foreach ($skill in $skillFiles) {
-            $relativePath = $skill.FullName.Replace($teamSkillsDir, '').TrimStart('\', '/')
-            Write-Host "    - $relativePath" -ForegroundColor DarkGray
+    # Show installed skills from manifest
+    $manifest = Get-SkillManifest
+    $fileCount = $manifest.files.Count
+    if ($fileCount -gt 0) {
+        $defaultCount = @($manifest.files.Values | Where-Object { $_.source -eq 'default' }).Count
+        $teamCount = @($manifest.files.Values | Where-Object { $_.source -eq 'team' }).Count
+        Write-Host "  Tracked Skills: $fileCount total ($defaultCount default, $teamCount team)" -ForegroundColor White
+
+        # Check for user modifications
+        $skillsDir = Get-IdeSkillsDirectory -Ide $config.ide
+        $modifiedCount = 0
+        foreach ($key in $manifest.files.Keys) {
+            $filePath = Join-Path $skillsDir $key
+            if (Test-SkillModifiedByUser -FilePath $filePath -ManifestKey $key -Manifest $manifest) {
+                $modifiedCount++
+            }
+        }
+        if ($modifiedCount -gt 0) {
+            Write-Warn "  $modifiedCount skill(s) modified locally (protected from overwrite)"
         }
     }
     else {
-        Write-Warn "  Skills directory not found: $teamSkillsDir"
+        # Fallback: check directory directly
+        $skillsDir = Get-IdeSkillsDirectory -Ide $config.ide
+        $teamSkillsDir = Join-Path $skillsDir 'team-skills'
+        if (Test-Path $teamSkillsDir) {
+            $skillFiles = @(Get-ChildItem -Path $teamSkillsDir -Filter '*.md' -Recurse)
+            Write-Host "  Installed Skills: $($skillFiles.Count) (no manifest -- run update to track)" -ForegroundColor White
+        }
+        else {
+            Write-Warn "  Skills directory not found: $teamSkillsDir"
+        }
+    }
+
+    # Team repo status
+    if (-not [string]::IsNullOrWhiteSpace($config.teamRepo)) {
+        Write-Host ''
+        if (Test-TeamRepoCloned) {
+            Write-Ok "Team repo: cloned locally"
+        }
+        else {
+            Write-Warn 'Team repo: configured but not cloned (run "team-ai-kit update")'
+        }
     }
     Write-Host ''
 }
