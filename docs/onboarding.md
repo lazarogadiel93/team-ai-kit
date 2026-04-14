@@ -1,27 +1,45 @@
-# Team AI Kit — Guía de Onboarding
+# Team AI Kit -- Guia de Onboarding
 
-> Todo lo que necesitás saber para arrancar con tu entorno de desarrollo asistido por AI.
-
----
-
-## Requisitos previos
-
-| Herramienta | ¿Para qué? | Instalación |
-|-------------|-------------|-------------|
-| **Windows 10/11** | SO del equipo | — |
-| **PowerShell 5.1+** | Ejecutar el setup | Incluido en Windows |
-| **Scoop** | Package manager | El setup lo instala si falta |
-| **Git** | Control de versiones | `scoop install git` |
-| **Tu IDE** | VS Code, IntelliJ o OpenCode | Instalado por vos |
-
-> **Nota**: Si ya tenés Scoop y Git, no necesitás hacer nada manual. El setup se encarga del resto.
+> Lo que necesitas para arrancar con tu entorno de AI configurado por el equipo.
 
 ---
 
-## Paso 1: Clonar el kit
+## Requisitos
+
+### Windows
+
+| Herramienta | Nota |
+|-------------|------|
+| **PowerShell 5.1+** | Incluido en Windows |
+| **Git** | `scoop install git` |
+| **Tu IDE** | VS Code, IntelliJ o OpenCode |
+
+> Scoop, gentle-ai y engram los instala el setup si faltan.
+
+### macOS / Linux
+
+| Herramienta | Instalacion |
+|-------------|-------------|
+| **Bash 4+** | Incluido |
+| **jq** | `brew install jq` / `apt install jq` |
+| **Git** | Incluido o via package manager |
+| **Tu IDE** | VS Code, IntelliJ o OpenCode |
+
+---
+
+## Paso 1: Instalar
+
+### Windows (Scoop)
 
 ```powershell
-git clone <tu-repo-azure-devops>/team-ai-kit
+scoop bucket add gentleman https://github.com/Gentleman-Programming/scoop-bucket
+scoop install team-ai-kit
+```
+
+### macOS / Linux (o Windows sin Scoop)
+
+```bash
+git clone https://github.com/lazarogadiel93/team-ai-kit
 cd team-ai-kit
 ```
 
@@ -29,71 +47,111 @@ cd team-ai-kit
 
 ## Paso 2: Ejecutar el setup
 
+### Interactivo (recomendado para la primera vez)
+
 ```powershell
+# Windows
+team-ai-kit setup
+# o si clonaste el repo:
 .\setup.ps1
 ```
 
-El setup te hace **4 preguntas**:
+```bash
+# macOS / Linux
+./setup.sh
+```
 
-1. **IDE** — ¿Qué usás? (VS Code, IntelliJ, OpenCode)
-2. **Rol** — ¿Qué hacés? (Frontend, Backend Node, DevOps, Python)
-3. **Provider** — ¿Qué proveedor de AI? (OpenAI, Azure OpenAI, Anthropic)
-4. **API Key** — Tu clave de API (solo se almacena localmente)
+Te hace **3 preguntas** (VS Code / IntelliJ) o **4** (OpenCode):
 
-Y después **automáticamente**:
+1. **IDE** -- VS Code + Copilot, IntelliJ + Copilot, u OpenCode
+2. **Rol** -- Frontend, Backend Node, DevOps, Python
+3. **Provider** -- Solo si elegiste OpenCode (Copilot IDEs auto-detectan `github-copilot`)
 
-- Instala `gentle-ai` y `engram` via Scoop
-- Copia los skills de equipo a tu IDE (5 compartidos + 2 de tu rol)
-- Genera la config MCP (engram + context7)
-- Genera las instrucciones de Copilot con las reglas de tu rol
+Despues, automaticamente:
+
+- Instala gentle-ai y engram si faltan (Windows: via Scoop)
+- Ejecuta `gentle-ai install` con la config optima para tu IDE
+- Copia 5 skills compartidos + 2 de tu rol
+- Genera instrucciones de Copilot con las reglas de tu equipo
+- Guarda tu config en `~/.team-ai-kit/config.json`
+
+### No interactivo (para CI o si ya sabes que queres)
+
+```powershell
+# Windows
+team-ai-kit setup -Ide vscode -Role frontend
+team-ai-kit setup -Ide vscode -Role frontend -TeamRepo https://dev.azure.com/equipo/team-knowledge
+```
+
+```bash
+# macOS / Linux
+team-ai-kit setup --ide vscode --role frontend
+team-ai-kit setup --ide vscode --role frontend --team-repo https://github.com/team/knowledge
+```
 
 ---
 
-## Paso 3: Verificar la instalación
+## Paso 3: Verificar
 
-Después del setup, verificá que todo esté en orden:
+```
+team-ai-kit doctor
+```
+
+Esto verifica: gentle-ai, engram, jq (Unix), config, skills instalados y team repo.
+
+Si queres ver tu config actual:
+
+```
+team-ai-kit status
+```
+
+### Verificar skills manualmente
 
 ```powershell
-# Verificar gentle-ai
-gentle-ai --version
+# Windows: VS Code / IntelliJ
+ls "$env:USERPROFILE\.copilot\skills\team-skills"
 
-# Verificar engram
-engram --version
+# Windows: OpenCode
+ls "$env:USERPROFILE\.config\opencode\skills\team-skills"
+```
 
-# Verificar skills instalados (VS Code / IntelliJ)
-ls ~/.github/copilot-skills/team-skills/
+```bash
+# macOS/Linux: VS Code / IntelliJ
+ls ~/.copilot/skills/team-skills/
 
-# Verificar skills instalados (OpenCode)
+# macOS/Linux: OpenCode
 ls ~/.config/opencode/skills/team-skills/
 ```
 
 ---
 
-## Paso 4: Configurar engram sync (opcional)
+## Paso 4: Engram sync (opcional)
 
-Para compartir conocimiento con el equipo, configurá engram sync apuntando al repo de Azure DevOps:
+Para compartir conocimiento con el equipo:
 
-```powershell
-engram sync --repo <tu-repo-azure-devops>/shared-engram
+```bash
+# Al terminar de trabajar: exportar lo aprendido
+engram sync
+
+# Al empezar: importar conocimiento del equipo
+engram sync --import
 ```
-
-Esto permite que las decisiones, descubrimientos y bug fixes que guardes se sincronicen con el equipo.
 
 ---
 
-## ¿Qué se instaló?
+## Que se instalo
 
-### Skills compartidos (todos los roles)
+### 5 skills compartidos (todos los roles)
 
-| Skill | Descripción |
-|-------|-------------|
-| **architecture** | Clean Architecture, estructura feature-based, dependencias entre capas |
-| **code-quality** | Patrones de calidad de código, naming, estructura |
-| **debug** | Debugging sistemático, análisis de errores, root cause |
-| **thinking** | Análisis cognitivo, definición de problemas, evaluación de alternativas |
-| **performance** | Optimización de bundle, rendering, token economics |
+| Skill | Trigger |
+|-------|---------|
+| **architecture** | Al disenar estructura, definir modulos, dependencias |
+| **code-quality** | Al escribir o revisar codigo |
+| **debug** | Al investigar bugs, root cause analysis |
+| **thinking** | Al analizar problemas, evaluar alternativas |
+| **performance** | Al optimizar bundle, rendering, tokens |
 
-### Skills por rol
+### 2 skills de tu rol
 
 | Rol | Skills |
 |-----|--------|
@@ -104,87 +162,100 @@ Esto permite que las decisiones, descubrimientos y bug fixes que guardes se sinc
 
 ### Pack rules
 
-Cada rol tiene reglas específicas en `packs/<rol>/rules.md` que se inyectan en las instrucciones de Copilot.
+Reglas especificas por rol (en `packs/<rol>/rules.md`) que se inyectan automaticamente en las instrucciones de Copilot.
 
 ---
 
-## Actualizar el kit
+## Actualizar
 
-Cuando el equipo publique una nueva versión del kit:
+Cuando el equipo publique cambios en skills o reglas:
 
-```powershell
-cd team-ai-kit
-git pull
-.\setup.ps1 --update
+```
+team-ai-kit update
 ```
 
-El flag `--update` además actualiza `gentle-ai` a la última versión via Scoop.
+Esto:
+1. Hace pull del team-knowledge repo (si esta configurado)
+2. Mergea skills nuevos o actualizados
+3. **NUNCA pisa** skills que vos modificaste localmente
 
 ---
 
-## Agregar un skill nuevo al equipo
+## Agregar un skill al equipo
 
-1. Creá un archivo `.md` en la carpeta correcta:
-   - **Compartido** (todos los roles): `skills/shared/<nombre>/SKILL.md`
+1. Crear archivo:
+   - **Compartido**: `skills/shared/<nombre>/SKILL.md`
    - **Por rol**: `skills/roles/<rol>/<nombre>.skill.md`
 
-2. Seguí la estructura de frontmatter:
-   ```yaml
-   ---
-   name: nombre-del-skill
-   description: >
-     Descripción del skill.
-     Trigger: Cuándo debe cargarse este skill.
-   metadata:
-     author: team-ai-kit
-     version: "1.0"
-   ---
-   ```
+2. Estructura minima:
 
-3. Incluí las secciones obligatorias:
-   - `## When to Use` — Cuándo activar el skill
-   - `## Critical Patterns` — Patrones y reglas concretas
+```markdown
+---
+name: nombre-del-skill
+description: >
+  Que hace este skill.
+  Trigger: Cuando se carga.
+metadata:
+  author: team-ai-kit
+  version: "1.0"
+---
 
-4. Ejecutá los tests para validar:
-   ```powershell
-   Invoke-Pester tests/skills.Tests.ps1
-   ```
+## When to Use
 
-5. Hacé commit y push. Los demás lo obtienen con `git pull` + `.\setup.ps1`.
+- Situacion 1
+- Situacion 2
+
+## Critical Patterns
+
+### Pattern 1
+
+Explicacion y ejemplos.
+```
+
+3. Validar:
+
+```powershell
+# Windows
+Invoke-Pester tests/skills.Tests.ps1 -Output Detailed
+```
+
+4. Commit y push. Los demas lo obtienen con `team-ai-kit update`.
 
 ---
 
 ## Troubleshooting
 
-### "gentle-ai no se encuentra"
+### Primero: correr doctor
+
+```
+team-ai-kit doctor
+```
+
+Si algo falla, te dice exactamente que.
+
+### gentle-ai no se encuentra
 
 ```powershell
+# Windows
 scoop bucket add gentleman https://github.com/Gentleman-Programming/scoop-bucket
 scoop install gentle-ai
 ```
 
-### "engram no se encuentra"
-
-```powershell
-# Verificar si está en AppData (gentle-ai lo instala ahí)
-ls $env:LOCALAPPDATA\engram\bin\
+```bash
+# macOS
+brew tap Gentleman-Programming/tap && brew install gentle-ai
 ```
 
-### "Los skills no aparecen en mi IDE"
+### Los skills no aparecen en mi IDE
 
-Verificá que la carpeta de destino es correcta:
-- **VS Code/IntelliJ**: `~/.github/copilot-skills/team-skills/`
-- **OpenCode**: `~/.config/opencode/skills/team-skills/`
+Verificar que la carpeta exista (ver Paso 3 arriba). Si no, correr:
 
-### "Los tests fallan"
-
-```powershell
-# Correr toda la suite con output detallado
-Invoke-Pester tests/ -Output Detailed
+```
+team-ai-kit update
 ```
 
----
+### IntelliJ no detecta MCP servers
 
-## Contacto
-
-¿Dudas? Preguntale al equipo o abrí un issue en el repo.
+1. Verificar que el Copilot plugin esta actualizado
+2. La config MCP se muestra durante el setup -- copiarla a la config de MCP de IntelliJ
+3. Verificar engram: `engram --version`
