@@ -1,0 +1,28 @@
+{
+    "version": "2.0.0",
+    "description": "Team AI Kit - gentle-ai for teams. Standardizes AI usage across development teams with role-based skills, shared memory, and zero-friction onboarding.",
+    "homepage": "https://github.com/Gentleman-Programming/team-ai-kit",
+    "license": "MIT",
+    "url": "https://github.com/Gentleman-Programming/team-ai-kit/releases/download/v2.0.0/team-ai-kit-2.0.0.zip",
+    "hash": "",
+    "extract_dir": "team-ai-kit-2.0.0",
+    "bin": [
+        ["bin\\team-ai-kit.ps1", "team-ai-kit"]
+    ],
+    "depends": "gentleman/gentle-ai",
+    "suggest": {
+        "engram": "gentleman/engram"
+    },
+    "post_install": "Write-Host 'Run \"team-ai-kit setup\" to configure your environment.' -ForegroundColor Cyan",
+    "checkver": {
+        "github": "https://github.com/Gentleman-Programming/team-ai-kit"
+    },
+    "autoupdate": {
+        "url": "https://github.com/Gentleman-Programming/team-ai-kit/releases/download/v$version/team-ai-kit-$version.zip"
+    },
+    "notes": [
+        "Run 'team-ai-kit setup' to configure your IDE, role, and team repo.",
+        "Run 'team-ai-kit doctor' to verify your installation.",
+        "Run 'team-ai-kit help' for all available commands."
+    ]
+}

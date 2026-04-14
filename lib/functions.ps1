@@ -13,6 +13,86 @@ Set-StrictMode -Version Latest
 $script:VALID_IDES = @('vscode', 'intellij', 'opencode')
 $script:VALID_ROLES = @('frontend', 'backend-node', 'devops', 'python')
 $script:VALID_PROVIDERS = @('openai', 'azure-openai', 'anthropic', 'github-copilot')
+$script:VALID_COMMANDS = @('setup', 'update', 'status', 'doctor', 'help')
+
+# ── Config Persistence ───────────────────────────────────────────────────────
+
+function Get-TeamAiKitConfigDir {
+    <#
+    .SYNOPSIS
+        Returns the path to the team-ai-kit config directory (~/.team-ai-kit).
+    #>
+    return Join-Path $env:USERPROFILE '.team-ai-kit'
+}
+
+function Get-TeamAiKitConfigPath {
+    <#
+    .SYNOPSIS
+        Returns the full path to the config.json file.
+    #>
+    return Join-Path (Get-TeamAiKitConfigDir) 'config.json'
+}
+
+function Get-TeamAiKitConfig {
+    <#
+    .SYNOPSIS
+        Reads and returns the team-ai-kit config as a hashtable.
+        Returns default empty config if file does not exist.
+    #>
+    $configPath = Get-TeamAiKitConfigPath
+    if (-not (Test-Path $configPath)) {
+        return @{
+            ide          = $null
+            role         = $null
+            provider     = $null
+            teamRepo     = $null
+            installedAt  = $null
+            lastUpdate   = $null
+            version      = $null
+        }
+    }
+    $raw = Get-Content $configPath -Raw | ConvertFrom-Json
+    $config = @{}
+    $raw.PSObject.Properties | ForEach-Object { $config[$_.Name] = $_.Value }
+    return $config
+}
+
+function Save-TeamAiKitConfig {
+    <#
+    .SYNOPSIS
+        Saves the team-ai-kit config hashtable to config.json.
+    .OUTPUTS
+        The path to the saved config file.
+    #>
+    param(
+        [Parameter(Mandatory)]
+        [hashtable]$Config
+    )
+    $configDir = Get-TeamAiKitConfigDir
+    if (-not (Test-Path $configDir)) {
+        New-Item -ItemType Directory -Path $configDir -Force | Out-Null
+    }
+    $configPath = Join-Path $configDir 'config.json'
+    $Config | ConvertTo-Json -Depth 5 | Set-Content -Path $configPath -Encoding UTF8
+    return $configPath
+}
+
+function Test-FirstRun {
+    <#
+    .SYNOPSIS
+        Returns $true if team-ai-kit has never been configured (no config.json).
+    #>
+    return -not (Test-Path (Get-TeamAiKitConfigPath))
+}
+
+function Test-ValidCommand {
+    <#
+    .SYNOPSIS
+        Validates that the given command is a supported CLI subcommand.
+    #>
+    param([string]$Command)
+    return $script:VALID_COMMANDS -contains $Command.ToLower()
+}
 
 # ── IDE-to-Agent Mapping ──────────────────────────────────────────────────────
 

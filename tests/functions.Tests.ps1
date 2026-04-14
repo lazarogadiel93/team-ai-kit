@@ -476,3 +476,170 @@ Describe 'New-SetupSummary' {
         $summary | Should -BeLike '*n/a*'
     }
 }
+
+# -- Config Persistence --------------------------------------------------------
+
+Describe 'Get-TeamAiKitConfigDir' {
+    It 'returns a path under USERPROFILE' {
+        $dir = Get-TeamAiKitConfigDir
+        $dir | Should -BeLike "$env:USERPROFILE*"
+    }
+
+    It 'returns a path ending in .team-ai-kit' {
+        $dir = Get-TeamAiKitConfigDir
+        $dir | Should -BeLike '*.team-ai-kit'
+    }
+}
+
+Describe 'Get-TeamAiKitConfigPath' {
+    It 'returns a path ending in config.json' {
+        $path = Get-TeamAiKitConfigPath
+        $path | Should -BeLike '*config.json'
+    }
+
+    It 'is inside the config dir' {
+        $path = Get-TeamAiKitConfigPath
+        $dir = Get-TeamAiKitConfigDir
+        $path | Should -BeLike "$dir*"
+    }
+}
+
+Describe 'Get-TeamAiKitConfig' {
+    It 'returns a hashtable with expected keys when no config exists' {
+        # Use a temp USERPROFILE to avoid touching real config
+        $originalProfile = $env:USERPROFILE
+        $env:USERPROFILE = Join-Path $env:TEMP "team-ai-kit-config-test-$(Get-Random)"
+        try {
+            $config = Get-TeamAiKitConfig
+            $config | Should -BeOfType [hashtable]
+            $config.ContainsKey('ide') | Should -BeTrue
+            $config.ContainsKey('role') | Should -BeTrue
+            $config.ContainsKey('provider') | Should -BeTrue
+            $config.ContainsKey('teamRepo') | Should -BeTrue
+            $config.ContainsKey('installedAt') | Should -BeTrue
+            $config.ContainsKey('lastUpdate') | Should -BeTrue
+            $config.ContainsKey('version') | Should -BeTrue
+            $config.ide | Should -BeNullOrEmpty
+        }
+        finally {
+            $env:USERPROFILE = $originalProfile
+        }
+    }
+}
+
+Describe 'Save-TeamAiKitConfig' {
+    BeforeAll {
+        $script:configTestDir = Join-Path $env:TEMP "team-ai-kit-config-save-$(Get-Random)"
+    }
+
+    AfterAll {
+        if (Test-Path $script:configTestDir) {
+            Remove-Item -Path $script:configTestDir -Recurse -Force
+        }
+    }
+
+    It 'creates config directory and file' {
+        $originalProfile = $env:USERPROFILE
+        $env:USERPROFILE = $script:configTestDir
+        try {
+            $config = @{
+                ide         = 'vscode'
+                role        = 'frontend'
+                provider    = 'github-copilot'
+                teamRepo    = $null
+                installedAt = '2026-04-14T00:00:00'
+                lastUpdate  = '2026-04-14T00:00:00'
+                version     = '2.0.0'
+            }
+            $path = Save-TeamAiKitConfig -Config $config
+            Test-Path $path | Should -BeTrue
+        }
+        finally {
+            $env:USERPROFILE = $originalProfile
+        }
+    }
+
+    It 'saves valid JSON that can be read back' {
+        $originalProfile = $env:USERPROFILE
+        $env:USERPROFILE = $script:configTestDir
+        try {
+            $configPath = Get-TeamAiKitConfigPath
+            $raw = Get-Content $configPath -Raw
+            { $raw | ConvertFrom-Json } | Should -Not -Throw
+            $parsed = $raw | ConvertFrom-Json
+            $parsed.ide | Should -Be 'vscode'
+            $parsed.role | Should -Be 'frontend'
+            $parsed.provider | Should -Be 'github-copilot'
+            $parsed.version | Should -Be '2.0.0'
+        }
+        finally {
+            $env:USERPROFILE = $originalProfile
+        }
+    }
+
+    It 'config roundtrips through Save + Get' {
+        $originalProfile = $env:USERPROFILE
+        $env:USERPROFILE = $script:configTestDir
+        try {
+            $readBack = Get-TeamAiKitConfig
+            $readBack | Should -BeOfType [hashtable]
+            $readBack.ide | Should -Be 'vscode'
+            $readBack.role | Should -Be 'frontend'
+            $readBack.provider | Should -Be 'github-copilot'
+        }
+        finally {
+            $env:USERPROFILE = $originalProfile
+        }
+    }
+}
+
+Describe 'Test-FirstRun' {
+    It 'returns $true when no config exists' {
+        $originalProfile = $env:USERPROFILE
+        $env:USERPROFILE = Join-Path $env:TEMP "team-ai-kit-firstrun-$(Get-Random)"
+        try {
+            Test-FirstRun | Should -BeTrue
+        }
+        finally {
+            $env:USERPROFILE = $originalProfile
+        }
+    }
+
+    It 'returns $false when config exists' {
+        $originalProfile = $env:USERPROFILE
+        $env:USERPROFILE = Join-Path $env:TEMP "team-ai-kit-firstrun2-$(Get-Random)"
+        try {
+            # Create a config
+            Save-TeamAiKitConfig -Config @{ ide = 'vscode' } | Out-Null
+            Test-FirstRun | Should -BeFalse
+        }
+        finally {
+            $env:USERPROFILE = $originalProfile
+            $tempDir = Join-Path $env:TEMP "team-ai-kit-firstrun2-*"
+            Get-ChildItem $env:TEMP -Directory -Filter 'team-ai-kit-firstrun2-*' | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+# -- Command Validation --------------------------------------------------------
+
+Describe 'Test-ValidCommand' {
+    It 'returns $true for supported commands' {
+        Test-ValidCommand -Command 'setup' | Should -BeTrue
+        Test-ValidCommand -Command 'update' | Should -BeTrue
+        Test-ValidCommand -Command 'status' | Should -BeTrue
+        Test-ValidCommand -Command 'doctor' | Should -BeTrue
+        Test-ValidCommand -Command 'help' | Should -BeTrue
+    }
+
+    It 'is case-insensitive' {
+        Test-ValidCommand -Command 'Setup' | Should -BeTrue
+        Test-ValidCommand -Command 'HELP' | Should -BeTrue
+    }
+
+    It 'returns $false for unsupported commands' {
+        Test-ValidCommand -Command 'install' | Should -BeFalse
+        Test-ValidCommand -Command 'run' | Should -BeFalse
+        Test-ValidCommand -Command '' | Should -BeFalse
+    }
+}
