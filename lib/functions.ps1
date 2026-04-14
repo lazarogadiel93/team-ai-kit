@@ -486,7 +486,7 @@ function New-SetupSummary {
     )
     return @"
 ============================================
-  Team AI Kit — Setup Complete
+  Team AI Kit -- Setup Complete
 ============================================
   IDE:       $Ide
   Role:      $Role
