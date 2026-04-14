@@ -12,7 +12,7 @@ Set-StrictMode -Version Latest
 
 $script:VALID_IDES = @('vscode', 'intellij', 'opencode')
 $script:VALID_ROLES = @('frontend', 'backend-node', 'devops', 'python')
-$script:VALID_PROVIDERS = @('openai', 'azure-openai', 'anthropic')
+$script:VALID_PROVIDERS = @('openai', 'azure-openai', 'anthropic', 'github-copilot')
 
 # ── Prerequisite Checks ──────────────────────────────────────────────────────
 

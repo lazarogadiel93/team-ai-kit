@@ -7,14 +7,19 @@
     your role, and sets up shared engram sync.
 
     Supports both interactive mode (prompts) and non-interactive mode (parameters).
+    Provider is auto-detected for VS Code/IntelliJ (github-copilot) and only asked
+    for OpenCode (direct API access).
 .EXAMPLE
     .\setup.ps1
-    Interactive mode -- prompts for IDE, role, and provider.
+    Interactive mode -- prompts for IDE and role (3 questions for Copilot users).
 .EXAMPLE
-    .\setup.ps1 -Ide vscode -Role frontend -Provider openai
-    Non-interactive mode -- skips prompts, uses provided values.
+    .\setup.ps1 -Ide vscode -Role frontend
+    Non-interactive mode -- provider auto-set to github-copilot.
 .EXAMPLE
-    .\setup.ps1 -Ide opencode -Role devops -Provider anthropic -TargetDir C:\temp\test-setup
+    .\setup.ps1 -Ide opencode -Role devops -Provider anthropic
+    Non-interactive for OpenCode -- must specify provider explicitly.
+.EXAMPLE
+    .\setup.ps1 -Ide vscode -Role frontend -TargetDir C:\temp\test-setup
     Non-interactive with custom output directory (useful for testing).
 .EXAMPLE
     .\setup.ps1 -Update
@@ -28,7 +33,7 @@ param(
     [ValidateSet('frontend', 'backend-node', 'devops', 'python')]
     [string]$Role,
 
-    [ValidateSet('openai', 'azure-openai', 'anthropic')]
+    [ValidateSet('openai', 'azure-openai', 'anthropic', 'github-copilot')]
     [string]$Provider,
 
     [string]$TargetDir,
@@ -41,27 +46,27 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-# ── Load functions ────────────────────────────────────────────────────────────
+# -- Load functions ------------------------------------------------------------
 $kitRoot = $PSScriptRoot
 . (Join-Path $kitRoot 'lib\functions.ps1')
 
-# ── Colors ────────────────────────────────────────────────────────────────────
+# -- Colors --------------------------------------------------------------------
 function Write-Step { param([string]$Msg) Write-Host "  > $Msg" -ForegroundColor Cyan }
 function Write-Ok   { param([string]$Msg) Write-Host "  + $Msg" -ForegroundColor Green }
 function Write-Warn { param([string]$Msg) Write-Host "  ! $Msg" -ForegroundColor Yellow }
 function Write-Err  { param([string]$Msg) Write-Host "  x $Msg" -ForegroundColor Red }
 
-# ── Banner ────────────────────────────────────────────────────────────────────
+# -- Banner --------------------------------------------------------------------
 Write-Host ''
 Write-Host '  +======================================+' -ForegroundColor Magenta
 Write-Host '  |        Team AI Kit -- Setup          |' -ForegroundColor Magenta
-Write-Host '  |  4 questions. 2 minutes. Full power. |' -ForegroundColor Magenta
+Write-Host '  |  3 questions. 2 minutes. Full power. |' -ForegroundColor Magenta
 Write-Host '  +======================================+' -ForegroundColor Magenta
 Write-Host ''
 
-# ── Step 1: Prerequisites ────────────────────────────────────────────────────
+# -- Step 1: Prerequisites -----------------------------------------------------
 if (-not $SkipPrerequisites) {
-    Write-Host '  [1/6] Checking prerequisites...' -ForegroundColor White
+    Write-Host '  [1/5] Checking prerequisites...' -ForegroundColor White
 
     if (-not (Test-ScoopInstalled)) {
         Write-Step 'Installing Scoop...'
@@ -120,12 +125,12 @@ if (-not $SkipPrerequisites) {
     }
 }
 else {
-    Write-Host '  [1/6] Skipping prerequisites (SkipPrerequisites flag)' -ForegroundColor DarkGray
+    Write-Host '  [1/5] Skipping prerequisites (SkipPrerequisites flag)' -ForegroundColor DarkGray
 }
 
-# ── Step 2: IDE Selection ────────────────────────────────────────────────────
+# -- Step 2: IDE Selection -----------------------------------------------------
 Write-Host ''
-Write-Host '  [2/6] IDE Selection' -ForegroundColor White
+Write-Host '  [2/5] IDE Selection' -ForegroundColor White
 
 if (-not $Ide) {
     Write-Host '    1) VS Code + Copilot'
@@ -146,9 +151,9 @@ if (-not $Ide) {
 
 Write-Ok "IDE: $Ide"
 
-# ── Step 3: Role Selection ───────────────────────────────────────────────────
+# -- Step 3: Role + Provider ---------------------------------------------------
 Write-Host ''
-Write-Host '  [3/6] Role Selection' -ForegroundColor White
+Write-Host '  [3/5] Role Selection' -ForegroundColor White
 
 if (-not $Role) {
     Write-Host '    1) Frontend (React / Next.js)'
@@ -171,32 +176,39 @@ if (-not $Role) {
 
 Write-Ok "Role: $Role"
 
-# ── Step 4: Provider Selection ───────────────────────────────────────────────
-Write-Host ''
-Write-Host '  [4/6] AI Provider' -ForegroundColor White
-
+# Provider: auto-detect for Copilot IDEs, ask only for OpenCode
 if (-not $Provider) {
-    Write-Host '    1) OpenAI'
-    Write-Host '    2) Azure OpenAI'
-    Write-Host '    3) Anthropic'
-    Write-Host ''
+    if ($Ide -eq 'vscode' -or $Ide -eq 'intellij') {
+        $Provider = 'github-copilot'
+        Write-Ok "Provider: $Provider (auto-detected from IDE)"
+    }
+    else {
+        Write-Host ''
+        Write-Host '    AI Provider (OpenCode requires direct API access):' -ForegroundColor White
+        Write-Host '    1) OpenAI'
+        Write-Host '    2) Azure OpenAI'
+        Write-Host '    3) Anthropic'
+        Write-Host ''
 
-    do {
-        $providerChoice = Read-Host '  Your provider (1-3)'
-    } while ($providerChoice -notin @('1', '2', '3'))
+        do {
+            $providerChoice = Read-Host '  Your provider (1-3)'
+        } while ($providerChoice -notin @('1', '2', '3'))
 
-    $Provider = switch ($providerChoice) {
-        '1' { 'openai' }
-        '2' { 'azure-openai' }
-        '3' { 'anthropic' }
+        $Provider = switch ($providerChoice) {
+            '1' { 'openai' }
+            '2' { 'azure-openai' }
+            '3' { 'anthropic' }
+        }
+        Write-Ok "Provider: $Provider"
     }
 }
+else {
+    Write-Ok "Provider: $Provider"
+}
 
-Write-Ok "Provider: $Provider"
-
-# ── Step 5: Install Skills ──────────────────────────────────────────────────
+# -- Step 4: Install Skills ----------------------------------------------------
 Write-Host ''
-Write-Host '  [5/6] Installing team skills...' -ForegroundColor White
+Write-Host '  [4/5] Installing team skills...' -ForegroundColor White
 
 if ($TargetDir) {
     $targetSkillsDir = $TargetDir
@@ -231,9 +243,9 @@ if ($templateDir) {
     Write-Ok "$($createdTemplates.Count) IDE config templates generated"
 }
 
-# ── Step 6: Configure Engram + MCP ───────────────────────────────────────────
+# -- Step 5: Configure Engram + MCP --------------------------------------------
 Write-Host ''
-Write-Host '  [6/6] Configuring engram & MCP...' -ForegroundColor White
+Write-Host '  [5/5] Configuring engram & MCP...' -ForegroundColor White
 
 $engramBin = Get-EngramBinaryPath
 if ($engramBin) {
@@ -263,14 +275,22 @@ $instructions = New-CopilotInstructions -Role $Role -PackRulesContent $packRules
 Write-Ok "Copilot instructions generated for role: $Role"
 Write-Step 'Copy the instructions to your project .github/copilot-instructions.md'
 
-# ── Summary ──────────────────────────────────────────────────────────────────
+# -- Summary -------------------------------------------------------------------
 Write-Host ''
 $summary = New-SetupSummary -Ide $Ide -Role $Role -Provider $Provider -SkillsCopied $copiedSkills.Count
 Write-Host $summary -ForegroundColor Green
 
 Write-Host ''
 Write-Host '  Next steps:' -ForegroundColor Yellow
-Write-Host '    1. Run gentle-ai to complete agent configuration' -ForegroundColor White
-Write-Host '    2. Configure engram sync to your Azure DevOps repo' -ForegroundColor White
-Write-Host '    3. Open your IDE and start working!' -ForegroundColor White
+if ($Provider -eq 'github-copilot') {
+    Write-Host '    1. Run gentle-ai to complete agent configuration' -ForegroundColor White
+    Write-Host '    2. Configure engram sync to your Azure DevOps repo' -ForegroundColor White
+    Write-Host '    3. Open your IDE and start working!' -ForegroundColor White
+}
+else {
+    Write-Host '    1. Set your API key for the selected provider' -ForegroundColor White
+    Write-Host '    2. Run gentle-ai to complete agent configuration' -ForegroundColor White
+    Write-Host '    3. Configure engram sync to your Azure DevOps repo' -ForegroundColor White
+    Write-Host '    4. Open your IDE and start working!' -ForegroundColor White
+}
 Write-Host ''

@@ -59,6 +59,7 @@ Describe 'Test-ValidProvider' {
         Test-ValidProvider -Provider 'openai' | Should -BeTrue
         Test-ValidProvider -Provider 'azure-openai' | Should -BeTrue
         Test-ValidProvider -Provider 'anthropic' | Should -BeTrue
+        Test-ValidProvider -Provider 'github-copilot' | Should -BeTrue
     }
 
     It 'returns $false for unsupported providers' {
