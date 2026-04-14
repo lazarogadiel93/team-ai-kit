@@ -14,6 +14,37 @@ $script:VALID_IDES = @('vscode', 'intellij', 'opencode')
 $script:VALID_ROLES = @('frontend', 'backend-node', 'devops', 'python')
 $script:VALID_PROVIDERS = @('openai', 'azure-openai', 'anthropic', 'github-copilot')
 
+# ── IDE-to-Agent Mapping ──────────────────────────────────────────────────────
+
+function Get-GentleAiAgentId {
+    <#
+    .SYNOPSIS
+        Maps a team-ai-kit IDE identifier to a gentle-ai agent ID.
+        Returns $null for IDEs not supported by gentle-ai (e.g. IntelliJ).
+    #>
+    param(
+        [Parameter(Mandatory)]
+        [string]$Ide
+    )
+    $map = @{
+        'vscode'   = 'vscode-copilot'
+        'opencode' = 'opencode'
+    }
+    return $map[$Ide.ToLower()]
+}
+
+function Test-GentleAiSupportsIde {
+    <#
+    .SYNOPSIS
+        Returns $true if gentle-ai has a native adapter for this IDE.
+    #>
+    param(
+        [Parameter(Mandatory)]
+        [string]$Ide
+    )
+    return $null -ne (Get-GentleAiAgentId -Ide $Ide)
+}
+
 # ── Prerequisite Checks ──────────────────────────────────────────────────────
 
 function Test-ScoopInstalled {
@@ -85,6 +116,37 @@ function Get-EngramBinaryPath {
     if (Test-Path $appDataPath) { return $appDataPath }
 
     return $null
+}
+
+# ── gentle-ai Install ────────────────────────────────────────────────────────
+
+function Invoke-GentleAiInstall {
+    <#
+    .SYNOPSIS
+        Runs gentle-ai install with the correct flags for the given agent.
+    .DESCRIPTION
+        Executes `gentle-ai install --agent <id> --preset <preset> --persona <persona>`.
+        Returns $true on success, $false on failure.
+    #>
+    param(
+        [Parameter(Mandatory)]
+        [string]$AgentId,
+        [string]$Preset = 'ecosystem-only',
+        [string]$Persona = 'gentleman'
+    )
+
+    if (-not (Test-GentleAiInstalled)) {
+        throw 'gentle-ai is not installed. Run setup prerequisites first.'
+    }
+
+    $args = @('install', '--agent', $AgentId, '--preset', $Preset, '--persona', $Persona)
+    try {
+        & gentle-ai @args
+        return $LASTEXITCODE -eq 0
+    }
+    catch {
+        return $false
+    }
 }
 
 # ── Validation ────────────────────────────────────────────────────────────────
@@ -189,6 +251,7 @@ function Get-IdeSkillsDirectory {
     <#
     .SYNOPSIS
         Returns the target directory where skills should be copied for the given IDE.
+        Uses gentle-ai's native paths for supported IDEs.
     #>
     param(
         [Parameter(Mandatory)]
@@ -196,14 +259,15 @@ function Get-IdeSkillsDirectory {
     )
     switch ($Ide.ToLower()) {
         'vscode' {
-            # VS Code Copilot: user-level skills directory
-            return Join-Path $env:USERPROFILE '.github\copilot-skills'
+            # VS Code Copilot: gentle-ai installs skills here
+            return Join-Path $env:USERPROFILE '.copilot\skills'
         }
         'intellij' {
-            # IntelliJ: user-level skills directory
-            return Join-Path $env:USERPROFILE '.github\copilot-skills'
+            # IntelliJ: no gentle-ai adapter, use shared copilot path
+            return Join-Path $env:USERPROFILE '.copilot\skills'
         }
         'opencode' {
+            # OpenCode: gentle-ai installs skills here
             return Join-Path $env:USERPROFILE '.config\opencode\skills'
         }
         default {
@@ -482,16 +546,18 @@ function New-SetupSummary {
         [string]$Role,
         [Parameter(Mandatory)]
         [string]$Provider,
-        [int]$SkillsCopied = 0
+        [int]$SkillsCopied = 0,
+        [string]$GentleAiStatus = 'n/a'
     )
     return @"
 ============================================
   Team AI Kit -- Setup Complete
 ============================================
-  IDE:       $Ide
-  Role:      $Role
-  Provider:  $Provider
-  Skills:    $SkillsCopied installed
+  IDE:         $Ide
+  Role:        $Role
+  Provider:    $Provider
+  gentle-ai:   $GentleAiStatus
+  Team Skills: $SkillsCopied installed
 ============================================
 "@
 }

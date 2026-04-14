@@ -13,7 +13,50 @@ BeforeAll {
     $script:kitRoot = (Resolve-Path "$PSScriptRoot\..").Path
 }
 
-# ── Validation Functions ──────────────────────────────────────────────────────
+# -- IDE-to-Agent Mapping ------------------------------------------------------
+
+Describe 'Get-GentleAiAgentId' {
+    It 'maps vscode to vscode-copilot' {
+        Get-GentleAiAgentId -Ide 'vscode' | Should -Be 'vscode-copilot'
+    }
+
+    It 'maps opencode to opencode' {
+        Get-GentleAiAgentId -Ide 'opencode' | Should -Be 'opencode'
+    }
+
+    It 'returns $null for intellij (no gentle-ai adapter)' {
+        Get-GentleAiAgentId -Ide 'intellij' | Should -BeNullOrEmpty
+    }
+
+    It 'returns $null for unknown IDEs' {
+        Get-GentleAiAgentId -Ide 'vim' | Should -BeNullOrEmpty
+    }
+
+    It 'is case-insensitive' {
+        Get-GentleAiAgentId -Ide 'VSCode' | Should -Be 'vscode-copilot'
+        Get-GentleAiAgentId -Ide 'OPENCODE' | Should -Be 'opencode'
+    }
+}
+
+Describe 'Test-GentleAiSupportsIde' {
+    It 'returns $true for vscode' {
+        Test-GentleAiSupportsIde -Ide 'vscode' | Should -BeTrue
+    }
+
+    It 'returns $true for opencode' {
+        Test-GentleAiSupportsIde -Ide 'opencode' | Should -BeTrue
+    }
+
+    It 'returns $false for intellij' {
+        Test-GentleAiSupportsIde -Ide 'intellij' | Should -BeFalse
+    }
+
+    It 'returns $false for unknown IDEs' {
+        Test-GentleAiSupportsIde -Ide 'vim' | Should -BeFalse
+    }
+}
+
+# -- Validation Functions ------------------------------------------------------
 
 Describe 'Test-ValidIde' {
     It 'returns $true for supported IDEs' {
@@ -68,7 +111,7 @@ Describe 'Test-ValidProvider' {
     }
 }
 
-# ── Skills Management ─────────────────────────────────────────────────────────
+# -- Skills Management ---------------------------------------------------------
 
 Describe 'Get-SharedSkillPaths' {
     It 'returns skill files from skills/shared/' {
@@ -166,7 +209,7 @@ Describe 'Get-PackRulesPath' {
     }
 }
 
-# ── Skills Installation ───────────────────────────────────────────────────────
+# -- Skills Installation -------------------------------------------------------
 
 Describe 'Install-TeamSkills' {
     BeforeAll {
@@ -208,17 +251,17 @@ Describe 'Install-TeamSkills' {
     }
 }
 
-# ── IDE Config Paths ──────────────────────────────────────────────────────────
+# -- IDE Config Paths ----------------------------------------------------------
 
 Describe 'Get-IdeSkillsDirectory' {
-    It 'returns copilot-skills path for vscode' {
+    It 'returns .copilot/skills path for vscode' {
         $path = Get-IdeSkillsDirectory -Ide 'vscode'
-        $path | Should -BeLike '*copilot-skills*'
+        $path | Should -BeLike '*.copilot?skills*'
     }
 
-    It 'returns copilot-skills path for intellij' {
+    It 'returns .copilot/skills path for intellij' {
         $path = Get-IdeSkillsDirectory -Ide 'intellij'
-        $path | Should -BeLike '*copilot-skills*'
+        $path | Should -BeLike '*.copilot?skills*'
     }
 
     It 'returns opencode skills path for opencode' {
@@ -252,7 +295,7 @@ Describe 'Get-IdeInstructionsPath' {
     }
 }
 
-# ── Config Generation ─────────────────────────────────────────────────────────
+# -- Config Generation ---------------------------------------------------------
 
 Describe 'New-VsCodeMcpConfig' {
     It 'generates valid JSON' {
@@ -289,7 +332,7 @@ Describe 'New-EngramSyncConfig' {
     }
 }
 
-# ── Instructions Generation ───────────────────────────────────────────────────
+# -- Instructions Generation ---------------------------------------------------
 
 Describe 'New-CopilotInstructions' {
     It 'includes role in header' {
@@ -316,25 +359,23 @@ Describe 'New-CopilotInstructions' {
     }
 }
 
-# ── Template Engine ───────────────────────────────────────────────────────────
+# -- Template Engine -----------------------------------------------------------
 
 Describe 'Get-TemplateDirectory' {
-    It 'returns vscode-copilot dir for vscode' {
-        $dir = Get-TemplateDirectory -KitRoot $script:kitRoot -Ide 'vscode'
-        $dir | Should -BeLike '*vscode-copilot*'
-        Test-Path $dir | Should -BeTrue
-    }
-
     It 'returns intellij-copilot dir for intellij' {
         $dir = Get-TemplateDirectory -KitRoot $script:kitRoot -Ide 'intellij'
         $dir | Should -BeLike '*intellij-copilot*'
         Test-Path $dir | Should -BeTrue
     }
 
-    It 'returns opencode dir for opencode' {
+    It 'returns $null for vscode (templates removed -- gentle-ai handles it)' {
+        $dir = Get-TemplateDirectory -KitRoot $script:kitRoot -Ide 'vscode'
+        $dir | Should -BeNullOrEmpty
+    }
+
+    It 'returns $null for opencode (templates removed -- gentle-ai handles it)' {
         $dir = Get-TemplateDirectory -KitRoot $script:kitRoot -Ide 'opencode'
-        $dir | Should -BeLike '*opencode*'
-        Test-Path $dir | Should -BeTrue
+        $dir | Should -BeNullOrEmpty
     }
 
     It 'throws for unsupported IDE' {
@@ -343,17 +384,11 @@ Describe 'Get-TemplateDirectory' {
 }
 
 Describe 'Get-TemplateFiles' {
-    It 'finds .template files for vscode' {
-        $dir = Get-TemplateDirectory -KitRoot $script:kitRoot -Ide 'vscode'
+    It 'finds .template files for intellij' {
+        $dir = Get-TemplateDirectory -KitRoot $script:kitRoot -Ide 'intellij'
         $files = Get-TemplateFiles -TemplateDir $dir
         $files | Should -Not -BeNullOrEmpty
         $files | ForEach-Object { $_.Name | Should -BeLike '*.template' }
-    }
-
-    It 'finds .template files for opencode' {
-        $dir = Get-TemplateDirectory -KitRoot $script:kitRoot -Ide 'opencode'
-        $files = Get-TemplateFiles -TemplateDir $dir
-        $files | Should -Not -BeNullOrEmpty
     }
 
     It 'returns empty for nonexistent dir' {
@@ -396,12 +431,10 @@ Describe 'Install-Templates' {
         }
     }
 
-    It 'expands and copies templates to target dir' {
-        $tplDir = Get-TemplateDirectory -KitRoot $script:kitRoot -Ide 'vscode'
+    It 'expands and copies IntelliJ templates to target dir' {
+        $tplDir = Get-TemplateDirectory -KitRoot $script:kitRoot -Ide 'intellij'
         $vars = @{
-            ROLE               = 'frontend'
             ENGRAM_BINARY_PATH = 'C:\engram.exe'
-            PACK_RULES         = '## Frontend Rules'
         }
         $created = Install-Templates -TemplateDir $tplDir -TargetDir $script:tplTempDir -Variables $vars
         $created | Should -Not -BeNullOrEmpty
@@ -422,7 +455,7 @@ Describe 'Install-Templates' {
     }
 }
 
-# ── Summary ───────────────────────────────────────────────────────────────────
+# -- Summary -------------------------------------------------------------------
 
 Describe 'New-SetupSummary' {
     It 'includes all configuration values' {
@@ -431,5 +464,15 @@ Describe 'New-SetupSummary' {
         $summary | Should -BeLike '*frontend*'
         $summary | Should -BeLike '*openai*'
         $summary | Should -BeLike '*7*'
+    }
+
+    It 'includes gentle-ai status' {
+        $summary = New-SetupSummary -Ide 'vscode' -Role 'frontend' -Provider 'github-copilot' -SkillsCopied 7 -GentleAiStatus 'configured'
+        $summary | Should -BeLike '*configured*'
+    }
+
+    It 'shows default gentle-ai status when not specified' {
+        $summary = New-SetupSummary -Ide 'intellij' -Role 'backend-node' -Provider 'github-copilot' -SkillsCopied 7
+        $summary | Should -BeLike '*n/a*'
     }
 }

@@ -46,15 +46,33 @@ El valor diferencial está en:
 SDD + reducción de tokens son features esenciales. No se puede prescindir de gentle-ai.
 Pero el dolor de configuración se resuelve con un **setup script que pre-configura todo**.
 
-### 2. Setup automatizado — 4 preguntas máximo
+### 2. Setup automatizado — 3 preguntas para Copilot, 4 para OpenCode
 
-El script pregunta solo:
-1. ¿Qué IDE usás? (VS Code / IntelliJ / OpenCode)
-2. ¿Cuál es tu rol? (Frontend / Backend / DevOps / Python)
-3. ¿Provider? (OpenAI / Azure OpenAI / Anthropic)
-4. ¿API key?
+El script pregunta:
+1. IDE (VS Code / IntelliJ / OpenCode)
+2. Rol (Frontend / Backend / DevOps / Python)
+3. Provider (solo OpenCode — Copilot IDEs auto-detectan github-copilot)
 
-Todo lo demás se genera desde templates pre-configurados.
+Despues ejecuta:
+- **VS Code / OpenCode**: `gentle-ai install --agent <id> --preset ecosystem-only`
+- **IntelliJ**: genera MCP config desde template (no hay adapter de gentle-ai)
+- **Todos**: copia team skills al directorio de skills del IDE
+
+### 2b. Path B — Hybrid Architecture (decision 2026-04-14)
+
+Se evaluaron dos caminos:
+- **Path A**: team-ai-kit genera TODAS las configs desde templates propios (self-contained)
+- **Path B**: gentle-ai como base + team layer encima (hybrid)
+
+**Se eligio Path B** porque el valor de team-ai-kit NO es generar configs (gentle-ai ya lo hace),
+sino agregar la capa de equipo: role skills, shared memory, zero-friction onboarding.
+
+Implicaciones:
+- Templates de VS Code y OpenCode eliminadas (gentle-ai las genera)
+- Solo queda template de IntelliJ MCP (gentle-ai no tiene adapter)
+- `gentle-ai install` se ejecuta como paso 4 del setup
+- Team skills se copian al directorio que gentle-ai ya usa
+- Separacion de capas: USER-level (gentle-ai) vs TEAM-level (team-ai-kit) vs PROJECT-level (repo)
 
 ### 3. Engram compartido via Azure DevOps
 
@@ -102,12 +120,14 @@ El concepto de "gentle-ai para equipos" llena un gap real en el mercado.
 
 ---
 
-## Arquitectura objetivo
+## Arquitectura objetivo (Path B — Hybrid)
 
 ```
 team-ai-kit/
-├── setup.ps1                    # Instalador Windows (4 preguntas)
+├── setup.ps1                    # Instalador Windows (5 steps)
 ├── setup.sh                     # Instalador macOS/Linux (futuro)
+├── lib/
+│   └── functions.ps1            # Funciones testables
 ├── skills/
 │   ├── shared/                  # Skills para TODOS los roles
 │   │   ├── architecture/
@@ -115,7 +135,7 @@ team-ai-kit/
 │   │   ├── debug/
 │   │   ├── thinking/
 │   │   └── performance/
-│   └── roles/                   # Skills específicos por rol
+│   └── roles/                   # Skills especificos por rol
 │       ├── frontend/
 │       ├── backend-node/
 │       ├── devops/
@@ -125,16 +145,48 @@ team-ai-kit/
 │   ├── backend-node/
 │   ├── devops/
 │   └── python/
-├── templates/                   # Config pre-generada por IDE
-│   ├── vscode-copilot/
-│   ├── intellij-copilot/
-│   └── opencode/
+├── templates/                   # Solo IntelliJ (gentle-ai no tiene adapter)
+│   └── intellij-copilot/
+│       └── mcp.json.template
+├── tests/
+│   ├── functions.Tests.ps1      # 71 tests
+│   └── skills.Tests.ps1         # 19 tests
 ├── shared-engram/               # Memoria compartida del equipo
 │   └── .engram/
 ├── docs/
 │   └── onboarding.md
 ├── CONTEXT.md                   # Este archivo
 └── README.md
+```
+
+### Flujo de setup (5 steps):
+
+```
+Step 1: Prerequisites (scoop, gentle-ai)
+Step 2: IDE Selection (vscode / intellij / opencode)
+Step 3: Role + Provider (auto-detect for Copilot IDEs)
+Step 4: Base Config
+  ├── vscode/opencode: gentle-ai install --agent <id> --preset ecosystem-only
+  └── intellij: MCP template (no gentle-ai adapter)
+Step 5: Team Layer (role skills + project instructions)
+```
+
+### Separacion de capas:
+
+```
+┌─────────────────────────────────────────────┐
+│  PROJECT level (committed to each repo)      │
+│  .github/copilot-instructions.md             │
+│  .engram/ (shared team memory)               │
+├─────────────────────────────────────────────┤
+│  TEAM level (team-ai-kit)                    │
+│  Role skills: team-skills/shared/ + roles/   │
+│  Pack rules: packs/<role>/rules.md           │
+├─────────────────────────────────────────────┤
+│  USER level (gentle-ai)                      │
+│  SDD workflow, engram MCP, persona,          │
+│  context7, built-in skills, backups          │
+└─────────────────────────────────────────────┘
 ```
 
 ---
@@ -169,4 +221,6 @@ team-ai-kit/
 - **Repos/CI**: Azure DevOps
 - **Docker**: NO disponible para todos
 - **Gentle-ai**: v1.20.1, dependencia esencial para SDD + engram + tokens
+- **Gentle-ai agents**: vscode-copilot, opencode (IntelliJ NO soportado)
 - **Engram**: binario independiente, MCP server, soportado en VS Code e IntelliJ
+- **Path B**: gentle-ai base + team layer on top (decided 2026-04-14)

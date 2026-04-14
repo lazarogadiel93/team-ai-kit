@@ -3,8 +3,12 @@
 .SYNOPSIS
     Team AI Kit -- One-command setup for your team's AI development environment.
 .DESCRIPTION
-    Installs gentle-ai + engram, configures your IDE, copies team skills based on
-    your role, and sets up shared engram sync.
+    Installs gentle-ai as the base layer, then adds team-specific role skills
+    and configuration on top.
+
+    Path B architecture:
+    - VS Code / OpenCode: gentle-ai install (base) + team layer (skills + rules)
+    - IntelliJ: team-ai-kit handles MCP config + team layer (no gentle-ai adapter)
 
     Supports both interactive mode (prompts) and non-interactive mode (parameters).
     Provider is auto-detected for VS Code/IntelliJ (github-copilot) and only asked
@@ -39,6 +43,8 @@ param(
     [string]$TargetDir,
 
     [switch]$SkipPrerequisites,
+
+    [switch]$SkipGentleAi,
 
     [switch]$Update
 )
@@ -86,7 +92,7 @@ if (-not $SkipPrerequisites) {
     }
 
     if (-not (Test-GentleAiInstalled)) {
-        Write-Step 'Installing gentle-ai...'
+        Write-Step 'Installing gentle-ai via Scoop...'
         try {
             & scoop bucket add gentleman https://github.com/Gentleman-Programming/scoop-bucket 2>$null
             & scoop install gentle-ai
@@ -106,19 +112,7 @@ if (-not $SkipPrerequisites) {
     }
 
     if (-not (Test-EngramInstalled)) {
-        Write-Step 'Installing engram...'
-        try {
-            & scoop install engram 2>$null
-            if (-not (Test-EngramInstalled)) {
-                Write-Warn 'Engram not in Scoop -- gentle-ai will manage it'
-            }
-            else {
-                Write-Ok 'engram installed'
-            }
-        }
-        catch {
-            Write-Warn 'Engram install via Scoop failed -- gentle-ai will manage it'
-        }
+        Write-Warn 'Engram not found -- gentle-ai install will set it up'
     }
     else {
         Write-Ok 'engram available'
@@ -206,10 +200,71 @@ else {
     Write-Ok "Provider: $Provider"
 }
 
-# -- Step 4: Install Skills ----------------------------------------------------
+# -- Step 4: Base Configuration (gentle-ai) -----------------------------------
 Write-Host ''
-Write-Host '  [4/5] Installing team skills...' -ForegroundColor White
+Write-Host '  [4/5] Base configuration...' -ForegroundColor White
 
+$gentleAiAgentId = Get-GentleAiAgentId -Ide $Ide
+
+if ($gentleAiAgentId -and -not $SkipGentleAi) {
+    Write-Step "Running: gentle-ai install --agent $gentleAiAgentId --preset ecosystem-only"
+    Write-Step 'This installs: engram, SDD, skills, context7, persona'
+    Write-Host ''
+
+    try {
+        $installArgs = @('install', '--agent', $gentleAiAgentId, '--preset', 'ecosystem-only', '--persona', 'gentleman')
+        & gentle-ai @installArgs
+        if ($LASTEXITCODE -eq 0) {
+            Write-Ok "gentle-ai configured for $gentleAiAgentId"
+        }
+        else {
+            Write-Warn "gentle-ai install exited with code $LASTEXITCODE"
+            Write-Warn 'You may need to run gentle-ai manually later'
+        }
+    }
+    catch {
+        Write-Warn "gentle-ai install failed: $_"
+        Write-Warn 'Run gentle-ai manually after setup completes'
+    }
+}
+elseif ($SkipGentleAi) {
+    Write-Step 'Skipping gentle-ai install (SkipGentleAi flag)'
+}
+else {
+    # IntelliJ: no gentle-ai adapter
+    Write-Step 'IntelliJ + Copilot: no gentle-ai adapter available'
+    Write-Step 'Setting up MCP config from template...'
+
+    $templateDir = Get-TemplateDirectory -KitRoot $kitRoot -Ide $Ide
+    if ($templateDir) {
+        $engramBin = Get-EngramBinaryPath
+        $templateVars = @{
+            ENGRAM_BINARY_PATH = if ($engramBin) { $engramBin } else { '(not-found -- install engram via scoop)' }
+        }
+
+        $templateTargetDir = if ($TargetDir) { Join-Path $TargetDir 'ide-config' } else { $null }
+        if ($templateTargetDir) {
+            $createdTemplates = @(Install-Templates -TemplateDir $templateDir -TargetDir $templateTargetDir -Variables $templateVars)
+            Write-Ok "$($createdTemplates.Count) IntelliJ config files generated"
+        }
+        else {
+            # Show MCP config for manual setup
+            $engramPath = if ($engramBin) { $engramBin } else { '(path-to-engram)' }
+            $mcpJson = New-VsCodeMcpConfig -EngramBinaryPath $engramPath
+            Write-Ok 'MCP config generated for IntelliJ'
+            Write-Step 'Add this to your IntelliJ MCP settings:'
+            Write-Host ''
+            Write-Host $mcpJson -ForegroundColor DarkGray
+            Write-Host ''
+        }
+    }
+}
+
+# -- Step 5: Team Layer --------------------------------------------------------
+Write-Host ''
+Write-Host '  [5/5] Installing team layer...' -ForegroundColor White
+
+# 5a. Copy role skills to IDE skills directory
 if ($TargetDir) {
     $targetSkillsDir = $TargetDir
 }
@@ -217,80 +272,46 @@ else {
     $targetSkillsDir = Get-IdeSkillsDirectory -Ide $Ide
 }
 
-Write-Step "Target: $targetSkillsDir"
+Write-Step "Skills target: $targetSkillsDir"
 
 $copiedSkills = Install-TeamSkills -KitRoot $kitRoot -Role $Role -TargetDir $targetSkillsDir
-Write-Ok "$($copiedSkills.Count) skills installed for role: $Role"
+Write-Ok "$($copiedSkills.Count) team skills installed for role: $Role"
 
-# Install IDE templates
-$templateDir = Get-TemplateDirectory -KitRoot $kitRoot -Ide $Ide
-if ($templateDir) {
-    $engramBin = Get-EngramBinaryPath
-    $packRulesPath = Get-PackRulesPath -KitRoot $kitRoot -Role $Role
-    $packRulesContent = ''
-    if ($packRulesPath) {
-        $packRulesContent = Get-Content -Path $packRulesPath -Raw
-    }
-
-    $templateVars = @{
-        ROLE               = $Role
-        ENGRAM_BINARY_PATH = if ($engramBin) { $engramBin } else { '(not-found -- run gentle-ai to install)' }
-        PACK_RULES         = $packRulesContent
-    }
-
-    $templateTargetDir = if ($TargetDir) { Join-Path $TargetDir 'templates-output' } else { $targetSkillsDir }
-    $createdTemplates = Install-Templates -TemplateDir $templateDir -TargetDir $templateTargetDir -Variables $templateVars
-    Write-Ok "$($createdTemplates.Count) IDE config templates generated"
-}
-
-# -- Step 5: Configure Engram + MCP --------------------------------------------
-Write-Host ''
-Write-Host '  [5/5] Configuring engram & MCP...' -ForegroundColor White
-
-$engramBin = Get-EngramBinaryPath
-if ($engramBin) {
-    Write-Ok "Engram binary: $engramBin"
-
-    # Generate MCP config for the selected IDE
-    if ($Ide -eq 'vscode' -or $Ide -eq 'intellij') {
-        $mcpJson = New-VsCodeMcpConfig -EngramBinaryPath $engramBin
-        Write-Ok 'MCP config generated (engram + context7)'
-        Write-Step 'Add this to your project .vscode/mcp.json or IDE MCP settings:'
-        Write-Host ''
-        Write-Host $mcpJson -ForegroundColor DarkGray
-        Write-Host ''
-    }
-}
-else {
-    Write-Warn 'Engram binary not found -- run gentle-ai to configure it'
-}
-
-# Generate instructions with pack rules
+# 5b. Generate project-level instructions (to be committed to repos)
 $packRulesPath = Get-PackRulesPath -KitRoot $kitRoot -Role $Role
 $packRulesContent = ''
 if ($packRulesPath) {
     $packRulesContent = Get-Content -Path $packRulesPath -Raw
 }
 $instructions = New-CopilotInstructions -Role $Role -PackRulesContent $packRulesContent
-Write-Ok "Copilot instructions generated for role: $Role"
-Write-Step 'Copy the instructions to your project .github/copilot-instructions.md'
+Write-Ok "Project instructions generated for role: $Role"
+Write-Step 'Add to each repo: .github/copilot-instructions.md (or AGENTS.md for OpenCode)'
 
 # -- Summary -------------------------------------------------------------------
 Write-Host ''
-$summary = New-SetupSummary -Ide $Ide -Role $Role -Provider $Provider -SkillsCopied $copiedSkills.Count
+$gentleAiStatus = if ($gentleAiAgentId -and -not $SkipGentleAi) { 'configured' } else { 'manual setup' }
+$summary = New-SetupSummary -Ide $Ide -Role $Role -Provider $Provider -SkillsCopied $copiedSkills.Count -GentleAiStatus $gentleAiStatus
 Write-Host $summary -ForegroundColor Green
 
 Write-Host ''
 Write-Host '  Next steps:' -ForegroundColor Yellow
-if ($Provider -eq 'github-copilot') {
-    Write-Host '    1. Run gentle-ai to complete agent configuration' -ForegroundColor White
-    Write-Host '    2. Configure engram sync to your Azure DevOps repo' -ForegroundColor White
+if ($gentleAiAgentId -and -not $SkipGentleAi) {
+    Write-Host '    1. Configure engram sync to your team Azure DevOps repo:' -ForegroundColor White
+    Write-Host '       engram sync                  (export after sessions)' -ForegroundColor DarkGray
+    Write-Host '       engram sync --import          (import team knowledge)' -ForegroundColor DarkGray
+    Write-Host '    2. Add .github/copilot-instructions.md to your project repos' -ForegroundColor White
     Write-Host '    3. Open your IDE and start working!' -ForegroundColor White
 }
+elseif ($Ide -eq 'intellij') {
+    Write-Host '    1. Add the MCP config shown above to IntelliJ settings' -ForegroundColor White
+    Write-Host '    2. Configure engram sync to your team Azure DevOps repo' -ForegroundColor White
+    Write-Host '    3. Add .github/copilot-instructions.md to your project repos' -ForegroundColor White
+    Write-Host '    4. Open IntelliJ and start working!' -ForegroundColor White
+}
 else {
-    Write-Host '    1. Set your API key for the selected provider' -ForegroundColor White
-    Write-Host '    2. Run gentle-ai to complete agent configuration' -ForegroundColor White
-    Write-Host '    3. Configure engram sync to your Azure DevOps repo' -ForegroundColor White
+    Write-Host '    1. Run gentle-ai to complete agent configuration' -ForegroundColor White
+    Write-Host '    2. Configure engram sync to your team Azure DevOps repo' -ForegroundColor White
+    Write-Host '    3. Add .github/copilot-instructions.md to your project repos' -ForegroundColor White
     Write-Host '    4. Open your IDE and start working!' -ForegroundColor White
 }
 Write-Host ''
