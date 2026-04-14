@@ -1,0 +1,615 @@
+#!/usr/bin/env bash
+# Team AI Kit CLI -- gentle-ai for teams (macOS/Linux)
+#
+# Usage:
+#   team-ai-kit <command> [options]
+#
+# Commands:
+#   setup    First-time configuration (IDE, role, team repo)
+#   update   Pull latest team content + merge without overwriting
+#   status   Show current config and installed skills
+#   doctor   Verify prerequisites and installation health
+#   help     Show this help message
+#
+# Setup options:
+#   --ide <vscode|intellij|opencode>
+#   --role <frontend|backend-node|devops|python>
+#   --provider <openai|azure-openai|anthropic|github-copilot>
+#   --team-repo <url>         Team content repo URL
+#   --target-dir <path>       Custom output directory
+#   --skip-prerequisites      Skip brew/gentle-ai checks
+#   --skip-gentle-ai          Skip gentle-ai install step
+#
+# Examples:
+#   team-ai-kit setup
+#   team-ai-kit setup --ide vscode --role frontend
+#   team-ai-kit setup --ide vscode --role frontend --team-repo https://github.com/team/knowledge
+#   team-ai-kit update
+#   team-ai-kit status
+
+set -euo pipefail
+
+# -- Resolve paths -------------------------------------------------------------
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+KIT_ROOT="$(dirname "$SCRIPT_DIR")"
+
+# shellcheck source=../lib/functions.sh
+source "$KIT_ROOT/lib/functions.sh"
+
+# -- ANSI colors ---------------------------------------------------------------
+if [[ -t 1 ]]; then
+    C_RESET='\033[0m'
+    C_CYAN='\033[0;36m'
+    C_GREEN='\033[0;32m'
+    C_YELLOW='\033[0;33m'
+    C_RED='\033[0;31m'
+    C_MAGENTA='\033[0;35m'
+    C_WHITE='\033[1;37m'
+    C_DIM='\033[0;90m'
+else
+    C_RESET='' C_CYAN='' C_GREEN='' C_YELLOW='' C_RED='' C_MAGENTA='' C_WHITE='' C_DIM=''
+fi
+
+# -- Output helpers ------------------------------------------------------------
+step()  { echo -e "  ${C_CYAN}> $1${C_RESET}"; }
+ok()    { echo -e "  ${C_GREEN}+ $1${C_RESET}"; }
+warn()  { echo -e "  ${C_YELLOW}! $1${C_RESET}"; }
+err()   { echo -e "  ${C_RED}x $1${C_RESET}"; }
+
+# -- Banner --------------------------------------------------------------------
+show_banner() {
+    echo ""
+    echo -e "  ${C_MAGENTA}+======================================+${C_RESET}"
+    echo -e "  ${C_MAGENTA}|        Team AI Kit -- CLI            |${C_RESET}"
+    echo -e "  ${C_MAGENTA}|  gentle-ai for teams                 |${C_RESET}"
+    echo -e "  ${C_MAGENTA}+======================================+${C_RESET}"
+    echo ""
+}
+
+# -- Help ----------------------------------------------------------------------
+show_help() {
+    show_banner
+    echo -e "  ${C_WHITE}Usage: team-ai-kit <command> [options]${C_RESET}"
+    echo ""
+    echo -e "  ${C_YELLOW}Commands:${C_RESET}"
+    echo "    setup    First-time configuration (IDE, role, team repo)"
+    echo "    update   Pull latest team content + merge without overwriting"
+    echo "    status   Show current config and installed skills"
+    echo "    doctor   Verify prerequisites and installation health"
+    echo "    help     Show this help message"
+    echo ""
+    echo -e "  ${C_YELLOW}Setup options:${C_RESET}"
+    echo "    --ide <vscode|intellij|opencode>"
+    echo "    --role <frontend|backend-node|devops|python>"
+    echo "    --provider <openai|azure-openai|anthropic|github-copilot>"
+    echo "    --team-repo <url>          Team content repo URL"
+    echo "    --target-dir <path>        Custom output directory"
+    echo "    --skip-prerequisites       Skip brew/gentle-ai checks"
+    echo "    --skip-gentle-ai           Skip gentle-ai install step"
+    echo ""
+    echo -e "  ${C_YELLOW}Examples:${C_RESET}"
+    echo "    team-ai-kit setup"
+    echo "    team-ai-kit setup --ide vscode --role frontend"
+    echo "    team-ai-kit setup --ide vscode --role frontend --team-repo https://github.com/team/knowledge"
+    echo "    team-ai-kit update"
+    echo "    team-ai-kit status"
+    echo ""
+}
+
+# -- Setup ---------------------------------------------------------------------
+cmd_setup() {
+    show_banner
+    echo -e "  ${C_DIM}3 questions. 2 minutes. Full power.${C_RESET}"
+    echo ""
+
+    # -- Step 1: Prerequisites -------------------------------------------------
+    if [[ "$SKIP_PREREQUISITES" == "false" ]]; then
+        echo -e "  ${C_WHITE}[1/5] Checking prerequisites...${C_RESET}"
+
+        if ! test_jq_installed; then
+            err "jq is required but not found"
+            step "Install: brew install jq (macOS) or apt install jq (Debian/Ubuntu)"
+            exit 1
+        fi
+        ok "jq available"
+
+        if test_brew_installed; then
+            ok "Homebrew available"
+        else
+            warn "Homebrew not found (optional, but recommended for gentle-ai install)"
+        fi
+
+        if test_gentle_ai_installed; then
+            ok "gentle-ai available"
+        else
+            warn "gentle-ai not found"
+            step "Install: brew tap Gentleman-Programming/tap && brew install gentle-ai"
+        fi
+
+        if test_engram_installed; then
+            ok "engram available"
+        else
+            warn "engram not found -- gentle-ai install will set it up"
+        fi
+    else
+        echo -e "  ${C_DIM}[1/5] Skipping prerequisites (--skip-prerequisites)${C_RESET}"
+    fi
+
+    # -- Step 2: IDE Selection -------------------------------------------------
+    echo ""
+    echo -e "  ${C_WHITE}[2/5] IDE Selection${C_RESET}"
+
+    if [[ -z "$OPT_IDE" ]]; then
+        echo "    1) VS Code + Copilot"
+        echo "    2) IntelliJ + Copilot"
+        echo "    3) OpenCode (CLI)"
+        echo ""
+        while true; do
+            read -rp "  Your IDE (1-3): " ide_choice
+            case "$ide_choice" in
+                1) OPT_IDE="vscode"; break ;;
+                2) OPT_IDE="intellij"; break ;;
+                3) OPT_IDE="opencode"; break ;;
+                *) echo "  Invalid choice. Enter 1, 2, or 3." ;;
+            esac
+        done
+    fi
+    ok "IDE: $OPT_IDE"
+
+    # -- Step 3: Role + Provider -----------------------------------------------
+    echo ""
+    echo -e "  ${C_WHITE}[3/5] Role Selection${C_RESET}"
+
+    if [[ -z "$OPT_ROLE" ]]; then
+        echo "    1) Frontend (React / Next.js)"
+        echo "    2) Backend (Node.js / Express)"
+        echo "    3) DevOps (CI/CD / Docker / Infra)"
+        echo "    4) Python (FastAPI / Django)"
+        echo ""
+        while true; do
+            read -rp "  Your role (1-4): " role_choice
+            case "$role_choice" in
+                1) OPT_ROLE="frontend"; break ;;
+                2) OPT_ROLE="backend-node"; break ;;
+                3) OPT_ROLE="devops"; break ;;
+                4) OPT_ROLE="python"; break ;;
+                *) echo "  Invalid choice. Enter 1-4." ;;
+            esac
+        done
+    fi
+    ok "Role: $OPT_ROLE"
+
+    # Provider: auto-detect for Copilot IDEs, ask only for OpenCode
+    if [[ -z "$OPT_PROVIDER" ]]; then
+        if [[ "$OPT_IDE" == "vscode" || "$OPT_IDE" == "intellij" ]]; then
+            OPT_PROVIDER="github-copilot"
+            ok "Provider: $OPT_PROVIDER (auto-detected from IDE)"
+        else
+            echo ""
+            echo -e "    ${C_WHITE}AI Provider (OpenCode requires direct API access):${C_RESET}"
+            echo "    1) OpenAI"
+            echo "    2) Azure OpenAI"
+            echo "    3) Anthropic"
+            echo ""
+            while true; do
+                read -rp "  Your provider (1-3): " provider_choice
+                case "$provider_choice" in
+                    1) OPT_PROVIDER="openai"; break ;;
+                    2) OPT_PROVIDER="azure-openai"; break ;;
+                    3) OPT_PROVIDER="anthropic"; break ;;
+                    *) echo "  Invalid choice. Enter 1-3." ;;
+                esac
+            done
+            ok "Provider: $OPT_PROVIDER"
+        fi
+    else
+        ok "Provider: $OPT_PROVIDER"
+    fi
+
+    # -- Step 4: Base Configuration (gentle-ai) --------------------------------
+    echo ""
+    echo -e "  ${C_WHITE}[4/5] Base configuration...${C_RESET}"
+
+    local agent_id=""
+    agent_id=$(get_gentle_ai_agent_id "$OPT_IDE" 2>/dev/null) || true
+
+    if [[ -n "$agent_id" && "$SKIP_GENTLE_AI" == "false" ]]; then
+        step "Running: gentle-ai install --agent $agent_id --preset ecosystem-only"
+        step "This installs: engram, SDD, skills, context7, persona"
+        echo ""
+
+        if gentle-ai install --agent "$agent_id" --preset ecosystem-only --persona gentleman 2>/dev/null; then
+            ok "gentle-ai configured for $agent_id"
+        else
+            warn "gentle-ai install failed or exited with error"
+            warn "Run gentle-ai manually after setup completes"
+        fi
+    elif [[ "$SKIP_GENTLE_AI" == "true" ]]; then
+        step "Skipping gentle-ai install (--skip-gentle-ai)"
+    else
+        # IntelliJ: no gentle-ai adapter
+        step "IntelliJ + Copilot: no gentle-ai adapter available"
+        step "Setting up MCP config from template..."
+
+        local template_dir=""
+        template_dir=$(get_template_directory "$KIT_ROOT" "$OPT_IDE" 2>/dev/null) || true
+
+        if [[ -n "$template_dir" ]]; then
+            local engram_bin=""
+            engram_bin=$(get_engram_binary_path 2>/dev/null) || engram_bin="(not-found -- install engram)"
+
+            if [[ -n "$OPT_TARGET_DIR" ]]; then
+                local tpl_target="$OPT_TARGET_DIR/ide-config"
+                install_templates "$template_dir" "$tpl_target" "ENGRAM_BINARY_PATH=$engram_bin"
+                ok "IntelliJ config files generated"
+            else
+                local mcp_json
+                mcp_json=$(new_vscode_mcp_config "$engram_bin")
+                ok "MCP config generated for IntelliJ"
+                step "Add this to your IntelliJ MCP settings:"
+                echo ""
+                echo -e "  ${C_DIM}$mcp_json${C_RESET}"
+                echo ""
+            fi
+        fi
+    fi
+
+    # -- Step 5: Team Layer ----------------------------------------------------
+    echo ""
+    echo -e "  ${C_WHITE}[5/5] Installing team layer...${C_RESET}"
+
+    # 5a. Clone team repo if configured
+    local has_team_repo="false"
+    if [[ -n "$OPT_TEAM_REPO" ]]; then
+        step "Cloning team repo: $OPT_TEAM_REPO"
+        if invoke_team_repo_clone "$OPT_TEAM_REPO"; then
+            ok "Team repo cloned"
+            has_team_repo="true"
+        else
+            warn "Failed to clone team repo -- continuing with defaults only"
+        fi
+    fi
+
+    # 5b. Install skills with 3-layer merge
+    local target_skills_dir
+    if [[ -n "$OPT_TARGET_DIR" ]]; then
+        target_skills_dir="$OPT_TARGET_DIR"
+    else
+        target_skills_dir=$(get_ide_skills_directory "$OPT_IDE")
+    fi
+
+    step "Skills target: $target_skills_dir"
+
+    local merge_json
+    merge_json=$(install_skills_with_merge "$KIT_ROOT" "$OPT_ROLE" "$target_skills_dir" "$has_team_repo")
+    local total_installed total_updated total_skipped
+    total_installed=$(echo "$merge_json" | jq -r '.installed')
+    total_updated=$(echo "$merge_json" | jq -r '.updated')
+    total_skipped=$(echo "$merge_json" | jq -r '.skipped')
+    ok "$total_installed installed, $total_updated updated, $total_skipped unchanged"
+
+    # 5c. Generate project-level instructions
+    local pack_rules_content=""
+    local pack_rules_path=""
+    pack_rules_path=$(get_pack_rules_path "$KIT_ROOT" "$OPT_ROLE" 2>/dev/null) || true
+    if [[ -n "$pack_rules_path" ]]; then
+        pack_rules_content=$(cat "$pack_rules_path")
+    fi
+    ok "Project instructions generated for role: $OPT_ROLE"
+    step "Add to each repo: .github/copilot-instructions.md (or AGENTS.md for OpenCode)"
+
+    # -- Save config -----------------------------------------------------------
+    local now
+    now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    local config_json
+    config_json=$(jq -n \
+        --arg ide "$OPT_IDE" \
+        --arg role "$OPT_ROLE" \
+        --arg provider "$OPT_PROVIDER" \
+        --arg team_repo "$OPT_TEAM_REPO" \
+        --arg installed_at "$now" \
+        --arg last_update "$now" \
+        --arg version "2.0.0" \
+        '{ide:$ide, role:$role, provider:$provider, teamRepo:$team_repo, installedAt:$installed_at, lastUpdate:$last_update, version:$version}')
+    local config_path
+    config_path=$(save_config "$config_json")
+    ok "Config saved: $config_path"
+
+    # -- Summary ---------------------------------------------------------------
+    echo ""
+    local skills_total=$((total_installed + total_updated))
+    local gentle_status
+    if [[ -n "$agent_id" && "$SKIP_GENTLE_AI" == "false" ]]; then
+        gentle_status="configured"
+    else
+        gentle_status="manual setup"
+    fi
+    echo -e "${C_GREEN}$(new_setup_summary "$OPT_IDE" "$OPT_ROLE" "$OPT_PROVIDER" "$skills_total" "$gentle_status")${C_RESET}"
+
+    echo ""
+    echo -e "  ${C_YELLOW}Next steps:${C_RESET}"
+    if [[ -n "$agent_id" && "$SKIP_GENTLE_AI" == "false" ]]; then
+        echo -e "    ${C_WHITE}1. Configure engram sync to your team repo:${C_RESET}"
+        echo -e "    ${C_DIM}   engram sync                  (export after sessions)${C_RESET}"
+        echo -e "    ${C_DIM}   engram sync --import          (import team knowledge)${C_RESET}"
+        echo -e "    ${C_WHITE}2. Add .github/copilot-instructions.md to your project repos${C_RESET}"
+        echo -e "    ${C_WHITE}3. Open your IDE and start working!${C_RESET}"
+    elif [[ "$OPT_IDE" == "intellij" ]]; then
+        echo -e "    ${C_WHITE}1. Add the MCP config shown above to IntelliJ settings${C_RESET}"
+        echo -e "    ${C_WHITE}2. Configure engram sync to your team repo${C_RESET}"
+        echo -e "    ${C_WHITE}3. Add .github/copilot-instructions.md to your project repos${C_RESET}"
+        echo -e "    ${C_WHITE}4. Open IntelliJ and start working!${C_RESET}"
+    else
+        echo -e "    ${C_WHITE}1. Run gentle-ai to complete agent configuration${C_RESET}"
+        echo -e "    ${C_WHITE}2. Configure engram sync to your team repo${C_RESET}"
+        echo -e "    ${C_WHITE}3. Add .github/copilot-instructions.md to your project repos${C_RESET}"
+        echo -e "    ${C_WHITE}4. Open your IDE and start working!${C_RESET}"
+    fi
+    echo ""
+}
+
+# -- Update --------------------------------------------------------------------
+cmd_update() {
+    show_banner
+    local config_ide config_role
+    config_ide=$(get_config_value "ide")
+    config_role=$(get_config_value "role")
+
+    if [[ -z "$config_ide" ]]; then
+        err 'No configuration found. Run "team-ai-kit setup" first.'
+        exit 1
+    fi
+
+    echo -e "  ${C_WHITE}Updating for: IDE=$config_ide, Role=$config_role${C_RESET}"
+    echo ""
+
+    # Step 1: Pull team repo if configured
+    local has_team_repo="false"
+    local config_team_repo
+    config_team_repo=$(get_config_value "teamRepo")
+
+    if [[ -n "$config_team_repo" ]]; then
+        step "Pulling team repo: $config_team_repo"
+        if test_team_repo_cloned; then
+            if invoke_team_repo_pull; then
+                ok "Team repo updated"
+                has_team_repo="true"
+            else
+                warn "Failed to pull team repo -- continuing with cached version"
+                has_team_repo="true"
+            fi
+        else
+            step "Team repo not cloned yet -- cloning..."
+            if invoke_team_repo_clone "$config_team_repo"; then
+                ok "Team repo cloned"
+                has_team_repo="true"
+            else
+                warn "Failed to clone team repo -- continuing with defaults only"
+            fi
+        fi
+    else
+        step 'No team repo configured (use "team-ai-kit setup --team-repo <url>" to add one)'
+    fi
+
+    # Step 2: Merge skills with no-overwrite
+    local target_skills_dir
+    if [[ -n "$OPT_TARGET_DIR" ]]; then
+        target_skills_dir="$OPT_TARGET_DIR"
+    else
+        target_skills_dir=$(get_ide_skills_directory "$config_ide")
+    fi
+
+    step "Merging skills to: $target_skills_dir"
+
+    local merge_json
+    merge_json=$(install_skills_with_merge "$KIT_ROOT" "$config_role" "$target_skills_dir" "$has_team_repo")
+    local m_installed m_updated m_skipped
+    m_installed=$(echo "$merge_json" | jq -r '.installed')
+    m_updated=$(echo "$merge_json" | jq -r '.updated')
+    m_skipped=$(echo "$merge_json" | jq -r '.skipped')
+
+    echo ""
+    ok "Installed: $m_installed new skills"
+    [[ "$m_updated" -gt 0 ]] && ok "Updated:   $m_updated skills (source changed, yours untouched)"
+    [[ "$m_skipped" -gt 0 ]] && step "Unchanged: $m_skipped skills (already up to date or user-modified)"
+
+    # Step 3: Update config timestamp
+    local now
+    now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    local updated_config
+    updated_config=$(get_config | jq --arg ts "$now" '.lastUpdate = $ts')
+    save_config "$updated_config" >/dev/null
+    echo ""
+    ok "Update complete"
+    echo ""
+}
+
+# -- Status --------------------------------------------------------------------
+cmd_status() {
+    show_banner
+    local config_ide config_role config_provider config_team config_installed config_update config_version
+    config_ide=$(get_config_value "ide")
+    config_role=$(get_config_value "role")
+    config_provider=$(get_config_value "provider")
+    config_team=$(get_config_value "teamRepo")
+    config_installed=$(get_config_value "installedAt")
+    config_update=$(get_config_value "lastUpdate")
+    config_version=$(get_config_value "version")
+
+    if [[ -z "$config_ide" ]]; then
+        warn 'Not configured yet. Run "team-ai-kit setup" first.'
+        echo ""
+        return
+    fi
+
+    echo -e "  ${C_WHITE}Configuration:${C_RESET}"
+    echo "    IDE:         $config_ide"
+    echo "    Role:        $config_role"
+    echo "    Provider:    $config_provider"
+    echo "    Team Repo:   ${config_team:-(none)}"
+    echo "    Installed:   $config_installed"
+    echo "    Last Update: $config_update"
+    echo "    Version:     ${config_version:-unknown}"
+    echo ""
+
+    # Show installed skills from manifest
+    local manifest_json file_count
+    manifest_json=$(get_skill_manifest)
+    file_count=$(echo "$manifest_json" | jq '.files | length')
+
+    if [[ "$file_count" -gt 0 ]]; then
+        local default_count team_count
+        default_count=$(echo "$manifest_json" | jq '[.files[] | select(.source == "default")] | length')
+        team_count=$(echo "$manifest_json" | jq '[.files[] | select(.source == "team")] | length')
+        echo -e "  ${C_WHITE}Tracked Skills: $file_count total ($default_count default, $team_count team)${C_RESET}"
+
+        # Check for user modifications
+        local skills_dir modified_count=0
+        skills_dir=$(get_ide_skills_directory "$config_ide")
+        local keys
+        keys=$(echo "$manifest_json" | jq -r '.files | keys[]')
+        while IFS= read -r key; do
+            [[ -z "$key" ]] && continue
+            local file_path="$skills_dir/$key"
+            if test_skill_modified_by_user "$file_path" "$key" "$manifest_json" 2>/dev/null; then
+                ((modified_count++))
+            fi
+        done <<< "$keys"
+
+        if [[ "$modified_count" -gt 0 ]]; then
+            warn "$modified_count skill(s) modified locally (protected from overwrite)"
+        fi
+    else
+        local skills_dir team_skills_dir
+        skills_dir=$(get_ide_skills_directory "$config_ide")
+        team_skills_dir="$skills_dir/team-skills"
+        if [[ -d "$team_skills_dir" ]]; then
+            local skill_count
+            skill_count=$(find "$team_skills_dir" -name '*.md' -type f | wc -l | tr -d ' ')
+            echo -e "  ${C_WHITE}Installed Skills: $skill_count (no manifest -- run update to track)${C_RESET}"
+        else
+            warn "Skills directory not found: $team_skills_dir"
+        fi
+    fi
+
+    # Team repo status
+    if [[ -n "$config_team" ]]; then
+        echo ""
+        if test_team_repo_cloned; then
+            ok "Team repo: cloned locally"
+        else
+            warn 'Team repo: configured but not cloned (run "team-ai-kit update")'
+        fi
+    fi
+    echo ""
+}
+
+# -- Doctor --------------------------------------------------------------------
+cmd_doctor() {
+    show_banner
+    echo -e "  ${C_WHITE}Checking installation health...${C_RESET}"
+    echo ""
+
+    local all_good=true
+
+    # jq (required)
+    if test_jq_installed; then ok "jq: installed"
+    else err "jq: NOT found (required)"; all_good=false; fi
+
+    # Homebrew (optional)
+    if test_brew_installed; then ok "Homebrew: installed"
+    else warn "Homebrew: NOT found (optional)"; fi
+
+    # gentle-ai
+    if test_gentle_ai_installed; then ok "gentle-ai: installed"
+    else err "gentle-ai: NOT found"; all_good=false; fi
+
+    # engram
+    if test_engram_installed; then ok "engram: installed"
+    else err "engram: NOT found"; all_good=false; fi
+
+    # Config
+    local config_ide
+    config_ide=$(get_config_value "ide")
+    if [[ -n "$config_ide" ]]; then
+        local config_role
+        config_role=$(get_config_value "role")
+        ok "Config: found (IDE=$config_ide, Role=$config_role)"
+    else
+        warn 'Config: not configured (run "team-ai-kit setup")'
+    fi
+
+    # Skills directory
+    if [[ -n "$config_ide" ]]; then
+        local skills_dir team_skills_dir
+        skills_dir=$(get_ide_skills_directory "$config_ide")
+        team_skills_dir="$skills_dir/team-skills"
+        if [[ -d "$team_skills_dir" ]]; then
+            local count
+            count=$(find "$team_skills_dir" -name '*.md' -type f | wc -l | tr -d ' ')
+            ok "Team skills: $count files in $team_skills_dir"
+        else
+            warn "Team skills: directory not found ($team_skills_dir)"
+        fi
+    fi
+
+    # Team repo
+    local config_team
+    config_team=$(get_config_value "teamRepo")
+    if [[ -n "$config_team" ]]; then
+        ok "Team repo: $config_team"
+    else
+        warn "Team repo: not configured"
+    fi
+
+    echo ""
+    if $all_good; then
+        ok "All checks passed!"
+    else
+        err "Some checks failed. Fix the issues above and run doctor again."
+    fi
+    echo ""
+}
+
+# -- Parse args ----------------------------------------------------------------
+COMMAND="${1:-help}"
+shift || true
+
+OPT_IDE=""
+OPT_ROLE=""
+OPT_PROVIDER=""
+OPT_TEAM_REPO=""
+OPT_TARGET_DIR=""
+SKIP_PREREQUISITES="false"
+SKIP_GENTLE_AI="false"
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --ide)               OPT_IDE="$2"; shift 2 ;;
+        --role)              OPT_ROLE="$2"; shift 2 ;;
+        --provider)          OPT_PROVIDER="$2"; shift 2 ;;
+        --team-repo)         OPT_TEAM_REPO="$2"; shift 2 ;;
+        --target-dir)        OPT_TARGET_DIR="$2"; shift 2 ;;
+        --skip-prerequisites) SKIP_PREREQUISITES="true"; shift ;;
+        --skip-gentle-ai)    SKIP_GENTLE_AI="true"; shift ;;
+        *)
+            err "Unknown option: $1"
+            echo '  Run "team-ai-kit help" for usage.'
+            exit 1
+            ;;
+    esac
+done
+
+# -- Route subcommand ----------------------------------------------------------
+case "$(_lowercase "$COMMAND")" in
+    setup)  cmd_setup ;;
+    update) cmd_update ;;
+    status) cmd_status ;;
+    doctor) cmd_doctor ;;
+    help)   show_help ;;
+    *)
+        err "Unknown command: $COMMAND"
+        echo '  Run "team-ai-kit help" for available commands.'
+        exit 1
+        ;;
+esac
