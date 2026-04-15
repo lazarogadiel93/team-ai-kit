@@ -114,7 +114,7 @@ function Show-Help {
     Write-Host '    -Provider <openai|azure-openai|anthropic|github-copilot>'
     Write-Host '    -TeamRepo <url>          Team content repo URL'
     Write-Host '    -TargetDir <path>        Custom output directory'
-    Write-Host '    -SkipPrerequisites       Skip Scoop/gentle-ai checks'
+    Write-Host '    -SkipPrerequisites       Skip gentle-ai/engram auto-install'
     Write-Host '    -SkipGentleAi            Skip gentle-ai install step'
     Write-Host ''
     Write-Host '  Init options:' -ForegroundColor Yellow
@@ -143,48 +143,85 @@ function Invoke-SetupCommand {
     if (-not $SkipPrerequisites) {
         Write-Host '  [1/5] Checking prerequisites...' -ForegroundColor White
 
-        if (-not (Test-ScoopInstalled)) {
-            Write-Step 'Installing Scoop...'
-            try {
-                Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
-                Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
-                Write-Ok 'Scoop installed'
-            }
-            catch {
-                Write-Err "Failed to install Scoop: $_"
-                Write-Err 'Install manually: https://scoop.sh'
-                exit 1
-            }
-        }
-        else {
-            Write-Ok 'Scoop available'
-        }
+        # Ensure TLS 1.2 for GitHub API (required on PS 5.1)
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
-        if (-not (Test-GentleAiInstalled)) {
+        # -- gentle-ai --
+        if (Test-GentleAiInstalled) {
+            if ($Update -and (Test-ScoopInstalled)) {
+                Write-Step 'Updating gentle-ai...'
+                try { & scoop update gentle-ai }
+                catch { Write-Warn "Failed to update gentle-ai: $_" }
+            }
+            Write-Ok 'gentle-ai available'
+        }
+        elseif (Test-ScoopInstalled) {
             Write-Step 'Installing gentle-ai via Scoop...'
             try {
                 & scoop bucket add team-ai-kit https://github.com/lazarogadiel93/scoop-bucket 2>$null
                 & scoop install gentle-ai
-                Write-Ok 'gentle-ai installed'
+                Write-Ok 'gentle-ai installed via Scoop'
+            }
+            catch {
+                Write-Warn "Scoop install failed: $_ -- trying direct download..."
+                try {
+                    $dlResult = Install-GithubReleaseBinary -Owner 'Gentleman-Programming' -Repo 'gentle-ai' -BinaryName 'gentle-ai'
+                    $null = Add-ToUserPath -Directory (Get-DirectDownloadBinDir)
+                    Write-Ok "gentle-ai $($dlResult.version) installed via direct download"
+                }
+                catch {
+                    Write-Err "Failed to install gentle-ai: $_"
+                    exit 1
+                }
+            }
+        }
+        else {
+            Write-Step 'Scoop not available -- downloading gentle-ai directly...'
+            try {
+                $dlResult = Install-GithubReleaseBinary -Owner 'Gentleman-Programming' -Repo 'gentle-ai' -BinaryName 'gentle-ai'
+                $null = Add-ToUserPath -Directory (Get-DirectDownloadBinDir)
+                Write-Ok "gentle-ai $($dlResult.version) installed via direct download"
             }
             catch {
                 Write-Err "Failed to install gentle-ai: $_"
+                Write-Err 'Download manually from: https://github.com/Gentleman-Programming/gentle-ai/releases'
                 exit 1
             }
         }
-        else {
-            if ($Update) {
-                Write-Step 'Updating gentle-ai...'
-                & scoop update gentle-ai
-            }
-            Write-Ok 'gentle-ai available'
-        }
 
-        if (-not (Test-EngramInstalled)) {
-            Write-Warn 'Engram not found -- gentle-ai install will set it up'
+        # -- engram --
+        if (Test-EngramInstalled) {
+            Write-Ok 'engram available'
         }
         else {
-            Write-Ok 'engram available'
+            Write-Step 'Installing engram...'
+            if (Test-ScoopInstalled) {
+                try {
+                    & scoop install engram 2>$null
+                    Write-Ok 'engram installed via Scoop'
+                }
+                catch {
+                    Write-Warn "Scoop install failed -- trying direct download..."
+                    try {
+                        $dlResult = Install-GithubReleaseBinary -Owner 'Gentleman-Programming' -Repo 'engram' -BinaryName 'engram'
+                        $null = Add-ToUserPath -Directory (Get-DirectDownloadBinDir)
+                        Write-Ok "engram $($dlResult.version) installed via direct download"
+                    }
+                    catch {
+                        Write-Warn "Failed to install engram: $_ -- gentle-ai install will set it up"
+                    }
+                }
+            }
+            else {
+                try {
+                    $dlResult = Install-GithubReleaseBinary -Owner 'Gentleman-Programming' -Repo 'engram' -BinaryName 'engram'
+                    $null = Add-ToUserPath -Directory (Get-DirectDownloadBinDir)
+                    Write-Ok "engram $($dlResult.version) installed via direct download"
+                }
+                catch {
+                    Write-Warn "Failed to install engram: $_ -- gentle-ai install will set it up"
+                }
+            }
         }
     }
     else {
@@ -281,8 +318,9 @@ function Invoke-SetupCommand {
         Write-Host ''
 
         try {
+            $gentleBin = Get-GentleAiBinaryPath
             $installArgs = @('install', '--agent', $gentleAiAgentId, '--preset', 'ecosystem-only', '--persona', 'gentleman')
-            & gentle-ai @installArgs
+            & $gentleBin @installArgs
             if ($LASTEXITCODE -eq 0) {
                 Write-Ok "gentle-ai configured for $gentleAiAgentId"
             }
@@ -756,16 +794,22 @@ function Invoke-DoctorCommand {
 
     $allGood = $true
 
-    # Scoop
+    # Scoop (optional)
     if (Test-ScoopInstalled) { Write-Ok 'Scoop: installed' }
-    else { Write-Err 'Scoop: NOT found'; $allGood = $false }
+    else { Write-Warn 'Scoop: NOT found (optional -- direct download available)' }
 
     # gentle-ai
-    if (Test-GentleAiInstalled) { Write-Ok 'gentle-ai: installed' }
+    if (Test-GentleAiInstalled) {
+        $gentlePath = Get-GentleAiBinaryPath
+        Write-Ok "gentle-ai: installed ($gentlePath)"
+    }
     else { Write-Err 'gentle-ai: NOT found'; $allGood = $false }
 
     # engram
-    if (Test-EngramInstalled) { Write-Ok 'engram: installed' }
+    if (Test-EngramInstalled) {
+        $engramPath = Get-EngramBinaryPath
+        Write-Ok "engram: installed ($engramPath)"
+    }
     else { Write-Err 'engram: NOT found'; $allGood = $false }
 
     # Config

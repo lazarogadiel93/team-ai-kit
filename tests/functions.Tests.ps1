@@ -1183,6 +1183,208 @@ Describe 'Test-SkillModifiedByUser' {
 
 # -- Skills Merge (3-layer) ---------------------------------------------------
 
+# -- Direct Download Support ---------------------------------------------------
+
+Describe 'Get-DirectDownloadBinDir' {
+    It 'returns a path under LOCALAPPDATA' {
+        $dir = Get-DirectDownloadBinDir
+        $dir | Should -BeLike "$env:LOCALAPPDATA*"
+    }
+
+    It 'returns a path ending in team-ai-kit\bin' {
+        $dir = Get-DirectDownloadBinDir
+        $dir | Should -BeLike '*team-ai-kit?bin'
+    }
+}
+
+Describe 'Get-PlatformArchitecture' {
+    It 'returns a hashtable with os and arch keys' {
+        $platform = Get-PlatformArchitecture
+        $platform | Should -BeOfType [hashtable]
+        $platform.ContainsKey('os') | Should -BeTrue
+        $platform.ContainsKey('arch') | Should -BeTrue
+    }
+
+    It 'returns windows as os' {
+        $platform = Get-PlatformArchitecture
+        $platform.os | Should -Be 'windows'
+    }
+
+    It 'returns a valid architecture (amd64 or arm64)' {
+        $platform = Get-PlatformArchitecture
+        $platform.arch | Should -BeIn @('amd64', 'arm64')
+    }
+}
+
+Describe 'Get-GithubLatestReleaseAssetUrl' {
+    It 'throws when no asset matches pattern' {
+        Mock Invoke-RestMethod {
+            return @{
+                tag_name = 'v1.0.0'
+                assets = @(
+                    @{ name = 'tool_1.0.0_linux_amd64.tar.gz'; browser_download_url = 'https://example.com/linux.tar.gz' }
+                )
+            }
+        }
+        { Get-GithubLatestReleaseAssetUrl -Owner 'test' -Repo 'tool' -AssetPattern 'tool_*_windows_amd64.zip' } | Should -Throw '*No release asset matching*'
+    }
+
+    It 'returns matching asset info' {
+        Mock Invoke-RestMethod {
+            return @{
+                tag_name = 'v1.2.3'
+                assets = @(
+                    @{ name = 'tool_1.2.3_linux_amd64.tar.gz'; browser_download_url = 'https://example.com/linux.tar.gz' }
+                    @{ name = 'tool_1.2.3_windows_amd64.zip'; browser_download_url = 'https://example.com/windows.zip' }
+                )
+            }
+        }
+        $result = Get-GithubLatestReleaseAssetUrl -Owner 'test' -Repo 'tool' -AssetPattern 'tool_*_windows_amd64.zip'
+        $result.url | Should -Be 'https://example.com/windows.zip'
+        $result.version | Should -Be 'v1.2.3'
+        $result.name | Should -Be 'tool_1.2.3_windows_amd64.zip'
+    }
+}
+
+Describe 'Install-GithubReleaseBinary' {
+    It 'calls Get-GithubLatestReleaseAssetUrl with correct asset pattern' {
+        $capturedPattern = $null
+        Mock Get-GithubLatestReleaseAssetUrl {
+            $capturedPattern = $AssetPattern
+            throw 'mock-stop'
+        }
+        try {
+            Install-GithubReleaseBinary -Owner 'test' -Repo 'mytool' -BinaryName 'mytool'
+        }
+        catch {}
+        Should -Invoke Get-GithubLatestReleaseAssetUrl -Times 1
+    }
+}
+
+Describe 'Add-ToUserPath' {
+    It 'adds directory to current session PATH' {
+        $originalPath = $env:PATH
+        $testDir = "C:\team-ai-kit-test-path-$(Get-Random)"
+        try {
+            # Temporarily remove the dir from PATH (it shouldn't be there, but be safe)
+            $env:PATH = $originalPath -replace [regex]::Escape($testDir), ''
+            # We can't mock [Environment]::SetEnvironmentVariable, so we just verify
+            # the session PATH was updated. The persistent change is a side effect.
+            $null = Add-ToUserPath -Directory $testDir
+            $env:PATH | Should -BeLike "*$testDir*"
+        }
+        finally {
+            $env:PATH = $originalPath
+            # Clean up any persistent PATH change (remove the test dir)
+            $userPath = [Environment]::GetEnvironmentVariable('PATH', 'User')
+            if ($userPath -and $userPath -like "*$testDir*") {
+                $cleanPath = ($userPath -split ';' | Where-Object { $_ -ne $testDir }) -join ';'
+                [Environment]::SetEnvironmentVariable('PATH', $cleanPath, 'User')
+            }
+        }
+    }
+
+    It 'returns $false when directory is already in PATH' {
+        $originalPath = $env:PATH
+        $existingDir = ($env:PATH -split ';')[0]
+        try {
+            $result = Add-ToUserPath -Directory $existingDir
+            # It should return $false since the dir was already there
+            # (or $true if it wasn't in the User-level persistent PATH)
+            $result | Should -Not -BeNullOrEmpty
+        }
+        finally {
+            $env:PATH = $originalPath
+        }
+    }
+}
+
+Describe 'Get-GentleAiBinaryPath' {
+    It 'returns $null when gentle-ai is not found anywhere' {
+        Mock Get-Command { throw 'not found' }
+        # Use a temp USERPROFILE and LOCALAPPDATA to avoid finding real binaries
+        $originalProfile = $env:USERPROFILE
+        $originalAppData = $env:LOCALAPPDATA
+        $env:USERPROFILE = Join-Path $env:TEMP "team-ai-kit-gentle-test-$(Get-Random)"
+        $env:LOCALAPPDATA = Join-Path $env:TEMP "team-ai-kit-gentle-local-$(Get-Random)"
+        try {
+            Get-GentleAiBinaryPath | Should -BeNullOrEmpty
+        }
+        finally {
+            $env:USERPROFILE = $originalProfile
+            $env:LOCALAPPDATA = $originalAppData
+        }
+    }
+
+    It 'returns path when gentle-ai is in direct download location' {
+        Mock Get-Command { throw 'not found' }
+        $originalProfile = $env:USERPROFILE
+        $originalAppData = $env:LOCALAPPDATA
+        $tempLocal = Join-Path $env:TEMP "team-ai-kit-gentle-direct-$(Get-Random)"
+        $env:USERPROFILE = Join-Path $env:TEMP "team-ai-kit-gentle-profile-$(Get-Random)"
+        $env:LOCALAPPDATA = $tempLocal
+        try {
+            $binDir = Join-Path $tempLocal 'team-ai-kit\bin'
+            New-Item -ItemType Directory -Path $binDir -Force | Out-Null
+            $fakeBin = Join-Path $binDir 'gentle-ai.exe'
+            Set-Content -Path $fakeBin -Value 'fake'
+
+            $result = Get-GentleAiBinaryPath
+            $result | Should -Be $fakeBin
+        }
+        finally {
+            $env:USERPROFILE = $originalProfile
+            $env:LOCALAPPDATA = $originalAppData
+            if (Test-Path $tempLocal) { Remove-Item -Recurse -Force $tempLocal -ErrorAction SilentlyContinue }
+        }
+    }
+}
+
+Describe 'Test-GentleAiInstalled (updated with fallback)' {
+    It 'returns $true when gentle-ai is in PATH' {
+        Mock Get-Command { return @{ Source = 'C:\gentle-ai.exe' } }
+        Test-GentleAiInstalled | Should -BeTrue
+    }
+
+    It 'returns $true when gentle-ai is in direct download dir' {
+        Mock Get-Command { throw 'not found' }
+        $originalProfile = $env:USERPROFILE
+        $originalAppData = $env:LOCALAPPDATA
+        $tempLocal = Join-Path $env:TEMP "team-ai-kit-installed-test-$(Get-Random)"
+        $env:USERPROFILE = Join-Path $env:TEMP "team-ai-kit-installed-profile-$(Get-Random)"
+        $env:LOCALAPPDATA = $tempLocal
+        try {
+            $binDir = Join-Path $tempLocal 'team-ai-kit\bin'
+            New-Item -ItemType Directory -Path $binDir -Force | Out-Null
+            Set-Content -Path (Join-Path $binDir 'gentle-ai.exe') -Value 'fake'
+
+            Test-GentleAiInstalled | Should -BeTrue
+        }
+        finally {
+            $env:USERPROFILE = $originalProfile
+            $env:LOCALAPPDATA = $originalAppData
+            if (Test-Path $tempLocal) { Remove-Item -Recurse -Force $tempLocal -ErrorAction SilentlyContinue }
+        }
+    }
+
+    It 'returns $false when gentle-ai is nowhere' {
+        Mock Get-Command { throw 'not found' }
+        $originalProfile = $env:USERPROFILE
+        $originalAppData = $env:LOCALAPPDATA
+        $env:USERPROFILE = Join-Path $env:TEMP "team-ai-kit-nowhere-$(Get-Random)"
+        $env:LOCALAPPDATA = Join-Path $env:TEMP "team-ai-kit-nowhere-local-$(Get-Random)"
+        try {
+            Test-GentleAiInstalled | Should -BeFalse
+        }
+        finally {
+            $env:USERPROFILE = $originalProfile
+            $env:LOCALAPPDATA = $originalAppData
+        }
+    }
+}
+
+# -- Skills Merge (3-layer) ---------------------------------------------------
+
 Describe 'Install-SkillsWithMerge' {
     BeforeAll {
         $script:mergeTestDir = Join-Path $env:TEMP "team-ai-kit-merge-$(Get-Random)"

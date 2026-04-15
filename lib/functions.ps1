@@ -421,6 +421,168 @@ function Test-GentleAiSupportsIde {
     return $null -ne (Get-GentleAiAgentId -Ide $Ide)
 }
 
+# ── Direct Download Support ───────────────────────────────────────────────────
+
+function Get-DirectDownloadBinDir {
+    <#
+    .SYNOPSIS
+        Returns the path where directly-downloaded binaries are stored.
+        Windows: $env:LOCALAPPDATA\team-ai-kit\bin
+    #>
+    return Join-Path $env:LOCALAPPDATA 'team-ai-kit\bin'
+}
+
+function Get-PlatformArchitecture {
+    <#
+    .SYNOPSIS
+        Returns OS and architecture for GitHub release asset matching.
+    .OUTPUTS
+        Hashtable with 'os' and 'arch' keys.
+    #>
+    $arch = switch ($env:PROCESSOR_ARCHITECTURE) {
+        'AMD64' { 'amd64' }
+        'ARM64' { 'arm64' }
+        default { 'amd64' }
+    }
+    return @{ os = 'windows'; arch = $arch }
+}
+
+function Get-GithubLatestReleaseAssetUrl {
+    <#
+    .SYNOPSIS
+        Queries GitHub API for the latest release and returns the matching asset info.
+    .OUTPUTS
+        Hashtable with url, name, and version keys.
+    #>
+    param(
+        [Parameter(Mandatory)]
+        [string]$Owner,
+        [Parameter(Mandatory)]
+        [string]$Repo,
+        [Parameter(Mandatory)]
+        [string]$AssetPattern
+    )
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    $apiUrl = "https://api.github.com/repos/$Owner/$Repo/releases/latest"
+    $headers = @{ 'User-Agent' = 'team-ai-kit' }
+    if ($env:GITHUB_TOKEN) {
+        $headers['Authorization'] = "Bearer $env:GITHUB_TOKEN"
+    }
+    try {
+        $release = Invoke-RestMethod -Uri $apiUrl -Headers $headers
+    }
+    catch {
+        $statusCode = $null
+        if ($_.Exception.Response) {
+            $statusCode = [int]$_.Exception.Response.StatusCode
+        }
+        if ($statusCode -eq 403) {
+            throw "GitHub API rate limit exceeded for $Owner/$Repo. Set GITHUB_TOKEN environment variable to authenticate."
+        }
+        throw "Failed to query GitHub API for $Owner/${Repo}: $($_.Exception.Message)"
+    }
+    $asset = $release.assets | Where-Object { $_.name -like $AssetPattern } | Select-Object -First 1
+    if (-not $asset) {
+        throw "No release asset matching '$AssetPattern' found for $Owner/$Repo"
+    }
+    return @{
+        url     = $asset.browser_download_url
+        name    = $asset.name
+        version = $release.tag_name
+    }
+}
+
+function Install-GithubReleaseBinary {
+    <#
+    .SYNOPSIS
+        Downloads and extracts a binary from a GitHub release.
+    .DESCRIPTION
+        Downloads the latest release asset matching the platform, extracts the zip,
+        and places the binary in the direct download bin directory.
+    .OUTPUTS
+        Hashtable with installed ($true/$false), version, and path keys.
+    #>
+    param(
+        [Parameter(Mandatory)]
+        [string]$Owner,
+        [Parameter(Mandatory)]
+        [string]$Repo,
+        [Parameter(Mandatory)]
+        [string]$BinaryName
+    )
+
+    $platform = Get-PlatformArchitecture
+    $assetPattern = "${Repo}_*_$($platform.os)_$($platform.arch).zip"
+
+    $release = Get-GithubLatestReleaseAssetUrl -Owner $Owner -Repo $Repo -AssetPattern $assetPattern
+    $binDir = Get-DirectDownloadBinDir
+    if (-not (Test-Path $binDir)) {
+        New-Item -ItemType Directory -Path $binDir -Force | Out-Null
+    }
+
+    $tempZip = Join-Path $env:TEMP "$Repo-download-$(Get-Random).zip"
+    $tempExtract = Join-Path $env:TEMP "$Repo-extract-$(Get-Random)"
+
+    try {
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        Invoke-WebRequest -Uri $release.url -OutFile $tempZip -UseBasicParsing
+
+        if (Test-Path $tempExtract) { Remove-Item -Recurse -Force $tempExtract }
+        Expand-Archive -Path $tempZip -DestinationPath $tempExtract -Force
+
+        # Look for the binary (with or without .exe extension)
+        $exeFile = Get-ChildItem -Path $tempExtract -Filter "$BinaryName.exe" -Recurse | Select-Object -First 1
+        if (-not $exeFile) {
+            $exeFile = Get-ChildItem -Path $tempExtract -Filter $BinaryName -Recurse -File | Select-Object -First 1
+        }
+        if (-not $exeFile) {
+            throw "Binary '$BinaryName' not found in extracted archive"
+        }
+
+        $destPath = Join-Path $binDir "$BinaryName.exe"
+        Copy-Item -Path $exeFile.FullName -Destination $destPath -Force
+
+        return @{
+            installed = $true
+            version   = $release.version
+            path      = $destPath
+        }
+    }
+    finally {
+        if (Test-Path $tempZip) { Remove-Item $tempZip -Force -ErrorAction SilentlyContinue }
+        if (Test-Path $tempExtract) { Remove-Item -Recurse -Force $tempExtract -ErrorAction SilentlyContinue }
+    }
+}
+
+function Add-ToUserPath {
+    <#
+    .SYNOPSIS
+        Adds a directory to the user PATH (persistent + current session).
+    .OUTPUTS
+        $true if the directory was added to persistent PATH, $false if already present.
+    #>
+    param(
+        [Parameter(Mandatory)]
+        [string]$Directory
+    )
+
+    # Add to current session (exact element match, not substring)
+    $sessionElements = $env:PATH -split ';' | Where-Object { $_ -ne '' }
+    if ($sessionElements -notcontains $Directory) {
+        $env:PATH = "$Directory;$env:PATH"
+    }
+
+    # Add to persistent user PATH (exact element match, not substring)
+    $userPath = [Environment]::GetEnvironmentVariable('PATH', 'User')
+    $userElements = if ($userPath) { $userPath -split ';' | Where-Object { $_ -ne '' } } else { @() }
+    if (-not $userPath -or $userElements -notcontains $Directory) {
+        $newPath = if ($userPath) { "$Directory;$userPath" } else { $Directory }
+        [Environment]::SetEnvironmentVariable('PATH', $newPath, 'User')
+        return $true
+    }
+    return $false
+}
+
 # ── Prerequisite Checks ──────────────────────────────────────────────────────
 
 function Test-ScoopInstalled {
@@ -440,15 +602,43 @@ function Test-ScoopInstalled {
 function Test-GentleAiInstalled {
     <#
     .SYNOPSIS
-        Returns $true if gentle-ai binary is available in PATH.
+        Returns $true if gentle-ai binary is available in PATH or known locations.
     #>
     try {
         $null = Get-Command gentle-ai -ErrorAction Stop
         return $true
     }
-    catch {
-        return $false
+    catch {}
+
+    # Check Scoop shim
+    $scoopPath = Join-Path $env:USERPROFILE 'scoop\shims\gentle-ai.exe'
+    if (Test-Path $scoopPath) { return $true }
+
+    # Check direct download location
+    $directPath = Join-Path (Get-DirectDownloadBinDir) 'gentle-ai.exe'
+    if (Test-Path $directPath) { return $true }
+
+    return $false
+}
+
+function Get-GentleAiBinaryPath {
+    <#
+    .SYNOPSIS
+        Returns the full path to the gentle-ai binary, or $null if not found.
+    #>
+    try {
+        $cmd = Get-Command gentle-ai -ErrorAction Stop
+        return $cmd.Source
     }
+    catch {}
+
+    $scoopPath = Join-Path $env:USERPROFILE 'scoop\shims\gentle-ai.exe'
+    if (Test-Path $scoopPath) { return $scoopPath }
+
+    $directPath = Join-Path (Get-DirectDownloadBinDir) 'gentle-ai.exe'
+    if (Test-Path $directPath) { return $directPath }
+
+    return $null
 }
 
 function Test-EngramInstalled {
@@ -471,6 +661,10 @@ function Test-EngramInstalled {
     $appDataPath = Join-Path $env:LOCALAPPDATA 'engram\bin\engram.exe'
     if (Test-Path $appDataPath) { return $true }
 
+    # Check direct download location
+    $directPath = Join-Path (Get-DirectDownloadBinDir) 'engram.exe'
+    if (Test-Path $directPath) { return $true }
+
     return $false
 }
 
@@ -490,6 +684,9 @@ function Get-EngramBinaryPath {
 
     $appDataPath = Join-Path $env:LOCALAPPDATA 'engram\bin\engram.exe'
     if (Test-Path $appDataPath) { return $appDataPath }
+
+    $directPath = Join-Path (Get-DirectDownloadBinDir) 'engram.exe'
+    if (Test-Path $directPath) { return $directPath }
 
     return $null
 }
@@ -515,9 +712,14 @@ function Invoke-GentleAiInstall {
         throw 'gentle-ai is not installed. Run setup prerequisites first.'
     }
 
+    $gentleBin = Get-GentleAiBinaryPath
+    if (-not $gentleBin) {
+        throw 'gentle-ai binary not found in PATH or known locations.'
+    }
+
     $installArgs = @('install', '--agent', $AgentId, '--preset', $Preset, '--persona', $Persona)
     try {
-        & gentle-ai @installArgs
+        & $gentleBin @installArgs
         return $LASTEXITCODE -eq 0
     }
     catch {

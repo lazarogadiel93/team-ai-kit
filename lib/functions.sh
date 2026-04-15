@@ -373,15 +373,200 @@ test_brew_installed() { command -v brew &>/dev/null; }
 
 test_jq_installed() { command -v jq &>/dev/null; }
 
-test_gentle_ai_installed() { command -v gentle-ai &>/dev/null; }
+test_curl_installed() { command -v curl &>/dev/null; }
+
+# -- Direct Download Support ---------------------------------------------------
+
+get_direct_download_bin_dir() {
+    # Returns ~/.local/bin (standard user bin for Linux/macOS)
+    echo "$HOME/.local/bin"
+}
+
+get_platform_architecture() {
+    # Returns os_arch string for GitHub release asset matching (e.g. linux_amd64, darwin_arm64)
+    local os arch
+    os=$(uname -s | tr '[:upper:]' '[:lower:]')
+    case "$os" in
+        darwin) os="darwin" ;;
+        linux)  os="linux" ;;
+        *)      echo "ERROR: Unsupported OS: $os" >&2; return 1 ;;
+    esac
+    arch=$(uname -m)
+    case "$arch" in
+        x86_64)        arch="amd64" ;;
+        aarch64|arm64) arch="arm64" ;;
+        *)             echo "ERROR: Unsupported architecture: $arch" >&2; return 1 ;;
+    esac
+    echo "${os}_${arch}"
+}
+
+get_github_latest_release_asset_url() {
+    # Queries GitHub API for the latest release asset matching a regex pattern.
+    # Usage: get_github_latest_release_asset_url owner repo "asset_regex_pattern"
+    # Outputs JSON: {"url":"...","version":"v1.2.3"}
+    local owner="$1" repo="$2" asset_pattern="$3"
+    local api_url="https://api.github.com/repos/$owner/$repo/releases/latest"
+    local curl_auth_args=()
+    if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+        curl_auth_args=(-H "Authorization: Bearer $GITHUB_TOKEN")
+    fi
+    local tmp_file release_json http_code
+    tmp_file=$(mktemp /tmp/tak_release_XXXXXX.json)
+    http_code=$(curl -sSL -w '%{http_code}' -o "$tmp_file" "${curl_auth_args[@]}" "$api_url") || true
+    if [[ -z "$http_code" ]]; then
+        echo "ERROR: Network request to GitHub API failed for $owner/$repo (check connectivity)" >&2
+        rm -f "$tmp_file"
+        return 1
+    elif [[ "$http_code" == "403" ]]; then
+        echo "ERROR: GitHub API rate limit exceeded for $owner/$repo. Set GITHUB_TOKEN environment variable to authenticate." >&2
+        rm -f "$tmp_file"
+        return 1
+    elif [[ "$http_code" != "200" ]]; then
+        echo "ERROR: Failed to query GitHub API for $owner/$repo (HTTP $http_code)" >&2
+        rm -f "$tmp_file"
+        return 1
+    fi
+    release_json=$(cat "$tmp_file")
+    rm -f "$tmp_file"
+
+    local asset_url
+    asset_url=$(echo "$release_json" | jq -r ".assets[] | select(.name | test(\"$asset_pattern\")) | .browser_download_url" | head -1)
+    local version
+    version=$(echo "$release_json" | jq -r '.tag_name')
+
+    if [[ -z "$asset_url" || "$asset_url" == "null" ]]; then
+        echo "ERROR: No asset matching pattern '$asset_pattern' for $owner/$repo" >&2
+        return 1
+    fi
+    jq -n --arg url "$asset_url" --arg version "$version" '{url:$url, version:$version}'
+}
+
+install_github_release_binary() {
+    # Downloads and installs a binary from a GitHub release.
+    # Usage: install_github_release_binary owner repo binary_name
+    # Outputs JSON: {"installed":true,"version":"v1.2.3","path":"/path/to/binary"}
+    local owner="$1" repo="$2" binary_name="$3"
+
+    local platform
+    platform=$(get_platform_architecture) || return 1
+
+    local asset_pattern="${repo}_.*_${platform}\\.tar\\.gz"
+
+    local release_info
+    release_info=$(get_github_latest_release_asset_url "$owner" "$repo" "$asset_pattern") || return 1
+    local url version
+    url=$(echo "$release_info" | jq -r '.url')
+    version=$(echo "$release_info" | jq -r '.version')
+
+    local bin_dir
+    bin_dir=$(get_direct_download_bin_dir)
+    [[ -d "$bin_dir" ]] || mkdir -p "$bin_dir"
+
+    local temp_dir
+    temp_dir=$(mktemp -d)
+
+    if ! (
+        set -e
+        cd "$temp_dir" || exit 1
+        local curl_dl_args=()
+        if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+            curl_dl_args=(-H "Authorization: Bearer $GITHUB_TOKEN")
+        fi
+        curl -sSLf "${curl_dl_args[@]}" "$url" -o "archive.tar.gz" || {
+            echo "ERROR: Failed to download release archive from $url" >&2
+            exit 1
+        }
+        tar xzf "archive.tar.gz"
+        local found_binary
+        found_binary=$(find . -name "$binary_name" -type f | head -1)
+        if [[ -z "$found_binary" ]]; then
+            echo "ERROR: Binary '$binary_name' not found in archive" >&2
+            exit 1
+        fi
+        chmod +x "$found_binary"
+        cp "$found_binary" "$bin_dir/$binary_name"
+    ); then
+        rm -rf "$temp_dir"
+        return 1
+    fi
+
+    rm -rf "$temp_dir"
+    jq -n --arg version "$version" --arg path "$bin_dir/$binary_name" \
+        '{installed:true, version:$version, path:$path}'
+}
+
+add_to_path_if_needed() {
+    # Adds directory to current session PATH and appends to shell profiles if needed.
+    # Usage: add_to_path_if_needed "/path/to/dir"
+    # Returns "true" if added to at least one profile, "false" otherwise.
+    local dir="$1"
+
+    # Add to current session
+    case ":$PATH:" in
+        *":$dir:"*) ;;
+        *) export PATH="$dir:$PATH" ;;
+    esac
+
+    # Add to shell profiles for persistence
+    local added="false"
+    local marker="# Added by team-ai-kit"
+
+    # If no profile files exist, create one for the user's current shell
+    local has_profile="false"
+    for p in "$HOME/.bashrc" "$HOME/.zshrc" "$HOME/.profile"; do
+        [[ -f "$p" ]] && has_profile="true" && break
+    done
+    if [[ "$has_profile" == "false" ]]; then
+        local shell_name
+        shell_name=$(basename "${SHELL:-/bin/bash}")
+        case "$shell_name" in
+            zsh)  touch "$HOME/.zshrc" ;;
+            bash) touch "$HOME/.bashrc" ;;
+            *)    touch "$HOME/.profile" ;;
+        esac
+    fi
+
+    for profile in "$HOME/.bashrc" "$HOME/.zshrc" "$HOME/.profile"; do
+        if [[ -f "$profile" ]] && ! grep -qxF "export PATH=\"$dir:\$PATH\"" "$profile" 2>/dev/null; then
+            printf '\n%s\nexport PATH="%s:$PATH"\n' "$marker" "$dir" >> "$profile"
+            added="true"
+        fi
+    done
+    echo "$added"
+}
+
+test_gentle_ai_installed() {
+    command -v gentle-ai &>/dev/null && return 0
+    # Check Homebrew locations
+    [[ -x "/opt/homebrew/bin/gentle-ai" ]] && return 0
+    [[ -x "/usr/local/bin/gentle-ai" ]] && return 0
+    # Check direct download location
+    local direct_path
+    direct_path="$(get_direct_download_bin_dir)/gentle-ai"
+    [[ -x "$direct_path" ]] && return 0
+    return 1
+}
+
+get_gentle_ai_binary_path() {
+    if command -v gentle-ai &>/dev/null; then
+        command -v gentle-ai
+        return 0
+    fi
+    local paths=("/opt/homebrew/bin/gentle-ai" "/usr/local/bin/gentle-ai" "$(get_direct_download_bin_dir)/gentle-ai")
+    local p
+    for p in "${paths[@]}"; do
+        [[ -x "$p" ]] && echo "$p" && return 0
+    done
+    return 1
+}
 
 test_engram_installed() {
     command -v engram &>/dev/null && return 0
     # Check Homebrew location
     [[ -x "/opt/homebrew/bin/engram" ]] && return 0
     [[ -x "/usr/local/bin/engram" ]] && return 0
-    # Check local install
-    [[ -x "$HOME/.local/bin/engram" ]] && return 0
+    # Check local install / direct download
+    [[ -x "$(get_direct_download_bin_dir)/engram" ]] && return 0
     return 1
 }
 
@@ -390,7 +575,7 @@ get_engram_binary_path() {
         command -v engram
         return 0
     fi
-    local paths=("/opt/homebrew/bin/engram" "/usr/local/bin/engram" "$HOME/.local/bin/engram")
+    local paths=("/opt/homebrew/bin/engram" "/usr/local/bin/engram" "$(get_direct_download_bin_dir)/engram")
     local p
     for p in "${paths[@]}"; do
         [[ -x "$p" ]] && echo "$p" && return 0
