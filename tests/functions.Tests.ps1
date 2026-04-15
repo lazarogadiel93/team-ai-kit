@@ -786,9 +786,120 @@ Describe 'Save-SkillManifest' {
                         hash        = 'ABC123'
                         source      = 'default'
                         installedAt = '2026-04-14T00:00:00'
-                    }
-                }
-            }
+        }
+    }
+}
+
+# -- Project Init Functions ----------------------------------------------------
+
+Describe 'Get-ProjectConfigPath' {
+    It 'returns .team-ai-kit.json in the project root' {
+        $path = Get-ProjectConfigPath -ProjectRoot 'C:\projects\my-app'
+        $path | Should -Be 'C:\projects\my-app\.team-ai-kit.json'
+    }
+}
+
+Describe 'Test-ProjectInitialized' {
+    BeforeAll {
+        $script:initTestDir = Join-Path $TestDrive 'init-test-project'
+        New-Item -ItemType Directory -Path $script:initTestDir -Force | Out-Null
+    }
+
+    It 'returns $false when .team-ai-kit.json does not exist' {
+        Test-ProjectInitialized -ProjectRoot $script:initTestDir | Should -BeFalse
+    }
+
+    It 'returns $true when .team-ai-kit.json exists' {
+        $configPath = Join-Path $script:initTestDir '.team-ai-kit.json'
+        '{"role":"frontend"}' | Set-Content -Path $configPath
+        Test-ProjectInitialized -ProjectRoot $script:initTestDir | Should -BeTrue
+    }
+}
+
+Describe 'Save-ProjectConfig and Get-ProjectConfig' {
+    BeforeAll {
+        $script:configTestDir = Join-Path $TestDrive 'config-test-project'
+        New-Item -ItemType Directory -Path $script:configTestDir -Force | Out-Null
+    }
+
+    It 'saves and reads project config correctly' {
+        $config = @{
+            role          = 'backend-node'
+            ide           = 'vscode'
+            initializedAt = '2026-04-15T00:00:00Z'
+            lastSync      = '2026-04-15T00:00:00Z'
+            version       = '2.0.0'
+        }
+        $savedPath = Save-ProjectConfig -ProjectRoot $script:configTestDir -Config $config
+        $savedPath | Should -Not -BeNullOrEmpty
+        Test-Path $savedPath | Should -BeTrue
+
+        $loaded = Get-ProjectConfig -ProjectRoot $script:configTestDir
+        $loaded.role | Should -Be 'backend-node'
+        $loaded.ide | Should -Be 'vscode'
+        $loaded.version | Should -Be '2.0.0'
+    }
+
+    It 'returns $null when no config exists' {
+        $emptyDir = Join-Path $TestDrive 'empty-project'
+        New-Item -ItemType Directory -Path $emptyDir -Force | Out-Null
+        Get-ProjectConfig -ProjectRoot $emptyDir | Should -BeNullOrEmpty
+    }
+}
+
+Describe 'Initialize-SharedEngram' {
+    BeforeAll {
+        $script:engramTestDir = Join-Path $TestDrive 'engram-test-project'
+        New-Item -ItemType Directory -Path $script:engramTestDir -Force | Out-Null
+    }
+
+    It 'creates shared-engram directory' {
+        $result = Initialize-SharedEngram -ProjectRoot $script:engramTestDir
+        $result.path | Should -Be (Join-Path $script:engramTestDir 'shared-engram')
+        Test-Path $result.path | Should -BeTrue
+    }
+
+    It 'creates .gitkeep file' {
+        $gitkeepPath = Join-Path $script:engramTestDir 'shared-engram\.gitkeep'
+        Test-Path $gitkeepPath | Should -BeTrue
+    }
+
+    It 'is idempotent (safe to run twice)' {
+        $result = Initialize-SharedEngram -ProjectRoot $script:engramTestDir
+        $result.path | Should -Not -BeNullOrEmpty
+        Test-Path $result.path | Should -BeTrue
+    }
+}
+
+Describe 'New-InitSummary' {
+    It 'generates summary with exported observations' {
+        $summary = New-InitSummary -Ide 'vscode' -Role 'frontend' -InstructionsPath '.github/copilot-instructions.md' -EngramExported 5
+        $summary | Should -BeLike '*Project Initialized*'
+        $summary | Should -BeLike '*vscode*'
+        $summary | Should -BeLike '*frontend*'
+        $summary | Should -BeLike '*5 observations exported*'
+    }
+
+    It 'generates summary with no observations' {
+        $summary = New-InitSummary -Ide 'opencode' -Role 'devops'
+        $summary | Should -BeLike '*Project Initialized*'
+        $summary | Should -BeLike '*no observations yet*'
+    }
+}
+
+Describe 'Test-ValidCommand includes init' {
+    It 'accepts init as valid command' {
+        Test-ValidCommand -Command 'init' | Should -BeTrue
+    }
+
+    It 'still accepts all original commands' {
+        Test-ValidCommand -Command 'setup' | Should -BeTrue
+        Test-ValidCommand -Command 'update' | Should -BeTrue
+        Test-ValidCommand -Command 'status' | Should -BeTrue
+        Test-ValidCommand -Command 'doctor' | Should -BeTrue
+        Test-ValidCommand -Command 'help' | Should -BeTrue
+    }
+}
             $path = Save-SkillManifest -Manifest $manifest
             Test-Path $path | Should -BeTrue
         }

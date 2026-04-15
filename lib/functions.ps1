@@ -13,7 +13,7 @@ Set-StrictMode -Version Latest
 $script:VALID_IDES = @('vscode', 'intellij', 'opencode')
 $script:VALID_ROLES = @('frontend', 'backend-node', 'devops', 'python')
 $script:VALID_PROVIDERS = @('openai', 'azure-openai', 'anthropic', 'github-copilot')
-$script:VALID_COMMANDS = @('setup', 'update', 'status', 'doctor', 'help')
+$script:VALID_COMMANDS = @('setup', 'init', 'update', 'status', 'doctor', 'help')
 
 # ── Config Persistence ───────────────────────────────────────────────────────
 
@@ -92,6 +92,159 @@ function Test-ValidCommand {
     #>
     param([string]$Command)
     return $script:VALID_COMMANDS -contains $Command.ToLower()
+}
+
+# ── Project Init ──────────────────────────────────────────────────────────────
+
+function Get-ProjectConfigPath {
+    <#
+    .SYNOPSIS
+        Returns the path to .team-ai-kit.json in the given project directory.
+    #>
+    param(
+        [Parameter(Mandatory)]
+        [string]$ProjectRoot
+    )
+    return Join-Path $ProjectRoot '.team-ai-kit.json'
+}
+
+function Test-ProjectInitialized {
+    <#
+    .SYNOPSIS
+        Returns $true if the project has been initialized (.team-ai-kit.json exists).
+    #>
+    param(
+        [Parameter(Mandatory)]
+        [string]$ProjectRoot
+    )
+    return Test-Path (Get-ProjectConfigPath -ProjectRoot $ProjectRoot)
+}
+
+function Get-ProjectConfig {
+    <#
+    .SYNOPSIS
+        Reads and returns the project-level config as a hashtable.
+        Returns $null if not initialized.
+    #>
+    param(
+        [Parameter(Mandatory)]
+        [string]$ProjectRoot
+    )
+    $configPath = Get-ProjectConfigPath -ProjectRoot $ProjectRoot
+    if (-not (Test-Path $configPath)) { return $null }
+    $raw = Get-Content $configPath -Raw | ConvertFrom-Json
+    $config = @{}
+    $raw.PSObject.Properties | ForEach-Object { $config[$_.Name] = $_.Value }
+    return $config
+}
+
+function Save-ProjectConfig {
+    <#
+    .SYNOPSIS
+        Saves project-level config to .team-ai-kit.json in the project root.
+    .OUTPUTS
+        The path to the saved config file.
+    #>
+    param(
+        [Parameter(Mandatory)]
+        [string]$ProjectRoot,
+        [Parameter(Mandatory)]
+        [hashtable]$Config
+    )
+    $configPath = Get-ProjectConfigPath -ProjectRoot $ProjectRoot
+    $Config | ConvertTo-Json -Depth 5 | Set-Content -Path $configPath -Encoding UTF8
+    return $configPath
+}
+
+function Initialize-SharedEngram {
+    <#
+    .SYNOPSIS
+        Creates the shared-engram directory in the project and runs initial export.
+    .DESCRIPTION
+        Sets up shared-engram/ for team knowledge sharing.
+        If engram is installed, exports current project observations.
+        Returns a hashtable with status and path.
+    #>
+    param(
+        [Parameter(Mandatory)]
+        [string]$ProjectRoot,
+        [string]$ProjectName = ''
+    )
+
+    $engramDir = Join-Path $ProjectRoot 'shared-engram'
+
+    # Create directory if missing
+    if (-not (Test-Path $engramDir)) {
+        New-Item -ItemType Directory -Path $engramDir -Force | Out-Null
+    }
+
+    # Create .gitkeep so the dir is tracked even when empty
+    $gitkeepPath = Join-Path $engramDir '.gitkeep'
+    if (-not (Test-Path $gitkeepPath)) {
+        Set-Content -Path $gitkeepPath -Value '' -NoNewline
+    }
+
+    $result = @{
+        path     = $engramDir
+        exported = $false
+        count    = 0
+    }
+
+    # Run initial export if engram is available
+    if (Test-EngramInstalled) {
+        $engramBin = Get-EngramBinaryPath
+        if ($engramBin) {
+            try {
+                $exportArgs = @('export', '--format', 'json', '--output', (Join-Path $engramDir 'observations.json'))
+                if ($ProjectName) {
+                    $exportArgs += @('--project', $ProjectName)
+                }
+                & $engramBin @exportArgs 2>$null
+                if ($LASTEXITCODE -eq 0) {
+                    $result.exported = $true
+                    # Count exported observations
+                    $exportFile = Join-Path $engramDir 'observations.json'
+                    if (Test-Path $exportFile) {
+                        $content = Get-Content $exportFile -Raw | ConvertFrom-Json
+                        if ($content -is [array]) {
+                            $result.count = $content.Count
+                        }
+                    }
+                }
+            }
+            catch {
+                # Non-fatal: engram export failed, directory still created
+            }
+        }
+    }
+
+    return $result
+}
+
+function New-InitSummary {
+    <#
+    .SYNOPSIS
+        Generates a human-readable summary after project initialization.
+    #>
+    param(
+        [Parameter(Mandatory)]
+        [string]$Ide,
+        [Parameter(Mandatory)]
+        [string]$Role,
+        [string]$InstructionsPath = '',
+        [int]$EngramExported = 0
+    )
+    $engramLine = if ($EngramExported -gt 0) { "$EngramExported observations exported" } else { 'directory created (no observations yet)' }
+    return @"
+============================================
+  Team AI Kit -- Project Initialized
+============================================
+  IDE:            $Ide
+  Role:           $Role
+  Instructions:   $InstructionsPath
+  Shared Engram:  $engramLine
+============================================
+"@
 }
 
 # ── IDE-to-Agent Mapping ──────────────────────────────────────────────────────

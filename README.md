@@ -54,9 +54,25 @@ cd team-ai-kit
 
 ```
 team-ai-kit setup     # Primera configuracion (3 preguntas, 2 minutos)
+team-ai-kit init      # Inicializar en el proyecto actual
 team-ai-kit update    # Pull del team repo + merge sin pisar lo tuyo
 team-ai-kit status    # Ver config actual y skills instalados
 team-ai-kit doctor    # Verificar que todo este bien
+```
+
+### Flujo completo
+
+```bash
+# 1. Setup global (una sola vez)
+team-ai-kit setup
+
+# 2. En cada proyecto, inicializar
+cd mi-proyecto
+team-ai-kit init
+
+# 3. Si el proyecto usa otro rol
+cd mi-api-backend
+team-ai-kit init --role backend-node   # override sin cambiar el global
 ```
 
 ### Setup no interactivo
@@ -88,7 +104,8 @@ team-ai-kit setup --ide vscode --role frontend --team-repo https://github.com/te
 |  Custom skills + cross-project rules      |
 +-------------------------------------------+
 |  PROJECT layer (committed to each repo)   |
-|  copilot-instructions.md + .engram/       |
+|  .team-ai-kit.json + instructions +       |
+|  shared-engram/                            |
 +-------------------------------------------+
 ```
 

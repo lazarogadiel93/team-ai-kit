@@ -6,6 +6,7 @@
 #
 # Commands:
 #   setup    First-time configuration (IDE, role, team repo)
+#   init     Initialize team-ai-kit in the current project
 #   update   Pull latest team content + merge without overwriting
 #   status   Show current config and installed skills
 #   doctor   Verify prerequisites and installation health
@@ -20,10 +21,17 @@
 #   --skip-prerequisites      Skip brew/gentle-ai checks
 #   --skip-gentle-ai          Skip gentle-ai install step
 #
+# Init options:
+#   --role <role>             Override global role for this project
+#   --force                   Re-initialize without asking
+#
 # Examples:
 #   team-ai-kit setup
 #   team-ai-kit setup --ide vscode --role frontend
 #   team-ai-kit setup --ide vscode --role frontend --team-repo https://github.com/team/knowledge
+#   team-ai-kit init
+#   team-ai-kit init --role backend-node
+#   team-ai-kit init --role frontend --force
 #   team-ai-kit update
 #   team-ai-kit status
 
@@ -73,6 +81,7 @@ show_help() {
     echo ""
     echo -e "  ${C_YELLOW}Commands:${C_RESET}"
     echo "    setup    First-time configuration (IDE, role, team repo)"
+    echo "    init     Initialize team-ai-kit in the current project"
     echo "    update   Pull latest team content + merge without overwriting"
     echo "    status   Show current config and installed skills"
     echo "    doctor   Verify prerequisites and installation health"
@@ -87,10 +96,17 @@ show_help() {
     echo "    --skip-prerequisites       Skip brew/gentle-ai checks"
     echo "    --skip-gentle-ai           Skip gentle-ai install step"
     echo ""
+    echo -e "  ${C_YELLOW}Init options:${C_RESET}"
+    echo "    --role <role>              Override global role for this project"
+    echo "    --force                    Re-initialize without asking"
+    echo ""
     echo -e "  ${C_YELLOW}Examples:${C_RESET}"
     echo "    team-ai-kit setup"
     echo "    team-ai-kit setup --ide vscode --role frontend"
     echo "    team-ai-kit setup --ide vscode --role frontend --team-repo https://github.com/team/knowledge"
+    echo "    team-ai-kit init"
+    echo "    team-ai-kit init --role backend-node"
+    echo "    team-ai-kit init --role frontend --force"
     echo "    team-ai-kit update"
     echo "    team-ai-kit status"
     echo ""
@@ -348,6 +364,135 @@ cmd_setup() {
     echo ""
 }
 
+# -- Init (project-level) -----------------------------------------------------
+cmd_init() {
+    show_banner
+    local project_root
+    project_root=$(pwd)
+
+    # -- Step 1: Check global config -------------------------------------------
+    echo -e "  ${C_WHITE}[1/4] Checking global configuration...${C_RESET}"
+    local global_ide global_role
+    global_ide=$(get_config_value "ide")
+    global_role=$(get_config_value "role")
+
+    if [[ -z "$global_ide" ]]; then
+        err "No global configuration found."
+        err 'Run "team-ai-kit setup" first to configure your IDE and role.'
+        exit 1
+    fi
+    ok "Global config: IDE=$global_ide, Role=$global_role"
+
+    # -- Step 2: Check if already initialized ----------------------------------
+    echo ""
+    echo -e "  ${C_WHITE}[2/4] Checking project state...${C_RESET}"
+
+    if test_project_initialized "$project_root"; then
+        local existing_role existing_ide existing_at
+        existing_role=$(get_project_config_value "$project_root" "role")
+        existing_ide=$(get_project_config_value "$project_root" "ide")
+        existing_at=$(get_project_config_value "$project_root" "initializedAt")
+
+        if [[ "$OPT_FORCE" == "true" ]]; then
+            warn "Already initialized (Role=$existing_role). Re-initializing (--force)."
+        elif [[ -z "$OPT_ROLE" && -z "$OPT_IDE" ]]; then
+            # Interactive mode: show config and ask
+            warn "This project is already initialized:"
+            echo -e "    ${C_DIM}Role:        $existing_role${C_RESET}"
+            echo -e "    ${C_DIM}IDE:         $existing_ide${C_RESET}"
+            echo -e "    ${C_DIM}Initialized: $existing_at${C_RESET}"
+            echo ""
+            read -rp "  Want to re-initialize? (y/n): " answer
+            if [[ "$answer" != "y" && "$answer" != "Y" && "$answer" != "yes" ]]; then
+                step 'Cancelled. Run "team-ai-kit update" to pull latest changes instead.'
+                return
+            fi
+        else
+            # Non-interactive: fail with clear message
+            err "Project already initialized. Use --force to re-initialize."
+            echo -e "    ${C_DIM}Current role: $existing_role${C_RESET}"
+            exit 1
+        fi
+    else
+        ok "New project -- initializing"
+    fi
+
+    # -- Resolve effective role ------------------------------------------------
+    local effective_role effective_ide
+    effective_role="${OPT_ROLE:-$global_role}"
+    effective_ide="$global_ide"
+    ok "Role for this project: $effective_role"
+
+    # -- Step 3: Generate project files ----------------------------------------
+    echo ""
+    echo -e "  ${C_WHITE}[3/4] Generating project files...${C_RESET}"
+
+    # 3a. Instructions file
+    local instructions_path
+    instructions_path=$(get_ide_instructions_path "$effective_ide" "$project_root")
+    local instructions_dir
+    instructions_dir=$(dirname "$instructions_path")
+    [[ -d "$instructions_dir" ]] || mkdir -p "$instructions_dir"
+
+    local pack_rules_content="" pack_rules_path=""
+    pack_rules_path=$(get_pack_rules_path "$KIT_ROOT" "$effective_role" 2>/dev/null) || true
+    if [[ -n "$pack_rules_path" ]]; then
+        pack_rules_content=$(cat "$pack_rules_path")
+    fi
+    local instructions
+    instructions=$(new_copilot_instructions "$effective_role" "$pack_rules_content")
+    echo "$instructions" > "$instructions_path"
+    local rel_instructions_path="${instructions_path#$project_root/}"
+    ok "Created: $rel_instructions_path"
+
+    # -- Step 4: Setup shared-engram -------------------------------------------
+    echo ""
+    echo -e "  ${C_WHITE}[4/4] Setting up shared engram...${C_RESET}"
+
+    local project_name
+    project_name=$(basename "$project_root")
+    local engram_json
+    engram_json=$(initialize_shared_engram "$project_root" "$project_name")
+
+    local engram_exported engram_count
+    engram_exported=$(echo "$engram_json" | jq -r '.exported')
+    engram_count=$(echo "$engram_json" | jq -r '.count')
+
+    if [[ "$engram_exported" == "true" ]]; then
+        ok "shared-engram/ created -- $engram_count observations exported"
+    elif test_engram_installed; then
+        ok "shared-engram/ created -- no observations for this project yet"
+    else
+        ok "shared-engram/ created"
+        warn "engram not installed -- export will work after installing engram"
+    fi
+
+    # -- Save project config ---------------------------------------------------
+    local now
+    now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    local project_config
+    project_config=$(jq -n \
+        --arg role "$effective_role" \
+        --arg ide "$effective_ide" \
+        --arg initialized_at "$now" \
+        --arg last_sync "$now" \
+        --arg version "2.0.0" \
+        '{role:$role, ide:$ide, initializedAt:$initialized_at, lastSync:$last_sync, version:$version}')
+    save_project_config "$project_root" "$project_config" >/dev/null
+    ok "Project config saved: .team-ai-kit.json"
+
+    # -- Summary ---------------------------------------------------------------
+    echo ""
+    echo -e "${C_GREEN}$(new_init_summary "$effective_ide" "$effective_role" "$rel_instructions_path" "$engram_count")${C_RESET}"
+
+    echo ""
+    echo -e "  ${C_YELLOW}Next steps:${C_RESET}"
+    echo -e "    ${C_WHITE}1. Commit .team-ai-kit.json and $rel_instructions_path to your repo${C_RESET}"
+    echo -e "    ${C_WHITE}2. Commit shared-engram/ to share knowledge with your team${C_RESET}"
+    echo -e "    ${C_WHITE}3. Start working -- your AI agent is configured for this project!${C_RESET}"
+    echo ""
+}
+
 # -- Update --------------------------------------------------------------------
 cmd_update() {
     show_banner
@@ -582,6 +727,7 @@ OPT_TEAM_REPO=""
 OPT_TARGET_DIR=""
 SKIP_PREREQUISITES="false"
 SKIP_GENTLE_AI="false"
+OPT_FORCE="false"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -592,6 +738,7 @@ while [[ $# -gt 0 ]]; do
         --target-dir)        OPT_TARGET_DIR="$2"; shift 2 ;;
         --skip-prerequisites) SKIP_PREREQUISITES="true"; shift ;;
         --skip-gentle-ai)    SKIP_GENTLE_AI="true"; shift ;;
+        --force)             OPT_FORCE="true"; shift ;;
         *)
             err "Unknown option: $1"
             echo '  Run "team-ai-kit help" for usage.'
@@ -603,6 +750,7 @@ done
 # -- Route subcommand ----------------------------------------------------------
 case "$(_lowercase "$COMMAND")" in
     setup)  cmd_setup ;;
+    init)   cmd_init ;;
     update) cmd_update ;;
     status) cmd_status ;;
     doctor) cmd_doctor ;;

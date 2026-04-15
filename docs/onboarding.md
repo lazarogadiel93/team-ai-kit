@@ -91,7 +91,45 @@ team-ai-kit setup --ide vscode --role frontend --team-repo https://github.com/te
 
 ---
 
-## Paso 3: Verificar
+## Paso 3: Inicializar en tu proyecto
+
+Despues del setup global, inicializa en cada proyecto donde trabajes:
+
+```bash
+cd mi-proyecto
+team-ai-kit init
+```
+
+Esto genera:
+- `.team-ai-kit.json` -- config del proyecto (rol, IDE, timestamps)
+- `.github/copilot-instructions.md` (VS Code/IntelliJ) o `AGENTS.md` (OpenCode) -- reglas para el AI
+- `shared-engram/` -- directorio para compartir conocimiento del proyecto con el equipo
+
+### Override de rol por proyecto
+
+Si tu rol global es frontend pero este proyecto es backend:
+
+```powershell
+# Windows
+team-ai-kit init -Role backend-node
+```
+
+```bash
+# macOS / Linux
+team-ai-kit init --role backend-node
+```
+
+Esto NO cambia tu config global. Solo aplica a este proyecto.
+
+### Re-inicializar
+
+Si corres `init` en un proyecto ya inicializado:
+- **Interactivo**: te muestra la config actual y pregunta si queres re-inicializar
+- **No interactivo**: falla con mensaje claro. Usa `--Force` / `--force` para forzar
+
+---
+
+## Paso 4: Verificar
 
 ```
 team-ai-kit doctor
@@ -125,9 +163,11 @@ ls ~/.config/opencode/skills/team-skills/
 
 ---
 
-## Paso 4: Engram sync (opcional)
+## Paso 4: Engram sync
 
-Para compartir conocimiento con el equipo:
+El `init` crea `shared-engram/` y hace el primer export automaticamente.
+
+Para mantenerlo actualizado:
 
 ```bash
 # Al terminar de trabajar: exportar lo aprendido
@@ -136,6 +176,8 @@ engram sync
 # Al empezar: importar conocimiento del equipo
 engram sync --import
 ```
+
+Los archivos exportados en `shared-engram/` son texto plano -- comitealos al repo para que todo el equipo los tenga.
 
 ---
 

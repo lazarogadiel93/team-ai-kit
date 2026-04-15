@@ -11,7 +11,7 @@ set -euo pipefail
 VALID_IDES=("vscode" "intellij" "opencode")
 VALID_ROLES=("frontend" "backend-node" "devops" "python")
 VALID_PROVIDERS=("openai" "azure-openai" "anthropic" "github-copilot")
-VALID_COMMANDS=("setup" "update" "status" "doctor" "help")
+VALID_COMMANDS=("setup" "init" "update" "status" "doctor" "help")
 
 # -- Helpers -------------------------------------------------------------------
 
@@ -105,6 +105,111 @@ test_valid_command() {
     local cmd
     cmd=$(_lowercase "$1")
     _array_contains "$cmd" "${VALID_COMMANDS[@]}"
+}
+
+# -- Project Init --------------------------------------------------------------
+
+get_project_config_path() {
+    # Returns path to .team-ai-kit.json in the given project directory.
+    local project_root="$1"
+    echo "$project_root/.team-ai-kit.json"
+}
+
+test_project_initialized() {
+    # Returns 0 if project has .team-ai-kit.json
+    local project_root="$1"
+    [[ -f "$(get_project_config_path "$project_root")" ]]
+}
+
+get_project_config() {
+    # Returns project config JSON to stdout. Empty string if not initialized.
+    local project_root="$1"
+    local config_path
+    config_path=$(get_project_config_path "$project_root")
+    if [[ -f "$config_path" ]]; then
+        cat "$config_path"
+    else
+        echo ""
+    fi
+}
+
+get_project_config_value() {
+    # Usage: get_project_config_value "/path/to/project" "role"
+    local project_root="$1" key="$2"
+    local config
+    config=$(get_project_config "$project_root")
+    [[ -z "$config" ]] && return 1
+    echo "$config" | jq -r ".$key // empty"
+}
+
+save_project_config() {
+    # Usage: save_project_config "/path/to/project" '{"role":"frontend",...}'
+    local project_root="$1" json="$2"
+    local config_path
+    config_path=$(get_project_config_path "$project_root")
+    echo "$json" | jq '.' > "$config_path"
+    echo "$config_path"
+}
+
+initialize_shared_engram() {
+    # Creates shared-engram/ directory and runs initial export if engram is available.
+    # Usage: initialize_shared_engram "/path/to/project" "project-name"
+    # Outputs JSON: {"path":"/...","exported":true/false,"count":0}
+    local project_root="$1"
+    local project_name="${2:-}"
+    local engram_dir="$project_root/shared-engram"
+    local exported="false"
+    local count=0
+
+    # Create directory
+    [[ -d "$engram_dir" ]] || mkdir -p "$engram_dir"
+
+    # Create .gitkeep
+    [[ -f "$engram_dir/.gitkeep" ]] || touch "$engram_dir/.gitkeep"
+
+    # Run initial export if engram is available
+    if test_engram_installed; then
+        local engram_bin=""
+        engram_bin=$(get_engram_binary_path 2>/dev/null) || true
+        if [[ -n "$engram_bin" ]]; then
+            local export_file="$engram_dir/observations.json"
+            local export_args=("export" "--format" "json" "--output" "$export_file")
+            if [[ -n "$project_name" ]]; then
+                export_args+=("--project" "$project_name")
+            fi
+            if "$engram_bin" "${export_args[@]}" 2>/dev/null; then
+                exported="true"
+                if [[ -f "$export_file" ]]; then
+                    count=$(jq 'if type == "array" then length else 0 end' "$export_file" 2>/dev/null || echo 0)
+                fi
+            fi
+        fi
+    fi
+
+    jq -n --arg path "$engram_dir" --argjson exported "$exported" --argjson count "$count" \
+        '{path:$path, exported:$exported, count:$count}'
+}
+
+new_init_summary() {
+    # Generates human-readable summary after project initialization.
+    # Usage: new_init_summary "vscode" "frontend" ".github/copilot-instructions.md" 5
+    local ide="$1" role="$2" instructions_path="${3:-}" engram_exported="${4:-0}"
+    local engram_line
+    if [[ "$engram_exported" -gt 0 ]]; then
+        engram_line="$engram_exported observations exported"
+    else
+        engram_line="directory created (no observations yet)"
+    fi
+    cat <<EOF
+============================================
+  Team AI Kit -- Project Initialized
+============================================
+  IDE:            $ide
+  Role:           $role
+  Instructions:   $instructions_path
+  Shared Engram:  $engram_line
+============================================
+EOF
 }
 
 # -- IDE-to-Agent Mapping ------------------------------------------------------

@@ -9,6 +9,7 @@
 
     Subcommands:
       setup   - First-time configuration (interactive or non-interactive)
+      init    - Initialize team-ai-kit in the current project directory
       update  - Pull latest team content and merge without overwriting
       status  - Show current configuration and installed skills
       doctor  - Verify prerequisites and installation health
@@ -25,6 +26,15 @@
 .EXAMPLE
     team-ai-kit setup -Ide vscode -Role frontend -TeamRepo https://dev.azure.com/equipo/team-knowledge
     Setup with team content repo (skills and rules shared across projects).
+.EXAMPLE
+    team-ai-kit init
+    Initialize team-ai-kit in the current project (uses global role).
+.EXAMPLE
+    team-ai-kit init -Role backend-node
+    Initialize with a role override for this specific project.
+.EXAMPLE
+    team-ai-kit init -Role frontend -Force
+    Re-initialize an already configured project.
 .EXAMPLE
     team-ai-kit update
     Pull latest from team repo + merge without overwriting local changes.
@@ -54,7 +64,9 @@ param(
 
     [switch]$SkipGentleAi,
 
-    [switch]$Update
+    [switch]$Update,
+
+    [switch]$Force
 )
 
 Set-StrictMode -Version Latest
@@ -88,6 +100,7 @@ function Show-Help {
     Write-Host ''
     Write-Host '  Commands:' -ForegroundColor Yellow
     Write-Host '    setup    First-time configuration (IDE, role, team repo)'
+    Write-Host '    init     Initialize team-ai-kit in the current project'
     Write-Host '    update   Pull latest team content + merge without overwriting'
     Write-Host '    status   Show current config and installed skills'
     Write-Host '    doctor   Verify prerequisites and installation health'
@@ -102,10 +115,17 @@ function Show-Help {
     Write-Host '    -SkipPrerequisites       Skip Scoop/gentle-ai checks'
     Write-Host '    -SkipGentleAi            Skip gentle-ai install step'
     Write-Host ''
+    Write-Host '  Init options:' -ForegroundColor Yellow
+    Write-Host '    -Role <role>             Override global role for this project'
+    Write-Host '    -Force                   Re-initialize without asking'
+    Write-Host ''
     Write-Host '  Examples:' -ForegroundColor Yellow
     Write-Host '    team-ai-kit setup'
     Write-Host '    team-ai-kit setup -Ide vscode -Role frontend'
     Write-Host '    team-ai-kit setup -Ide vscode -Role frontend -TeamRepo https://dev.azure.com/equipo/team-knowledge'
+    Write-Host '    team-ai-kit init'
+    Write-Host '    team-ai-kit init -Role backend-node'
+    Write-Host '    team-ai-kit init -Role frontend -Force'
     Write-Host '    team-ai-kit update'
     Write-Host '    team-ai-kit status'
     Write-Host ''
@@ -402,6 +422,125 @@ function Invoke-SetupCommand {
     Write-Host ''
 }
 
+# -- Init (project-level) -----------------------------------------------------
+function Invoke-InitCommand {
+    Show-Banner
+    $projectRoot = (Get-Location).Path
+
+    # -- Step 1: Check global config -------------------------------------------
+    Write-Host '  [1/4] Checking global configuration...' -ForegroundColor White
+    $globalConfig = Get-TeamAiKitConfig
+    if (-not $globalConfig.ide) {
+        Write-Err 'No global configuration found.'
+        Write-Err 'Run "team-ai-kit setup" first to configure your IDE and role.'
+        exit 1
+    }
+    Write-Ok "Global config: IDE=$($globalConfig.ide), Role=$($globalConfig.role)"
+
+    # -- Step 2: Check if already initialized ----------------------------------
+    Write-Host ''
+    Write-Host '  [2/4] Checking project state...' -ForegroundColor White
+
+    if (Test-ProjectInitialized -ProjectRoot $projectRoot) {
+        $existingConfig = Get-ProjectConfig -ProjectRoot $projectRoot
+
+        if ($Force) {
+            Write-Warn "Already initialized (Role=$($existingConfig.role)). Re-initializing (--Force)."
+        }
+        elseif (-not $Role -and -not $Ide) {
+            # Interactive mode: show config and ask
+            Write-Warn 'This project is already initialized:'
+            Write-Host "    Role:        $($existingConfig.role)" -ForegroundColor DarkGray
+            Write-Host "    IDE:         $($existingConfig.ide)" -ForegroundColor DarkGray
+            Write-Host "    Initialized: $($existingConfig.initializedAt)" -ForegroundColor DarkGray
+            Write-Host ''
+            $answer = Read-Host '  Want to re-initialize? (y/n)'
+            if ($answer -notin @('y', 'Y', 'yes', 'Yes')) {
+                Write-Step 'Cancelled. Run "team-ai-kit update" to pull latest changes instead.'
+                return
+            }
+        }
+        else {
+            # Non-interactive: fail with clear message
+            Write-Err 'Project already initialized. Use -Force to re-initialize.'
+            Write-Host "    Current role: $($existingConfig.role)" -ForegroundColor DarkGray
+            exit 1
+        }
+    }
+    else {
+        Write-Ok 'New project -- initializing'
+    }
+
+    # -- Resolve effective role ------------------------------------------------
+    $effectiveRole = if ($Role) { $Role } else { $globalConfig.role }
+    $effectiveIde = $globalConfig.ide
+    Write-Ok "Role for this project: $effectiveRole"
+
+    # -- Step 3: Generate project files ----------------------------------------
+    Write-Host ''
+    Write-Host '  [3/4] Generating project files...' -ForegroundColor White
+
+    # 3a. Instructions file
+    $instructionsPath = Get-IdeInstructionsPath -Ide $effectiveIde -ProjectRoot $projectRoot
+    $instructionsDir = Split-Path $instructionsPath -Parent
+    if (-not (Test-Path $instructionsDir)) {
+        New-Item -ItemType Directory -Path $instructionsDir -Force | Out-Null
+    }
+
+    $packRulesPath = Get-PackRulesPath -KitRoot $kitRoot -Role $effectiveRole
+    $packRulesContent = ''
+    if ($packRulesPath) {
+        $packRulesContent = Get-Content -Path $packRulesPath -Raw
+    }
+    $instructions = New-CopilotInstructions -Role $effectiveRole -PackRulesContent $packRulesContent
+    Set-Content -Path $instructionsPath -Value $instructions -Encoding UTF8
+    $relInstructionsPath = $instructionsPath.Replace($projectRoot, '').TrimStart('\', '/')
+    Write-Ok "Created: $relInstructionsPath"
+
+    # -- Step 4: Setup shared-engram -------------------------------------------
+    Write-Host ''
+    Write-Host '  [4/4] Setting up shared engram...' -ForegroundColor White
+
+    # Derive project name from directory
+    $projectName = Split-Path $projectRoot -Leaf
+    $engramResult = Initialize-SharedEngram -ProjectRoot $projectRoot -ProjectName $projectName
+
+    if ($engramResult.exported) {
+        Write-Ok "shared-engram/ created -- $($engramResult.count) observations exported"
+    }
+    elseif (Test-EngramInstalled) {
+        Write-Ok 'shared-engram/ created -- no observations for this project yet'
+    }
+    else {
+        Write-Ok 'shared-engram/ created'
+        Write-Warn 'engram not installed -- export will work after installing engram'
+    }
+
+    # -- Save project config ---------------------------------------------------
+    $now = Get-Date -Format 'o'
+    $projectConfig = @{
+        role          = $effectiveRole
+        ide           = $effectiveIde
+        initializedAt = $now
+        lastSync      = $now
+        version       = '2.0.0'
+    }
+    $null = Save-ProjectConfig -ProjectRoot $projectRoot -Config $projectConfig
+    Write-Ok 'Project config saved: .team-ai-kit.json'
+
+    # -- Summary ---------------------------------------------------------------
+    Write-Host ''
+    $summary = New-InitSummary -Ide $effectiveIde -Role $effectiveRole -InstructionsPath $relInstructionsPath -EngramExported $engramResult.count
+    Write-Host $summary -ForegroundColor Green
+
+    Write-Host ''
+    Write-Host '  Next steps:' -ForegroundColor Yellow
+    Write-Host "    1. Commit .team-ai-kit.json and $relInstructionsPath to your repo" -ForegroundColor White
+    Write-Host '    2. Commit shared-engram/ to share knowledge with your team' -ForegroundColor White
+    Write-Host '    3. Start working -- your AI agent is configured for this project!' -ForegroundColor White
+    Write-Host ''
+}
+
 # -- Update --------------------------------------------------------------------
 function Invoke-UpdateCommand {
     Show-Banner
@@ -612,6 +751,7 @@ function Invoke-DoctorCommand {
 # -- Route subcommand ----------------------------------------------------------
 switch ($Command.ToLower()) {
     'setup'  { Invoke-SetupCommand }
+    'init'   { Invoke-InitCommand }
     'update' { Invoke-UpdateCommand }
     'status' { Invoke-StatusCommand }
     'doctor' { Invoke-DoctorCommand }

@@ -1,0 +1,270 @@
+﻿<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<test-results xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="nunit_schema_2.5.xsd" name="Pester" total="108" errors="0" failures="1" not-run="12" inconclusive="0" ignored="0" skipped="0" invalid="0" date="2026-04-15" time="09:56:21">
+  <environment clr-version="4.0.30319.42000" user-domain="DESKTOP-7T94LL8" cwd="C:\Users\Win11\Documents\work\proyectos\team-ai-kit" platform="Microsoft Windows 11 Pro|C:\WINDOWS|\Device\Harddisk0\Partition3" machine-name="DESKTOP-7T94LL8" nunit-version="2.5.8.0" os-version="10.0.26100" user="Win11" />
+  <culture-info current-culture="es-MX" current-uiculture="es-MX" />
+  <test-suite type="TestFixture" name="Pester" executed="True" result="Failure" success="False" time="8.4867" asserts="0" description="Pester">
+    <results>
+      <test-suite type="TestFixture" name="C:\Users\Win11\Documents\work\proyectos\team-ai-kit\tests\functions.Tests.ps1" executed="True" result="Failure" success="False" time="8.4867" asserts="0" description="C:\Users\Win11\Documents\work\proyectos\team-ai-kit\tests\functions.Tests.ps1">
+        <results>
+          <test-suite type="TestFixture" name="Get-GentleAiAgentId" executed="True" result="Success" success="True" time="0.7998" asserts="0" description="Get-GentleAiAgentId">
+            <results>
+              <test-case description="maps vscode to vscode-copilot" name="Get-GentleAiAgentId.maps vscode to vscode-copilot" time="0.5183" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="maps opencode to opencode" name="Get-GentleAiAgentId.maps opencode to opencode" time="0.023" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="returns $null for intellij (no gentle-ai adapter)" name="Get-GentleAiAgentId.returns $null for intellij (no gentle-ai adapter)" time="0.0428" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="returns $null for unknown IDEs" name="Get-GentleAiAgentId.returns $null for unknown IDEs" time="0.0229" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="is case-insensitive" name="Get-GentleAiAgentId.is case-insensitive" time="0.0324" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Test-GentleAiSupportsIde" executed="True" result="Success" success="True" time="0.9386" asserts="0" description="Test-GentleAiSupportsIde">
+            <results>
+              <test-case description="returns $true for vscode" name="Test-GentleAiSupportsIde.returns $true for vscode" time="0.0435" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="returns $true for opencode" name="Test-GentleAiSupportsIde.returns $true for opencode" time="0.0332" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="returns $false for intellij" name="Test-GentleAiSupportsIde.returns $false for intellij" time="0.0248" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="returns $false for unknown IDEs" name="Test-GentleAiSupportsIde.returns $false for unknown IDEs" time="0.025" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Test-ValidIde" executed="True" result="Success" success="True" time="1.0963" asserts="0" description="Test-ValidIde">
+            <results>
+              <test-case description="returns $true for supported IDEs" name="Test-ValidIde.returns $true for supported IDEs" time="0.0388" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="is case-insensitive" name="Test-ValidIde.is case-insensitive" time="0.0341" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="returns $false for unsupported IDEs" name="Test-ValidIde.returns $false for unsupported IDEs" time="0.0721" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Test-ValidRole" executed="True" result="Success" success="True" time="1.2273" asserts="0" description="Test-ValidRole">
+            <results>
+              <test-case description="returns $true for supported roles" name="Test-ValidRole.returns $true for supported roles" time="0.0458" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="is case-insensitive" name="Test-ValidRole.is case-insensitive" time="0.034" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="returns $false for unsupported roles" name="Test-ValidRole.returns $false for unsupported roles" time="0.0382" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Test-ValidProvider" executed="True" result="Success" success="True" time="1.3564" asserts="0" description="Test-ValidProvider">
+            <results>
+              <test-case description="returns $true for supported providers" name="Test-ValidProvider.returns $true for supported providers" time="0.0509" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="returns $false for unsupported providers" name="Test-ValidProvider.returns $false for unsupported providers" time="0.0597" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Get-SharedSkillPaths" executed="True" result="Success" success="True" time="1.5815" asserts="0" description="Get-SharedSkillPaths">
+            <results>
+              <test-case description="returns skill files from skills/shared/" name="Get-SharedSkillPaths.returns skill files from skills/shared/" time="0.0855" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="includes architecture skill" name="Get-SharedSkillPaths.includes architecture skill" time="0.0404" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="includes code-quality skill" name="Get-SharedSkillPaths.includes code-quality skill" time="0.0445" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="includes all 5 shared skills" name="Get-SharedSkillPaths.includes all 5 shared skills" time="0.029" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="returns empty array for nonexistent path" name="Get-SharedSkillPaths.returns empty array for nonexistent path" time="0.0173" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Get-RoleSkillPaths" executed="True" result="Success" success="True" time="1.8314" asserts="0" description="Get-RoleSkillPaths">
+            <results>
+              <test-case description="returns frontend skills" name="Get-RoleSkillPaths.returns frontend skills" time="0.0753" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="returns backend-node skills" name="Get-RoleSkillPaths.returns backend-node skills" time="0.0284" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="returns devops skills" name="Get-RoleSkillPaths.returns devops skills" time="0.0513" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="returns python skills" name="Get-RoleSkillPaths.returns python skills" time="0.022" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="returns empty array for nonexistent role" name="Get-RoleSkillPaths.returns empty array for nonexistent role" time="0.0245" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Get-AllSkillPathsForRole" executed="True" result="Success" success="True" time="1.9655" asserts="0" description="Get-AllSkillPathsForRole">
+            <results>
+              <test-case description="combines shared + role skills for frontend" name="Get-AllSkillPathsForRole.combines shared + role skills for frontend" time="0.0457" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="combines shared + role skills for backend-node" name="Get-AllSkillPathsForRole.combines shared + role skills for backend-node" time="0.0323" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="combines shared + role skills for devops" name="Get-AllSkillPathsForRole.combines shared + role skills for devops" time="0.023" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="combines shared + role skills for python" name="Get-AllSkillPathsForRole.combines shared + role skills for python" time="0.0236" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Get-PackRulesPath" executed="True" result="Success" success="True" time="2.079" asserts="0" description="Get-PackRulesPath">
+            <results>
+              <test-case description="returns path for existing role packs" name="Get-PackRulesPath.returns path for existing role packs" time="0.0342" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="returns $null for nonexistent role" name="Get-PackRulesPath.returns $null for nonexistent role" time="0.0681" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Install-TeamSkills" executed="True" result="Success" success="True" time="2.4182" asserts="0" description="Install-TeamSkills">
+            <results>
+              <test-case description="copies skills to target directory" name="Install-TeamSkills.copies skills to target directory" time="0.117" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="creates team-skills subdirectory structure" name="Install-TeamSkills.creates team-skills subdirectory structure" time="0.0324" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="preserves shared skills under team-skills/shared/" name="Install-TeamSkills.preserves shared skills under team-skills/shared/" time="0.032" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="preserves role skills under team-skills/roles/" name="Install-TeamSkills.preserves role skills under team-skills/roles/" time="0.0286" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="copies actual content (not empty files)" name="Install-TeamSkills.copies actual content (not empty files)" time="0.0651" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Get-IdeSkillsDirectory" executed="True" result="Success" success="True" time="2.6062" asserts="0" description="Get-IdeSkillsDirectory">
+            <results>
+              <test-case description="returns .copilot/skills path for vscode" name="Get-IdeSkillsDirectory.returns .copilot/skills path for vscode" time="0.0254" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="returns .copilot/skills path for intellij" name="Get-IdeSkillsDirectory.returns .copilot/skills path for intellij" time="0.0239" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="returns opencode skills path for opencode" name="Get-IdeSkillsDirectory.returns opencode skills path for opencode" time="0.0224" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="throws for unsupported IDE" name="Get-IdeSkillsDirectory.throws for unsupported IDE" time="0.1016" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Get-IdeInstructionsPath" executed="True" result="Success" success="True" time="2.709" asserts="0" description="Get-IdeInstructionsPath">
+            <results>
+              <test-case description="returns copilot-instructions.md for vscode" name="Get-IdeInstructionsPath.returns copilot-instructions.md for vscode" time="0.0276" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="returns copilot-instructions.md for intellij" name="Get-IdeInstructionsPath.returns copilot-instructions.md for intellij" time="0.0198" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="returns AGENTS.md for opencode" name="Get-IdeInstructionsPath.returns AGENTS.md for opencode" time="0.0179" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="throws for unsupported IDE" name="Get-IdeInstructionsPath.throws for unsupported IDE" time="0.032" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="New-VsCodeMcpConfig" executed="True" result="Success" success="True" time="2.8973" asserts="0" description="New-VsCodeMcpConfig">
+            <results>
+              <test-case description="generates valid JSON" name="New-VsCodeMcpConfig.generates valid JSON" time="0.1266" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="includes engram server config" name="New-VsCodeMcpConfig.includes engram server config" time="0.0307" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="includes context7 server config" name="New-VsCodeMcpConfig.includes context7 server config" time="0.0252" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="New-EngramSyncConfig" executed="True" result="Success" success="True" time="2.9673" asserts="0" description="New-EngramSyncConfig">
+            <results>
+              <test-case description="returns config with correct defaults" name="New-EngramSyncConfig.returns config with correct defaults" time="0.0448" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="allows custom port" name="New-EngramSyncConfig.allows custom port" time="0.0185" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="New-CopilotInstructions" executed="True" result="Success" success="True" time="3.0532" asserts="0" description="New-CopilotInstructions">
+            <results>
+              <test-case description="includes role in header" name="New-CopilotInstructions.includes role in header" time="0.0228" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="includes team conventions section" name="New-CopilotInstructions.includes team conventions section" time="0.0184" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="appends pack rules when provided" name="New-CopilotInstructions.appends pack rules when provided" time="0.0211" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="works without pack rules" name="New-CopilotInstructions.works without pack rules" time="0.0184" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Get-TemplateDirectory" executed="True" result="Success" success="True" time="3.1623" asserts="0" description="Get-TemplateDirectory">
+            <results>
+              <test-case description="returns intellij-copilot dir for intellij" name="Get-TemplateDirectory.returns intellij-copilot dir for intellij" time="0.0233" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="returns $null for vscode (templates removed -- gentle-ai handles it)" name="Get-TemplateDirectory.returns $null for vscode (templates removed -- gentle-ai handles it)" time="0.0191" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="returns $null for opencode (templates removed -- gentle-ai handles it)" name="Get-TemplateDirectory.returns $null for opencode (templates removed -- gentle-ai handles it)" time="0.0203" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="throws for unsupported IDE" name="Get-TemplateDirectory.throws for unsupported IDE" time="0.0359" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Get-TemplateFiles" executed="True" result="Success" success="True" time="3.2268" asserts="0" description="Get-TemplateFiles">
+            <results>
+              <test-case description="finds .template files for intellij" name="Get-TemplateFiles.finds .template files for intellij" time="0.0393" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="returns empty for nonexistent dir" name="Get-TemplateFiles.returns empty for nonexistent dir" time="0.0184" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Expand-Template" executed="True" result="Success" success="True" time="3.3172" asserts="0" description="Expand-Template">
+            <results>
+              <test-case description="replaces single placeholder" name="Expand-Template.replaces single placeholder" time="0.027" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="replaces multiple placeholders" name="Expand-Template.replaces multiple placeholders" time="0.0205" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="leaves unmatched placeholders as-is" name="Expand-Template.leaves unmatched placeholders as-is" time="0.0179" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="handles empty variables hashtable" name="Expand-Template.handles empty variables hashtable" time="0.0186" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Install-Templates" executed="True" result="Success" success="True" time="3.4847" asserts="0" description="Install-Templates">
+            <results>
+              <test-case description="expands and copies IntelliJ templates to target dir" name="Install-Templates.expands and copies IntelliJ templates to target dir" time="0.0486" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="creates files without .template extension" name="Install-Templates.creates files without .template extension" time="0.045" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="replaces placeholders in expanded files" name="Install-Templates.replaces placeholders in expanded files" time="0.0323" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="New-SetupSummary" executed="True" result="Success" success="True" time="3.5995" asserts="0" description="New-SetupSummary">
+            <results>
+              <test-case description="includes all configuration values" name="New-SetupSummary.includes all configuration values" time="0.0504" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="includes gentle-ai status" name="New-SetupSummary.includes gentle-ai status" time="0.0288" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="shows default gentle-ai status when not specified" name="New-SetupSummary.shows default gentle-ai status when not specified" time="0.0252" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Get-TeamAiKitConfigDir" executed="True" result="Success" success="True" time="3.6645" asserts="0" description="Get-TeamAiKitConfigDir">
+            <results>
+              <test-case description="returns a path under USERPROFILE" name="Get-TeamAiKitConfigDir.returns a path under USERPROFILE" time="0.033" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="returns a path ending in .team-ai-kit" name="Get-TeamAiKitConfigDir.returns a path ending in .team-ai-kit" time="0.025" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Get-TeamAiKitConfigPath" executed="True" result="Success" success="True" time="3.7381" asserts="0" description="Get-TeamAiKitConfigPath">
+            <results>
+              <test-case description="returns a path ending in config.json" name="Get-TeamAiKitConfigPath.returns a path ending in config.json" time="0.0258" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="is inside the config dir" name="Get-TeamAiKitConfigPath.is inside the config dir" time="0.038" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Get-TeamAiKitConfig" executed="True" result="Success" success="True" time="3.8217" asserts="0" description="Get-TeamAiKitConfig">
+            <results>
+              <test-case description="returns a hashtable with expected keys when no config exists" name="Get-TeamAiKitConfig.returns a hashtable with expected keys when no config exists" time="0.0758" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Save-TeamAiKitConfig" executed="True" result="Success" success="True" time="4.0359" asserts="0" description="Save-TeamAiKitConfig">
+            <results>
+              <test-case description="creates config directory and file" name="Save-TeamAiKitConfig.creates config directory and file" time="0.0294" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="saves valid JSON that can be read back" name="Save-TeamAiKitConfig.saves valid JSON that can be read back" time="0.0606" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="config roundtrips through Save + Get" name="Save-TeamAiKitConfig.config roundtrips through Save + Get" time="0.0794" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Test-FirstRun" executed="True" result="Success" success="True" time="4.1147" asserts="0" description="Test-FirstRun">
+            <results>
+              <test-case description="returns $true when no config exists" name="Test-FirstRun.returns $true when no config exists" time="0.0289" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="returns $false when config exists" name="Test-FirstRun.returns $false when config exists" time="0.0377" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Test-ValidCommand" executed="True" result="Success" success="True" time="4.1925" asserts="0" description="Test-ValidCommand">
+            <results>
+              <test-case description="returns $true for supported commands" name="Test-ValidCommand.returns $true for supported commands" time="0.0256" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="is case-insensitive" name="Test-ValidCommand.is case-insensitive" time="0.0203" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="returns $false for unsupported commands" name="Test-ValidCommand.returns $false for unsupported commands" time="0.0249" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Get-TeamRepoLocalPath" executed="True" result="Success" success="True" time="4.2403" asserts="0" description="Get-TeamRepoLocalPath">
+            <results>
+              <test-case description="returns a path under the config dir" name="Get-TeamRepoLocalPath.returns a path under the config dir" time="0.0227" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="returns a path ending in team-content" name="Get-TeamRepoLocalPath.returns a path ending in team-content" time="0.0189" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Test-TeamRepoConfigured" executed="True" result="Success" success="True" time="4.3408" asserts="0" description="Test-TeamRepoConfigured">
+            <results>
+              <test-case description="returns $false when no team repo in config" name="Test-TeamRepoConfigured.returns $false when no team repo in config" time="0.0273" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="returns $true when team repo is configured" name="Test-TeamRepoConfigured.returns $true when team repo is configured" time="0.0675" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Test-TeamRepoCloned" executed="True" result="Success" success="True" time="4.3804" asserts="0" description="Test-TeamRepoCloned">
+            <results>
+              <test-case description="returns $false when team-content dir does not exist" name="Test-TeamRepoCloned.returns $false when team-content dir does not exist" time="0.0325" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Get-TeamRepoSkillPaths" executed="True" result="Success" success="True" time="4.5018" asserts="0" description="Get-TeamRepoSkillPaths">
+            <results>
+              <test-case description="returns empty array when team repo not cloned" name="Get-TeamRepoSkillPaths.returns empty array when team repo not cloned" time="0.0339" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="finds skills in a mock team repo structure" name="Get-TeamRepoSkillPaths.finds skills in a mock team repo structure" time="0.0801" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Get-SkillManifestPath" executed="True" result="Success" success="True" time="4.5685" asserts="0" description="Get-SkillManifestPath">
+            <results>
+              <test-case description="returns a path ending in manifest.json" name="Get-SkillManifestPath.returns a path ending in manifest.json" time="0.0332" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="is inside the config dir" name="Get-SkillManifestPath.is inside the config dir" time="0.0245" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Get-SkillManifest" executed="True" result="Success" success="True" time="4.6436" asserts="0" description="Get-SkillManifest">
+            <results>
+              <test-case description="returns empty manifest when file does not exist" name="Get-SkillManifest.returns empty manifest when file does not exist" time="0.0611" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Save-SkillManifest" executed="True" result="Failure" success="False" time="5.0113" asserts="0" description="Save-SkillManifest">
+            <results>
+              <test-case description="creates manifest file with tracked files" name="Save-SkillManifest.creates manifest file with tracked files" time="0.1964" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="manifest roundtrips through Save + Get" name="Save-SkillManifest.manifest roundtrips through Save + Get" time="0" asserts="0" success="False" result="Failure" executed="True">
+                <failure>
+                  <message>This test should run but it did not. Most likely a setup in some parent block failed.</message>
+                  <stack-trace />
+                </failure>
+              </test-case>
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Get-FileContentHash" executed="True" result="Success" success="True" time="5.2724" asserts="0" description="Get-FileContentHash">
+            <results>
+              <test-case description="returns a SHA256 hash for existing file" name="Get-FileContentHash.returns a SHA256 hash for existing file" time="0.0923" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="returns $null for nonexistent file" name="Get-FileContentHash.returns $null for nonexistent file" time="0.0304" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="returns same hash for same content" name="Get-FileContentHash.returns same hash for same content" time="0.0699" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="returns different hash for different content" name="Get-FileContentHash.returns different hash for different content" time="0.0591" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Test-SkillModifiedByUser" executed="True" result="Success" success="True" time="5.5319" asserts="0" description="Test-SkillModifiedByUser">
+            <results>
+              <test-case description="returns $false when file does not exist" name="Test-SkillModifiedByUser.returns $false when file does not exist" time="0.0522" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="returns $true when file exists but not in manifest (user-created)" name="Test-SkillModifiedByUser.returns $true when file exists but not in manifest (user-created)" time="0.0428" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="returns $false when file hash matches manifest" name="Test-SkillModifiedByUser.returns $false when file hash matches manifest" time="0.0816" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="returns $true when file hash differs from manifest" name="Test-SkillModifiedByUser.returns $true when file hash differs from manifest" time="0.066" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+          <test-suite type="TestFixture" name="Install-SkillsWithMerge" executed="True" result="Success" success="True" time="6.1154" asserts="0" description="Install-SkillsWithMerge">
+            <results>
+              <test-case description="installs all default skills on first run" name="Install-SkillsWithMerge.installs all default skills on first run" time="0.2746" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="creates manifest with tracked files" name="Install-SkillsWithMerge.creates manifest with tracked files" time="0.0885" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="skips all skills on second run (no changes)" name="Install-SkillsWithMerge.skips all skills on second run (no changes)" time="0.0968" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="does not overwrite user-modified files" name="Install-SkillsWithMerge.does not overwrite user-modified files" time="0.0784" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+        </results>
+      </test-suite>
+    </results>
+  </test-suite>
+</test-results>
