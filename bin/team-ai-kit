@@ -312,7 +312,7 @@ cmd_setup() {
         pack_rules_content=$(cat "$pack_rules_path")
     fi
     ok "Project instructions generated for role: $OPT_ROLE"
-    step "Add to each repo: .github/copilot-instructions.md (or AGENTS.md for OpenCode)"
+    step "Run 'team-ai-kit init' in each project to apply instructions"
 
     # -- Save config -----------------------------------------------------------
     local now
@@ -345,21 +345,19 @@ cmd_setup() {
     echo ""
     echo -e "  ${C_YELLOW}Next steps:${C_RESET}"
     if [[ -n "$agent_id" && "$SKIP_GENTLE_AI" == "false" ]]; then
-        echo -e "    ${C_WHITE}1. Configure engram sync to your team repo:${C_RESET}"
-        echo -e "    ${C_DIM}   engram sync                  (export after sessions)${C_RESET}"
-        echo -e "    ${C_DIM}   engram sync --import          (import team knowledge)${C_RESET}"
-        echo -e "    ${C_WHITE}2. Add .github/copilot-instructions.md to your project repos${C_RESET}"
-        echo -e "    ${C_WHITE}3. Open your IDE and start working!${C_RESET}"
+        echo -e "    ${C_WHITE}1. Go to your project and run: team-ai-kit init${C_RESET}"
+        echo -e "    ${C_DIM}   (configures instructions, skills, and shared engram for the project)${C_RESET}"
+        echo -e "    ${C_WHITE}2. Open your IDE and start working!${C_RESET}"
     elif [[ "$OPT_IDE" == "intellij" ]]; then
         echo -e "    ${C_WHITE}1. Add the MCP config shown above to IntelliJ settings${C_RESET}"
-        echo -e "    ${C_WHITE}2. Configure engram sync to your team repo${C_RESET}"
-        echo -e "    ${C_WHITE}3. Add .github/copilot-instructions.md to your project repos${C_RESET}"
-        echo -e "    ${C_WHITE}4. Open IntelliJ and start working!${C_RESET}"
+        echo -e "    ${C_WHITE}2. Go to your project and run: team-ai-kit init${C_RESET}"
+        echo -e "    ${C_DIM}   (configures instructions, skills, and shared engram for the project)${C_RESET}"
+        echo -e "    ${C_WHITE}3. Open IntelliJ and start working!${C_RESET}"
     else
         echo -e "    ${C_WHITE}1. Run gentle-ai to complete agent configuration${C_RESET}"
-        echo -e "    ${C_WHITE}2. Configure engram sync to your team repo${C_RESET}"
-        echo -e "    ${C_WHITE}3. Add .github/copilot-instructions.md to your project repos${C_RESET}"
-        echo -e "    ${C_WHITE}4. Open your IDE and start working!${C_RESET}"
+        echo -e "    ${C_WHITE}2. Go to your project and run: team-ai-kit init${C_RESET}"
+        echo -e "    ${C_DIM}   (configures instructions, skills, and shared engram for the project)${C_RESET}"
+        echo -e "    ${C_WHITE}3. Open your IDE and start working!${C_RESET}"
     fi
     echo ""
 }

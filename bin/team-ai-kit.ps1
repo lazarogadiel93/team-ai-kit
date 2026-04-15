@@ -401,23 +401,21 @@ function Invoke-SetupCommand {
     Write-Host ''
     Write-Host '  Next steps:' -ForegroundColor Yellow
     if ($gentleAiAgentId -and -not $SkipGentleAi) {
-        Write-Host '    1. Configure engram sync to your team repo:' -ForegroundColor White
-        Write-Host '       engram sync                  (export after sessions)' -ForegroundColor DarkGray
-        Write-Host '       engram sync --import          (import team knowledge)' -ForegroundColor DarkGray
-        Write-Host '    2. Add .github/copilot-instructions.md to your project repos' -ForegroundColor White
-        Write-Host '    3. Open your IDE and start working!' -ForegroundColor White
+        Write-Host '    1. Go to your project and run: team-ai-kit init' -ForegroundColor White
+        Write-Host '       (configures instructions, skills, and shared engram for the project)' -ForegroundColor DarkGray
+        Write-Host '    2. Open your IDE and start working!' -ForegroundColor White
     }
     elseif ($Ide -eq 'intellij') {
         Write-Host '    1. Add the MCP config shown above to IntelliJ settings' -ForegroundColor White
-        Write-Host '    2. Configure engram sync to your team repo' -ForegroundColor White
-        Write-Host '    3. Add .github/copilot-instructions.md to your project repos' -ForegroundColor White
-        Write-Host '    4. Open IntelliJ and start working!' -ForegroundColor White
+        Write-Host '    2. Go to your project and run: team-ai-kit init' -ForegroundColor White
+        Write-Host '       (configures instructions, skills, and shared engram for the project)' -ForegroundColor DarkGray
+        Write-Host '    3. Open IntelliJ and start working!' -ForegroundColor White
     }
     else {
         Write-Host '    1. Run gentle-ai to complete agent configuration' -ForegroundColor White
-        Write-Host '    2. Configure engram sync to your team repo' -ForegroundColor White
-        Write-Host '    3. Add .github/copilot-instructions.md to your project repos' -ForegroundColor White
-        Write-Host '    4. Open your IDE and start working!' -ForegroundColor White
+        Write-Host '    2. Go to your project and run: team-ai-kit init' -ForegroundColor White
+        Write-Host '       (configures instructions, skills, and shared engram for the project)' -ForegroundColor DarkGray
+        Write-Host '    3. Open your IDE and start working!' -ForegroundColor White
     }
     Write-Host ''
 }
