@@ -163,7 +163,7 @@ function Invoke-SetupCommand {
         if (-not (Test-GentleAiInstalled)) {
             Write-Step 'Installing gentle-ai via Scoop...'
             try {
-                & scoop bucket add gentleman https://github.com/Gentleman-Programming/scoop-bucket 2>$null
+                & scoop bucket add team-ai-kit https://github.com/lazarogadiel93/scoop-bucket 2>$null
                 & scoop install gentle-ai
                 Write-Ok 'gentle-ai installed'
             }
@@ -378,7 +378,7 @@ function Invoke-SetupCommand {
     }
     $instructions = New-CopilotInstructions -Role $Role -PackRulesContent $packRulesContent
     Write-Ok "Project instructions generated for role: $Role"
-    Write-Step 'Add to each repo: .github/copilot-instructions.md (or AGENTS.md for OpenCode)'
+    Write-Step 'Run "team-ai-kit init" in each project to apply instructions'
 
     # -- Save config -----------------------------------------------------------
     $now = Get-Date -Format 'o'
@@ -389,7 +389,7 @@ function Invoke-SetupCommand {
         teamRepo    = $TeamRepo
         installedAt = $now
         lastUpdate  = $now
-        version     = '2.0.0'
+        version     = '2.1.0'
     }
     $configPath = Save-TeamAiKitConfig -Config $config
     Write-Ok "Config saved: $configPath"
@@ -538,7 +538,7 @@ function Invoke-InitCommand {
         ide           = $effectiveIde
         initializedAt = $now
         lastSync      = $now
-        version       = '2.0.0'
+        version       = '2.1.0'
     }
     $null = Save-ProjectConfig -ProjectRoot $projectRoot -Config $projectConfig
     Write-Ok 'Project config saved: .team-ai-kit.json'

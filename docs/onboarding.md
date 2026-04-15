@@ -32,7 +32,7 @@
 ### Windows (Scoop)
 
 ```powershell
-scoop bucket add gentleman https://github.com/Gentleman-Programming/scoop-bucket
+scoop bucket add team-ai-kit https://github.com/lazarogadiel93/scoop-bucket
 scoop install team-ai-kit
 ```
 
@@ -61,7 +61,7 @@ team-ai-kit setup
 ./setup.sh
 ```
 
-Te hace **3 preguntas** (VS Code / IntelliJ) o **4** (OpenCode):
+Te hace **2 preguntas** (VS Code / IntelliJ) o **3** (OpenCode):
 
 1. **IDE** -- VS Code + Copilot, IntelliJ + Copilot, u OpenCode
 2. **Rol** -- Frontend, Backend Node, DevOps, Python
@@ -163,7 +163,7 @@ ls ~/.config/opencode/skills/team-skills/
 
 ---
 
-## Paso 4: Engram sync
+## Paso 5: Engram sync
 
 El `init` ejecuta el primer engram sync y instala git hooks (pre-commit + post-merge) automaticamente.
 
@@ -279,7 +279,7 @@ Si algo falla, te dice exactamente que.
 
 ```powershell
 # Windows
-scoop bucket add gentleman https://github.com/Gentleman-Programming/scoop-bucket
+scoop bucket add team-ai-kit https://github.com/lazarogadiel93/scoop-bucket
 scoop install gentle-ai
 ```
 

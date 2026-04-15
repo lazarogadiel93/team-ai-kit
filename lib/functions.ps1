@@ -515,9 +515,9 @@ function Invoke-GentleAiInstall {
         throw 'gentle-ai is not installed. Run setup prerequisites first.'
     }
 
-    $args = @('install', '--agent', $AgentId, '--preset', $Preset, '--persona', $Persona)
+    $installArgs = @('install', '--agent', $AgentId, '--preset', $Preset, '--persona', $Persona)
     try {
-        & gentle-ai @args
+        & gentle-ai @installArgs
         return $LASTEXITCODE -eq 0
     }
     catch {
@@ -1051,25 +1051,6 @@ function Install-SkillsWithMerge {
     $null = Save-SkillManifest -Manifest $manifest
 
     return $results
-}
-
-# ── Engram Sync Config ────────────────────────────────────────────────────────
-
-function New-EngramSyncConfig {
-    <#
-    .SYNOPSIS
-        Generates the engram sync configuration object.
-    #>
-    param(
-        [Parameter(Mandatory)]
-        [string]$SyncRepoUrl,
-        [int]$Port = 7437
-    )
-    return @{
-        syncRepo = $SyncRepoUrl
-        port     = $Port
-        mode     = 'local-sync'
-    }
 }
 
 # ── MCP Config Generation ────────────────────────────────────────────────────

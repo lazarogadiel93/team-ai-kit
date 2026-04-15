@@ -28,11 +28,12 @@ _array_contains() {
 
 _sha256() {
     # Cross-platform SHA256: Linux has sha256sum, macOS has shasum
+    # Normalized to UPPERCASE for cross-platform consistency (PowerShell outputs uppercase)
     local file="$1"
     if command -v sha256sum &>/dev/null; then
-        sha256sum "$file" | awk '{print $1}'
+        sha256sum "$file" | awk '{print toupper($1)}'
     elif command -v shasum &>/dev/null; then
-        shasum -a 256 "$file" | awk '{print $1}'
+        shasum -a 256 "$file" | awk '{print toupper($1)}'
     else
         echo "ERROR: no sha256 tool found" >&2
         return 1
@@ -262,11 +263,16 @@ HOOKEOF
 
     # Output JSON result
     local inst_json skip_json
-    inst_json=$(printf '%s\n' "${installed[@]}" | jq -R . | jq -s .)
-    skip_json=$(printf '%s\n' "${skipped[@]}" | jq -R . | jq -s .)
-    # Handle empty arrays
-    [[ ${#installed[@]} -eq 0 ]] && inst_json='[]'
-    [[ ${#skipped[@]} -eq 0 ]] && skip_json='[]'
+    if [[ ${#installed[@]} -gt 0 ]]; then
+        inst_json=$(printf '%s\n' "${installed[@]}" | jq -R . | jq -s .)
+    else
+        inst_json='[]'
+    fi
+    if [[ ${#skipped[@]} -gt 0 ]]; then
+        skip_json=$(printf '%s\n' "${skipped[@]}" | jq -R . | jq -s .)
+    else
+        skip_json='[]'
+    fi
     jq -n --argjson installed "$inst_json" --argjson skipped "$skip_json" \
         '{installed:$installed, skipped:$skipped}'
 }
@@ -685,9 +691,9 @@ install_skills_with_merge() {
             "default" "$manifest_path" "$timestamp")
 
         case "$action" in
-            installed) ((installed++)) ;;
-            updated)   ((updated++)) ;;
-            skipped)   ((skipped++)) ;;
+            installed) installed=$((installed + 1)) ;;
+            updated)   updated=$((updated + 1)) ;;
+            skipped)   skipped=$((skipped + 1)) ;;
         esac
     done < <(get_all_skill_paths_for_role "$kit_root" "$role")
 
@@ -710,9 +716,9 @@ install_skills_with_merge() {
                     "team" "$manifest_path" "$timestamp")
 
                 case "$action" in
-                    installed) ((installed++)) ;;
-                    updated)   ((updated++)) ;;
-                    skipped)   ((skipped++)) ;;
+                    installed) installed=$((installed + 1)) ;;
+                    updated)   updated=$((updated + 1)) ;;
+                    skipped)   skipped=$((skipped + 1)) ;;
                 esac
             done < <(get_team_repo_skill_paths "$role")
         fi

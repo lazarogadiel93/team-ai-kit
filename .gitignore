@@ -20,5 +20,6 @@ Thumbs.db
 # team-ai-kit runtime (generated per-project)
 .team-ai-kit.json
 
-#engram
+# engram (ignored only in THIS repo -- the tool itself)
+# In project repos, .engram/ MUST be committed (it's the sharing mechanism)
 .engram/

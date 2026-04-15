@@ -219,7 +219,7 @@ Explicacion y ejemplos.
 ## Tests
 
 ```powershell
-# Windows: Pester (127 tests)
+# Windows: Pester (154 tests)
 Invoke-Pester tests/ -Output Detailed
 
 # macOS/Linux: E2E bash (9 tests)
@@ -258,7 +258,7 @@ team-ai-kit/
 |-- packs/                         Reglas por rol
 |-- templates/                     Solo IntelliJ (MCP config)
 |-- tests/
-|   |-- functions.Tests.ps1        108 unit tests (Pester)
+|   |-- functions.Tests.ps1        135 unit tests (Pester)
 |   |-- skills.Tests.ps1           19 validation tests (Pester)
 |   +-- e2e-bash.sh                9 E2E tests (bash)
 |-- scoop/team-ai-kit.json         Scoop manifest
