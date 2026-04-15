@@ -13,7 +13,7 @@ Set-StrictMode -Version Latest
 $script:VALID_IDES = @('vscode', 'intellij', 'opencode')
 $script:VALID_ROLES = @('frontend', 'backend-node', 'devops', 'python')
 $script:VALID_PROVIDERS = @('openai', 'azure-openai', 'anthropic', 'github-copilot')
-$script:VALID_COMMANDS = @('setup', 'init', 'update', 'status', 'doctor', 'help')
+$script:VALID_COMMANDS = @('setup', 'init', 'sync', 'update', 'status', 'doctor', 'help')
 
 # ── Config Persistence ───────────────────────────────────────────────────────
 
@@ -156,13 +156,13 @@ function Save-ProjectConfig {
     return $configPath
 }
 
-function Initialize-SharedEngram {
+function Initialize-EngramSync {
     <#
     .SYNOPSIS
-        Creates the shared-engram directory in the project and runs initial export.
+        Runs initial engram sync to export project memories to .engram/.
     .DESCRIPTION
-        Sets up shared-engram/ for team knowledge sharing.
-        If engram is installed, exports current project observations.
+        Uses native 'engram sync --project <name>' to create .engram/ with
+        compressed chunks for team knowledge sharing via git.
         Returns a hashtable with status and path.
     #>
     param(
@@ -171,59 +171,191 @@ function Initialize-SharedEngram {
         [string]$ProjectName = ''
     )
 
-    $engramDir = Join-Path $ProjectRoot 'shared-engram'
-
-    # Create directory if missing
-    if (-not (Test-Path $engramDir)) {
-        New-Item -ItemType Directory -Path $engramDir -Force | Out-Null
-    }
-
-    # Create .gitkeep so the dir is tracked even when empty
-    $gitkeepPath = Join-Path $engramDir '.gitkeep'
-    if (-not (Test-Path $gitkeepPath)) {
-        Set-Content -Path $gitkeepPath -Value '' -NoNewline
-    }
+    $engramDir = Join-Path $ProjectRoot '.engram'
 
     $result = @{
         path     = $engramDir
-        exported = $false
-        count    = 0
+        synced   = $false
     }
 
-    # Run initial export if engram is available
+    # Run initial sync if engram is available
     if (Test-EngramInstalled) {
         $engramBin = Get-EngramBinaryPath
         if ($engramBin) {
             try {
-                $exportFile = Join-Path $engramDir 'observations.json'
-                $null = & $engramBin export $exportFile 2>$null
-                if ($LASTEXITCODE -eq 0 -and (Test-Path $exportFile)) {
-                    $result.exported = $true
-                    $content = Get-Content $exportFile -Raw | ConvertFrom-Json
-
-                    # Filter all sections by project name if provided
-                    if ($ProjectName) {
-                        if ($content.observations -is [array]) {
-                            $content.observations = @($content.observations | Where-Object { $_.project -eq $ProjectName })
-                        }
-                        if ($content.sessions -is [array]) {
-                            $content.sessions = @($content.sessions | Where-Object { $_.project -eq $ProjectName })
-                        }
-                        if ($content.prompts -is [array]) {
-                            $content.prompts = @($content.prompts | Where-Object { $_.project -eq $ProjectName })
-                        }
-                        $content | ConvertTo-Json -Depth 10 | Set-Content $exportFile -Encoding UTF8
-                    }
-
-                    if ($content.observations -is [array]) {
-                        $result.count = $content.observations.Count
-                    }
+                $syncArgs = @('sync')
+                if ($ProjectName) {
+                    $syncArgs += @('--project', $ProjectName)
+                }
+                else {
+                    $syncArgs += '--all'
+                }
+                $null = & $engramBin @syncArgs 2>$null
+                if ($LASTEXITCODE -eq 0) {
+                    $result.synced = $true
                 }
             }
             catch {
-                # Non-fatal: engram export failed, directory still created
+                # Non-fatal: engram sync failed
             }
         }
+    }
+
+    return $result
+}
+
+function Install-GitHooks {
+    <#
+    .SYNOPSIS
+        Installs pre-commit and post-merge git hooks for automatic engram sync.
+    .DESCRIPTION
+        Creates git hooks in .git/hooks/ that:
+        - pre-commit: runs 'engram sync --project <name>' + 'git add .engram/'
+        - post-merge: runs 'engram sync --import'
+        Hooks are fail-safe (no-op if engram is not installed).
+        Respects existing hooks by appending with a marker comment.
+        Returns a hashtable with status.
+    #>
+    param(
+        [Parameter(Mandatory)]
+        [string]$ProjectRoot,
+        [string]$ProjectName = ''
+    )
+
+    $gitHooksDir = Join-Path $ProjectRoot '.git\hooks'
+    $result = @{
+        installed = @()
+        skipped   = @()
+    }
+
+    if (-not (Test-Path (Join-Path $ProjectRoot '.git'))) {
+        $result.skipped += 'not-a-git-repo'
+        return $result
+    }
+
+    if (-not (Test-Path $gitHooksDir)) {
+        New-Item -ItemType Directory -Path $gitHooksDir -Force | Out-Null
+    }
+
+    $marker = '# [team-ai-kit] engram sync hook'
+    $projectFlag = if ($ProjectName) { "--project `"$ProjectName`"" } else { '--all' }
+
+    # -- pre-commit hook -------------------------------------------------------
+    $preCommitPath = Join-Path $gitHooksDir 'pre-commit'
+    $preCommitBlock = @"
+
+$marker
+if command -v engram >/dev/null 2>&1; then
+    engram sync $projectFlag 2>/dev/null || true
+    git add .engram/ 2>/dev/null || true
+fi
+"@
+
+    if (Test-Path $preCommitPath) {
+        $existingContent = Get-Content $preCommitPath -Raw -ErrorAction SilentlyContinue
+        if ($existingContent -and $existingContent.Contains($marker)) {
+            $result.skipped += 'pre-commit'
+        }
+        else {
+            Add-Content -Path $preCommitPath -Value $preCommitBlock -Encoding ASCII
+            $result.installed += 'pre-commit'
+        }
+    }
+    else {
+        $hookContent = "#!/bin/sh" + "`n" + $preCommitBlock
+        Set-Content -Path $preCommitPath -Value $hookContent -Encoding ASCII -NoNewline
+        $result.installed += 'pre-commit'
+    }
+
+    # -- post-merge hook -------------------------------------------------------
+    $postMergePath = Join-Path $gitHooksDir 'post-merge'
+    $postMergeBlock = @"
+
+$marker
+if command -v engram >/dev/null 2>&1; then
+    engram sync --import 2>/dev/null || true
+fi
+"@
+
+    if (Test-Path $postMergePath) {
+        $existingContent = Get-Content $postMergePath -Raw -ErrorAction SilentlyContinue
+        if ($existingContent -and $existingContent.Contains($marker)) {
+            $result.skipped += 'post-merge'
+        }
+        else {
+            Add-Content -Path $postMergePath -Value $postMergeBlock -Encoding ASCII
+            $result.installed += 'post-merge'
+        }
+    }
+    else {
+        $hookContent = "#!/bin/sh" + "`n" + $postMergeBlock
+        Set-Content -Path $postMergePath -Value $hookContent -Encoding ASCII -NoNewline
+        $result.installed += 'post-merge'
+    }
+
+    return $result
+}
+
+function Invoke-EngramSync {
+    <#
+    .SYNOPSIS
+        Wrapper around 'engram sync' for manual sync operations.
+    .DESCRIPTION
+        Runs engram sync with project filtering. Supports export, import, and status.
+        Returns a hashtable with the operation result.
+    #>
+    param(
+        [string]$ProjectName = '',
+        [ValidateSet('export', 'import', 'status')]
+        [string]$Operation = 'export'
+    )
+
+    $result = @{
+        success = $false
+        message = ''
+    }
+
+    if (-not (Test-EngramInstalled)) {
+        $result.message = 'engram is not installed'
+        return $result
+    }
+
+    $engramBin = Get-EngramBinaryPath
+    if (-not $engramBin) {
+        $result.message = 'engram binary not found'
+        return $result
+    }
+
+    try {
+        switch ($Operation) {
+            'export' {
+                $syncArgs = @('sync')
+                if ($ProjectName) {
+                    $syncArgs += @('--project', $ProjectName)
+                }
+                else {
+                    $syncArgs += '--all'
+                }
+                $null = & $engramBin @syncArgs 2>$null
+            }
+            'import' {
+                $null = & $engramBin sync --import 2>$null
+            }
+            'status' {
+                $null = & $engramBin sync --status 2>$null
+            }
+        }
+
+        if ($LASTEXITCODE -eq 0) {
+            $result.success = $true
+            $result.message = "engram sync $Operation completed"
+        }
+        else {
+            $result.message = "engram sync $Operation failed (exit code: $LASTEXITCODE)"
+        }
+    }
+    catch {
+        $result.message = "engram sync $Operation failed: $_"
     }
 
     return $result
@@ -240,9 +372,11 @@ function New-InitSummary {
         [Parameter(Mandatory)]
         [string]$Role,
         [string]$InstructionsPath = '',
-        [int]$EngramExported = 0
+        [bool]$EngramSynced = $false,
+        [int]$HooksInstalled = 0
     )
-    $engramLine = if ($EngramExported -gt 0) { "$EngramExported observations exported" } else { 'directory created (no observations yet)' }
+    $engramLine = if ($EngramSynced) { 'synced via engram sync' } else { 'not synced (engram not available)' }
+    $hooksLine = if ($HooksInstalled -gt 0) { "$HooksInstalled hook(s) installed" } else { 'no hooks installed' }
     return @"
 ============================================
   Team AI Kit -- Project Initialized
@@ -250,7 +384,8 @@ function New-InitSummary {
   IDE:            $Ide
   Role:           $Role
   Instructions:   $InstructionsPath
-  Shared Engram:  $engramLine
+  Engram Sync:    $engramLine
+  Git Hooks:      $hooksLine
 ============================================
 "@
 }

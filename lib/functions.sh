@@ -11,7 +11,7 @@ set -euo pipefail
 VALID_IDES=("vscode" "intellij" "opencode")
 VALID_ROLES=("frontend" "backend-node" "devops" "python")
 VALID_PROVIDERS=("openai" "azure-openai" "anthropic" "github-copilot")
-VALID_COMMANDS=("setup" "init" "update" "status" "doctor" "help")
+VALID_COMMANDS=("setup" "init" "sync" "update" "status" "doctor" "help")
 
 # -- Helpers -------------------------------------------------------------------
 
@@ -151,59 +151,186 @@ save_project_config() {
     echo "$config_path"
 }
 
-initialize_shared_engram() {
-    # Creates shared-engram/ directory and runs initial export if engram is available.
-    # Usage: initialize_shared_engram "/path/to/project" "project-name"
-    # Outputs JSON: {"path":"/...","exported":true/false,"count":0}
+initialize_engram_sync() {
+    # Runs initial engram sync to export project memories to .engram/.
+    # Uses native 'engram sync --project <name>' for team knowledge sharing via git.
+    # Usage: initialize_engram_sync "/path/to/project" "project-name"
+    # Outputs JSON: {"path":"/...","synced":true/false}
     local project_root="$1"
     local project_name="${2:-}"
-    local engram_dir="$project_root/shared-engram"
-    local exported="false"
-    local count=0
+    local engram_dir="$project_root/.engram"
+    local synced="false"
 
-    # Create directory
-    [[ -d "$engram_dir" ]] || mkdir -p "$engram_dir"
-
-    # Create .gitkeep
-    [[ -f "$engram_dir/.gitkeep" ]] || touch "$engram_dir/.gitkeep"
-
-    # Run initial export if engram is available
+    # Run initial sync if engram is available
     if test_engram_installed; then
         local engram_bin=""
         engram_bin=$(get_engram_binary_path 2>/dev/null) || true
         if [[ -n "$engram_bin" ]]; then
-            local export_file="$engram_dir/observations.json"
-            if "$engram_bin" export "$export_file" 2>/dev/null; then
-                exported="true"
-                if [[ -f "$export_file" ]]; then
-                    # Filter all sections by project name if provided
-                    if [[ -n "$project_name" ]]; then
-                        jq --arg proj "$project_name" '
-                            .observations = [.observations[]? | select(.project == $proj)] |
-                            .sessions = [.sessions[]? | select(.project == $proj)] |
-                            .prompts = [.prompts[]? | select(.project == $proj)]
-                        ' "$export_file" > "${export_file}.tmp" 2>/dev/null \
-                            && mv "${export_file}.tmp" "$export_file"
-                    fi
-                    count=$(jq '.observations | if type == "array" then length else 0 end' "$export_file" 2>/dev/null || echo 0)
-                fi
+            local sync_args=("sync")
+            if [[ -n "$project_name" ]]; then
+                sync_args+=("--project" "$project_name")
+            else
+                sync_args+=("--all")
+            fi
+            if "$engram_bin" "${sync_args[@]}" 2>/dev/null; then
+                synced="true"
             fi
         fi
     fi
 
-    jq -n --arg path "$engram_dir" --argjson exported "$exported" --argjson count "$count" \
-        '{path:$path, exported:$exported, count:$count}'
+    jq -n --arg path "$engram_dir" --argjson synced "$synced" \
+        '{path:$path, synced:$synced}'
+}
+
+install_git_hooks() {
+    # Installs pre-commit and post-merge git hooks for automatic engram sync.
+    # Hooks are fail-safe (no-op if engram is not installed).
+    # Respects existing hooks by appending with a marker comment.
+    # Usage: install_git_hooks "/path/to/project" "project-name"
+    # Outputs JSON: {"installed":["pre-commit","post-merge"],"skipped":[]}
+    local project_root="$1"
+    local project_name="${2:-}"
+    local git_hooks_dir="$project_root/.git/hooks"
+    local installed=()
+    local skipped=()
+    local marker='# [team-ai-kit] engram sync hook'
+
+    if [[ ! -d "$project_root/.git" ]]; then
+        jq -n '{installed:[], skipped:["not-a-git-repo"]}'
+        return
+    fi
+
+    [[ -d "$git_hooks_dir" ]] || mkdir -p "$git_hooks_dir"
+
+    local project_flag
+    if [[ -n "$project_name" ]]; then
+        project_flag="--project \"$project_name\""
+    else
+        project_flag="--all"
+    fi
+
+    # -- pre-commit hook -------------------------------------------------------
+    local pre_commit_path="$git_hooks_dir/pre-commit"
+    local pre_commit_block
+    pre_commit_block=$(cat <<HOOKEOF
+
+$marker
+if command -v engram >/dev/null 2>&1; then
+    engram sync $project_flag 2>/dev/null || true
+    git add .engram/ 2>/dev/null || true
+fi
+HOOKEOF
+)
+
+    if [[ -f "$pre_commit_path" ]]; then
+        if grep -qF "$marker" "$pre_commit_path" 2>/dev/null; then
+            skipped+=("pre-commit")
+        else
+            echo "$pre_commit_block" >> "$pre_commit_path"
+            installed+=("pre-commit")
+        fi
+    else
+        printf '#!/bin/sh\n%s\n' "$pre_commit_block" > "$pre_commit_path"
+        chmod +x "$pre_commit_path"
+        installed+=("pre-commit")
+    fi
+
+    # -- post-merge hook -------------------------------------------------------
+    local post_merge_path="$git_hooks_dir/post-merge"
+    local post_merge_block
+    post_merge_block=$(cat <<HOOKEOF
+
+$marker
+if command -v engram >/dev/null 2>&1; then
+    engram sync --import 2>/dev/null || true
+fi
+HOOKEOF
+)
+
+    if [[ -f "$post_merge_path" ]]; then
+        if grep -qF "$marker" "$post_merge_path" 2>/dev/null; then
+            skipped+=("post-merge")
+        else
+            echo "$post_merge_block" >> "$post_merge_path"
+            installed+=("post-merge")
+        fi
+    else
+        printf '#!/bin/sh\n%s\n' "$post_merge_block" > "$post_merge_path"
+        chmod +x "$post_merge_path"
+        installed+=("post-merge")
+    fi
+
+    # Output JSON result
+    local inst_json skip_json
+    inst_json=$(printf '%s\n' "${installed[@]}" | jq -R . | jq -s .)
+    skip_json=$(printf '%s\n' "${skipped[@]}" | jq -R . | jq -s .)
+    # Handle empty arrays
+    [[ ${#installed[@]} -eq 0 ]] && inst_json='[]'
+    [[ ${#skipped[@]} -eq 0 ]] && skip_json='[]'
+    jq -n --argjson installed "$inst_json" --argjson skipped "$skip_json" \
+        '{installed:$installed, skipped:$skipped}'
+}
+
+invoke_engram_sync() {
+    # Wrapper around 'engram sync' for manual sync operations.
+    # Usage: invoke_engram_sync "project-name" "export|import|status"
+    # Outputs JSON: {"success":true/false,"message":"..."}
+    local project_name="${1:-}"
+    local operation="${2:-export}"
+
+    if ! test_engram_installed; then
+        jq -n '{success:false, message:"engram is not installed"}'
+        return
+    fi
+
+    local engram_bin=""
+    engram_bin=$(get_engram_binary_path 2>/dev/null) || true
+    if [[ -z "$engram_bin" ]]; then
+        jq -n '{success:false, message:"engram binary not found"}'
+        return
+    fi
+
+    local exit_code=0
+    case "$operation" in
+        export)
+            local sync_args=("sync")
+            if [[ -n "$project_name" ]]; then
+                sync_args+=("--project" "$project_name")
+            else
+                sync_args+=("--all")
+            fi
+            "$engram_bin" "${sync_args[@]}" 2>/dev/null || exit_code=$?
+            ;;
+        import)
+            "$engram_bin" sync --import 2>/dev/null || exit_code=$?
+            ;;
+        status)
+            "$engram_bin" sync --status 2>/dev/null || exit_code=$?
+            ;;
+    esac
+
+    if [[ "$exit_code" -eq 0 ]]; then
+        jq -n --arg op "$operation" '{success:true, message:("engram sync " + $op + " completed")}'
+    else
+        jq -n --arg op "$operation" --arg code "$exit_code" \
+            '{success:false, message:("engram sync " + $op + " failed (exit code: " + $code + ")")}'
+    fi
 }
 
 new_init_summary() {
     # Generates human-readable summary after project initialization.
-    # Usage: new_init_summary "vscode" "frontend" ".github/copilot-instructions.md" 5
-    local ide="$1" role="$2" instructions_path="${3:-}" engram_exported="${4:-0}"
-    local engram_line
-    if [[ "$engram_exported" -gt 0 ]]; then
-        engram_line="$engram_exported observations exported"
+    # Usage: new_init_summary "vscode" "frontend" ".github/copilot-instructions.md" "true" 2
+    local ide="$1" role="$2" instructions_path="${3:-}" engram_synced="${4:-false}" hooks_installed="${5:-0}"
+    local engram_line hooks_line
+    if [[ "$engram_synced" == "true" ]]; then
+        engram_line="synced via engram sync"
     else
-        engram_line="directory created (no observations yet)"
+        engram_line="not synced (engram not available)"
+    fi
+    if [[ "$hooks_installed" -gt 0 ]]; then
+        hooks_line="$hooks_installed hook(s) installed"
+    else
+        hooks_line="no hooks installed"
     fi
     cat <<EOF
 ============================================
@@ -212,7 +339,8 @@ new_init_summary() {
   IDE:            $ide
   Role:           $role
   Instructions:   $instructions_path
-  Shared Engram:  $engram_line
+  Engram Sync:    $engram_line
+  Git Hooks:      $hooks_line
 ============================================
 EOF
 }

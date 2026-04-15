@@ -10,6 +10,7 @@
     Subcommands:
       setup   - First-time configuration (interactive or non-interactive)
       init    - Initialize team-ai-kit in the current project directory
+      sync    - Manually sync engram memories (export + import)
       update  - Pull latest team content and merge without overwriting
       status  - Show current configuration and installed skills
       doctor  - Verify prerequisites and installation health
@@ -101,6 +102,7 @@ function Show-Help {
     Write-Host '  Commands:' -ForegroundColor Yellow
     Write-Host '    setup    First-time configuration (IDE, role, team repo)'
     Write-Host '    init     Initialize team-ai-kit in the current project'
+    Write-Host '    sync     Manually sync engram memories (export + import)'
     Write-Host '    update   Pull latest team content + merge without overwriting'
     Write-Host '    status   Show current config and installed skills'
     Write-Host '    doctor   Verify prerequisites and installation health'
@@ -402,19 +404,19 @@ function Invoke-SetupCommand {
     Write-Host '  Next steps:' -ForegroundColor Yellow
     if ($gentleAiAgentId -and -not $SkipGentleAi) {
         Write-Host '    1. Go to your project and run: team-ai-kit init' -ForegroundColor White
-        Write-Host '       (configures instructions, skills, and shared engram for the project)' -ForegroundColor DarkGray
+        Write-Host '       (configures instructions, engram sync, and git hooks for the project)' -ForegroundColor DarkGray
         Write-Host '    2. Open your IDE and start working!' -ForegroundColor White
     }
     elseif ($Ide -eq 'intellij') {
         Write-Host '    1. Add the MCP config shown above to IntelliJ settings' -ForegroundColor White
         Write-Host '    2. Go to your project and run: team-ai-kit init' -ForegroundColor White
-        Write-Host '       (configures instructions, skills, and shared engram for the project)' -ForegroundColor DarkGray
+        Write-Host '       (configures instructions, engram sync, and git hooks for the project)' -ForegroundColor DarkGray
         Write-Host '    3. Open IntelliJ and start working!' -ForegroundColor White
     }
     else {
         Write-Host '    1. Run gentle-ai to complete agent configuration' -ForegroundColor White
         Write-Host '    2. Go to your project and run: team-ai-kit init' -ForegroundColor White
-        Write-Host '       (configures instructions, skills, and shared engram for the project)' -ForegroundColor DarkGray
+        Write-Host '       (configures instructions, engram sync, and git hooks for the project)' -ForegroundColor DarkGray
         Write-Host '    3. Open your IDE and start working!' -ForegroundColor White
     }
     Write-Host ''
@@ -495,23 +497,38 @@ function Invoke-InitCommand {
     $relInstructionsPath = $instructionsPath.Replace($projectRoot, '').TrimStart('\', '/')
     Write-Ok "Created: $relInstructionsPath"
 
-    # -- Step 4: Setup shared-engram -------------------------------------------
+    # -- Step 4: Setup engram sync + git hooks --------------------------------
     Write-Host ''
-    Write-Host '  [4/4] Setting up shared engram...' -ForegroundColor White
+    Write-Host '  [4/4] Setting up engram sync and git hooks...' -ForegroundColor White
 
     # Derive project name from directory
     $projectName = Split-Path $projectRoot -Leaf
-    $engramResult = Initialize-SharedEngram -ProjectRoot $projectRoot -ProjectName $projectName
 
-    if ($engramResult.exported) {
-        Write-Ok "shared-engram/ created -- $($engramResult.count) observations exported"
+    # 4a. Run initial engram sync
+    $engramResult = Initialize-EngramSync -ProjectRoot $projectRoot -ProjectName $projectName
+
+    if ($engramResult.synced) {
+        Write-Ok 'engram sync completed -- .engram/ ready for team sharing'
     }
     elseif (Test-EngramInstalled) {
-        Write-Ok 'shared-engram/ created -- no observations for this project yet'
+        Write-Ok 'engram sync attempted -- no memories for this project yet'
     }
     else {
-        Write-Ok 'shared-engram/ created'
-        Write-Warn 'engram not installed -- export will work after installing engram'
+        Write-Ok '.engram/ will be created on first sync'
+        Write-Warn 'engram not installed -- sync will work after installing engram'
+    }
+
+    # 4b. Install git hooks
+    $hookResult = Install-GitHooks -ProjectRoot $projectRoot -ProjectName $projectName
+
+    if ($hookResult.installed.Count -gt 0) {
+        Write-Ok "Git hooks installed: $($hookResult.installed -join ', ')"
+    }
+    if ($hookResult.skipped -contains 'not-a-git-repo') {
+        Write-Warn 'Not a git repo -- hooks skipped'
+    }
+    elseif ($hookResult.skipped.Count -gt 0) {
+        Write-Step "Git hooks already present: $($hookResult.skipped -join ', ')"
     }
 
     # -- Save project config ---------------------------------------------------
@@ -528,14 +545,59 @@ function Invoke-InitCommand {
 
     # -- Summary ---------------------------------------------------------------
     Write-Host ''
-    $summary = New-InitSummary -Ide $effectiveIde -Role $effectiveRole -InstructionsPath $relInstructionsPath -EngramExported $engramResult.count
+    $summary = New-InitSummary -Ide $effectiveIde -Role $effectiveRole -InstructionsPath $relInstructionsPath -EngramSynced $engramResult.synced -HooksInstalled $hookResult.installed.Count
     Write-Host $summary -ForegroundColor Green
 
     Write-Host ''
     Write-Host '  Next steps:' -ForegroundColor Yellow
     Write-Host "    1. Commit .team-ai-kit.json and $relInstructionsPath to your repo" -ForegroundColor White
-    Write-Host '    2. Commit shared-engram/ to share knowledge with your team' -ForegroundColor White
-    Write-Host '    3. Start working -- your AI agent is configured for this project!' -ForegroundColor White
+    Write-Host '    2. Commit .engram/ to share knowledge with your team' -ForegroundColor White
+    Write-Host '    3. Start working -- git hooks will sync engram automatically!' -ForegroundColor White
+    Write-Host '       (manual sync: team-ai-kit sync)' -ForegroundColor DarkGray
+    Write-Host ''
+}
+
+# -- Sync (manual engram sync) -------------------------------------------------
+function Invoke-SyncCommand {
+    Show-Banner
+    $projectRoot = (Get-Location).Path
+
+    # Check project config for project name
+    $projectName = ''
+    if (Test-ProjectInitialized -ProjectRoot $projectRoot) {
+        $projectName = Split-Path $projectRoot -Leaf
+    }
+
+    Write-Host '  Syncing engram memories...' -ForegroundColor White
+    Write-Host ''
+
+    # Export
+    Write-Step 'Exporting local memories...'
+    $exportResult = Invoke-EngramSync -ProjectName $projectName -Operation 'export'
+    if ($exportResult.success) {
+        Write-Ok $exportResult.message
+    }
+    else {
+        Write-Warn $exportResult.message
+    }
+
+    # Import
+    Write-Step 'Importing team memories...'
+    $importResult = Invoke-EngramSync -Operation 'import'
+    if ($importResult.success) {
+        Write-Ok $importResult.message
+    }
+    else {
+        Write-Warn $importResult.message
+    }
+
+    Write-Host ''
+    if ($exportResult.success -or $importResult.success) {
+        Write-Ok 'Sync complete'
+    }
+    else {
+        Write-Err 'Sync failed -- is engram installed? Run "team-ai-kit doctor" to check.'
+    }
     Write-Host ''
 }
 
@@ -750,6 +812,7 @@ function Invoke-DoctorCommand {
 switch ($Command.ToLower()) {
     'setup'  { Invoke-SetupCommand }
     'init'   { Invoke-InitCommand }
+    'sync'   { Invoke-SyncCommand }
     'update' { Invoke-UpdateCommand }
     'status' { Invoke-StatusCommand }
     'doctor' { Invoke-DoctorCommand }

@@ -108,7 +108,7 @@ team-ai-kit setup --ide vscode --role frontend --team-repo https://github.com/te
 +-------------------------------------------+
 |  PROJECT layer (committed to each repo)   |
 |  .team-ai-kit.json + instructions +       |
-|  shared-engram/                            |
+|  .engram/ + git hooks                     |
 +-------------------------------------------+
 ```
 
