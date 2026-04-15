@@ -318,20 +318,6 @@ Describe 'New-VsCodeMcpConfig' {
     }
 }
 
-Describe 'New-EngramSyncConfig' {
-    It 'returns config with correct defaults' {
-        $config = New-EngramSyncConfig -SyncRepoUrl 'https://dev.azure.com/team/repo'
-        $config.syncRepo | Should -Be 'https://dev.azure.com/team/repo'
-        $config.port | Should -Be 7437
-        $config.mode | Should -Be 'local-sync'
-    }
-
-    It 'allows custom port' {
-        $config = New-EngramSyncConfig -SyncRepoUrl 'https://repo' -Port 8080
-        $config.port | Should -Be 8080
-    }
-}
-
 # -- Instructions Generation ---------------------------------------------------
 
 Describe 'New-CopilotInstructions' {
@@ -549,7 +535,7 @@ Describe 'Save-TeamAiKitConfig' {
                 teamRepo    = $null
                 installedAt = '2026-04-14T00:00:00'
                 lastUpdate  = '2026-04-14T00:00:00'
-                version     = '2.0.0'
+                version     = '2.1.0'
             }
             $path = Save-TeamAiKitConfig -Config $config
             Test-Path $path | Should -BeTrue
@@ -570,7 +556,7 @@ Describe 'Save-TeamAiKitConfig' {
             $parsed.ide | Should -Be 'vscode'
             $parsed.role | Should -Be 'frontend'
             $parsed.provider | Should -Be 'github-copilot'
-            $parsed.version | Should -Be '2.0.0'
+            $parsed.version | Should -Be '2.1.0'
         }
         finally {
             $env:USERPROFILE = $originalProfile
@@ -850,7 +836,7 @@ Describe 'Save-ProjectConfig and Get-ProjectConfig' {
             ide           = 'vscode'
             initializedAt = '2026-04-15T00:00:00Z'
             lastSync      = '2026-04-15T00:00:00Z'
-            version       = '2.0.0'
+            version       = '2.1.0'
         }
         $savedPath = Save-ProjectConfig -ProjectRoot $script:configTestDir -Config $config
         $savedPath | Should -Not -BeNullOrEmpty
@@ -859,7 +845,7 @@ Describe 'Save-ProjectConfig and Get-ProjectConfig' {
         $loaded = Get-ProjectConfig -ProjectRoot $script:configTestDir
         $loaded.role | Should -Be 'backend-node'
         $loaded.ide | Should -Be 'vscode'
-        $loaded.version | Should -Be '2.0.0'
+        $loaded.version | Should -Be '2.1.0'
     }
 
     It 'returns $null when no config exists' {

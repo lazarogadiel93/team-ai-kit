@@ -9,9 +9,9 @@
     "bin": [
         ["bin\\team-ai-kit.ps1", "team-ai-kit"]
     ],
-    "depends": "gentleman/gentle-ai",
+    "depends": "team-ai-kit/gentle-ai",
     "suggest": {
-        "engram": "gentleman/engram"
+        "engram": "team-ai-kit/engram"
     },
     "post_install": "Write-Host 'Run \"team-ai-kit setup\" to configure your environment.' -ForegroundColor Cyan",
     "checkver": {

@@ -327,7 +327,7 @@ cmd_setup() {
         --arg team_repo "$OPT_TEAM_REPO" \
         --arg installed_at "$now" \
         --arg last_update "$now" \
-        --arg version "2.0.0" \
+        --arg version "2.1.0" \
         '{ide:$ide, role:$role, provider:$provider, teamRepo:$team_repo, installedAt:$installed_at, lastUpdate:$last_update, version:$version}')
     local config_path
     config_path=$(save_config "$config_json")
@@ -491,7 +491,7 @@ cmd_init() {
         --arg ide "$effective_ide" \
         --arg initialized_at "$now" \
         --arg last_sync "$now" \
-        --arg version "2.0.0" \
+        --arg version "2.1.0" \
         '{role:$role, ide:$ide, initializedAt:$initialized_at, lastSync:$last_sync, version:$version}')
     save_project_config "$project_root" "$project_config" >/dev/null
     ok "Project config saved: .team-ai-kit.json"
@@ -795,11 +795,21 @@ OPT_FORCE="false"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --ide)               OPT_IDE="$2"; shift 2 ;;
-        --role)              OPT_ROLE="$2"; shift 2 ;;
-        --provider)          OPT_PROVIDER="$2"; shift 2 ;;
-        --team-repo)         OPT_TEAM_REPO="$2"; shift 2 ;;
-        --target-dir)        OPT_TARGET_DIR="$2"; shift 2 ;;
+        --ide)
+            [[ $# -ge 2 ]] || { err "Missing value for --ide"; exit 1; }
+            OPT_IDE="$2"; shift 2 ;;
+        --role)
+            [[ $# -ge 2 ]] || { err "Missing value for --role"; exit 1; }
+            OPT_ROLE="$2"; shift 2 ;;
+        --provider)
+            [[ $# -ge 2 ]] || { err "Missing value for --provider"; exit 1; }
+            OPT_PROVIDER="$2"; shift 2 ;;
+        --team-repo)
+            [[ $# -ge 2 ]] || { err "Missing value for --team-repo"; exit 1; }
+            OPT_TEAM_REPO="$2"; shift 2 ;;
+        --target-dir)
+            [[ $# -ge 2 ]] || { err "Missing value for --target-dir"; exit 1; }
+            OPT_TARGET_DIR="$2"; shift 2 ;;
         --skip-prerequisites) SKIP_PREREQUISITES="true"; shift ;;
         --skip-gentle-ai)    SKIP_GENTLE_AI="true"; shift ;;
         --force)             OPT_FORCE="true"; shift ;;
