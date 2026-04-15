@@ -195,20 +195,14 @@ function Initialize-SharedEngram {
         $engramBin = Get-EngramBinaryPath
         if ($engramBin) {
             try {
-                $exportArgs = @('export', '--format', 'json', '--output', (Join-Path $engramDir 'observations.json'))
-                if ($ProjectName) {
-                    $exportArgs += @('--project', $ProjectName)
-                }
-                $null = & $engramBin @exportArgs 2>$null
-                if ($LASTEXITCODE -eq 0) {
+                $exportFile = Join-Path $engramDir 'observations.json'
+                $null = & $engramBin export $exportFile 2>$null
+                if ($LASTEXITCODE -eq 0 -and (Test-Path $exportFile)) {
                     $result.exported = $true
                     # Count exported observations
-                    $exportFile = Join-Path $engramDir 'observations.json'
-                    if (Test-Path $exportFile) {
-                        $content = Get-Content $exportFile -Raw | ConvertFrom-Json
-                        if ($content -is [array]) {
-                            $result.count = $content.Count
-                        }
+                    $content = Get-Content $exportFile -Raw | ConvertFrom-Json
+                    if ($content.observations -is [array]) {
+                        $result.count = $content.observations.Count
                     }
                 }
             }

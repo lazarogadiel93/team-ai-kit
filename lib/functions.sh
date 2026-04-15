@@ -173,14 +173,10 @@ initialize_shared_engram() {
         engram_bin=$(get_engram_binary_path 2>/dev/null) || true
         if [[ -n "$engram_bin" ]]; then
             local export_file="$engram_dir/observations.json"
-            local export_args=("export" "--format" "json" "--output" "$export_file")
-            if [[ -n "$project_name" ]]; then
-                export_args+=("--project" "$project_name")
-            fi
-            if "$engram_bin" "${export_args[@]}" 2>/dev/null; then
+            if "$engram_bin" export "$export_file" 2>/dev/null; then
                 exported="true"
                 if [[ -f "$export_file" ]]; then
-                    count=$(jq 'if type == "array" then length else 0 end' "$export_file" 2>/dev/null || echo 0)
+                    count=$(jq '.observations | if type == "array" then length else 0 end' "$export_file" 2>/dev/null || echo 0)
                 fi
             fi
         fi
