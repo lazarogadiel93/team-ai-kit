@@ -199,7 +199,7 @@ function Initialize-SharedEngram {
                 if ($ProjectName) {
                     $exportArgs += @('--project', $ProjectName)
                 }
-                & $engramBin @exportArgs 2>$null
+                $null = & $engramBin @exportArgs 2>$null
                 if ($LASTEXITCODE -eq 0) {
                     $result.exported = $true
                     # Count exported observations
