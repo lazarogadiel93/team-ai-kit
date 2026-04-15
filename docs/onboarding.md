@@ -33,7 +33,8 @@
 
 ```powershell
 # Instalar Scoop (si no lo tenes): https://scoop.sh
-irm get.scoop.sh | iex
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
 
 # Instalar team-ai-kit
 scoop bucket add team-ai-kit https://github.com/lazarogadiel93/scoop-bucket
