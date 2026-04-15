@@ -32,6 +32,10 @@
 ### Windows (Scoop)
 
 ```powershell
+# Instalar Scoop (si no lo tenes): https://scoop.sh
+irm get.scoop.sh | iex
+
+# Instalar team-ai-kit
 scoop bucket add team-ai-kit https://github.com/lazarogadiel93/scoop-bucket
 scoop install team-ai-kit
 ```
@@ -39,6 +43,14 @@ scoop install team-ai-kit
 ### macOS / Linux (o Windows sin Scoop)
 
 ```bash
+# Instalar Homebrew (si no lo tenes): https://brew.sh
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# Instalar jq (requerido)
+brew install jq        # macOS
+# sudo apt install jq  # Debian/Ubuntu
+
+# Clonar team-ai-kit
 git clone https://github.com/lazarogadiel93/team-ai-kit
 cd team-ai-kit
 ```
