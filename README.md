@@ -21,6 +21,10 @@ gentle-ai es para el dev individual. Team AI Kit agrega lo que falta para equipo
 ### Windows (Scoop)
 
 ```powershell
+# Instalar Scoop (si no lo tenes): https://scoop.sh
+irm get.scoop.sh | iex
+
+# Instalar team-ai-kit
 scoop bucket add team-ai-kit https://github.com/lazarogadiel93/scoop-bucket
 scoop install team-ai-kit
 team-ai-kit setup
@@ -29,7 +33,14 @@ team-ai-kit setup
 ### macOS / Linux
 
 ```bash
-# Requisito: jq (brew install jq / apt install jq)
+# Instalar Homebrew (si no lo tenes): https://brew.sh
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# Instalar jq (requerido)
+brew install jq        # macOS
+# sudo apt install jq  # Debian/Ubuntu
+
+# Instalar team-ai-kit
 git clone https://github.com/lazarogadiel93/team-ai-kit
 cd team-ai-kit
 ./setup.sh
