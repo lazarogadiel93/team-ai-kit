@@ -1,5 +1,8 @@
 # Team AI Kit
 
+[![CI](https://github.com/lazarogadiel93/team-ai-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/lazarogadiel93/team-ai-kit/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 > [gentle-ai](https://github.com/Gentleman-Programming/gentle-ai) para equipos. Un comando, 3 preguntas, y todo tu equipo tiene la misma base de AI configurada.
 
 ## Que resuelve
