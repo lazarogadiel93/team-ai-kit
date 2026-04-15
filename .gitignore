@@ -19,3 +19,6 @@ Thumbs.db
 
 # team-ai-kit runtime (generated per-project)
 .team-ai-kit.json
+
+#engram
+.engram/

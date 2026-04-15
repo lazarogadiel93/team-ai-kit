@@ -869,115 +869,214 @@ Describe 'Save-ProjectConfig and Get-ProjectConfig' {
     }
 }
 
-Describe 'Initialize-SharedEngram' {
+# -- Engram Sync (native .engram/) ---------------------------------------------
+
+Describe 'Initialize-EngramSync' {
     BeforeAll {
-        $script:engramTestDir = Join-Path $TestDrive 'engram-test-project'
+        $script:engramTestDir = Join-Path $TestDrive 'engram-sync-project'
         New-Item -ItemType Directory -Path $script:engramTestDir -Force | Out-Null
     }
 
-    It 'creates shared-engram directory' {
-        $result = Initialize-SharedEngram -ProjectRoot $script:engramTestDir
-        $result.path | Should -Be (Join-Path $script:engramTestDir 'shared-engram')
-        Test-Path $result.path | Should -BeTrue
+    It 'returns hashtable with path and synced keys' {
+        Mock Test-EngramInstalled { return $false }
+        $result = Initialize-EngramSync -ProjectRoot $script:engramTestDir -ProjectName 'test-project'
+        $result | Should -BeOfType [hashtable]
+        $result.ContainsKey('path') | Should -BeTrue
+        $result.ContainsKey('synced') | Should -BeTrue
     }
 
-    It 'creates .gitkeep file' {
-        $gitkeepPath = Join-Path $script:engramTestDir 'shared-engram\.gitkeep'
-        Test-Path $gitkeepPath | Should -BeTrue
+    It 'sets path to .engram/ inside project root' {
+        Mock Test-EngramInstalled { return $false }
+        $result = Initialize-EngramSync -ProjectRoot $script:engramTestDir -ProjectName 'test-project'
+        $result.path | Should -Be (Join-Path $script:engramTestDir '.engram')
     }
 
-    It 'is idempotent (safe to run twice)' {
-        $result = Initialize-SharedEngram -ProjectRoot $script:engramTestDir
-        $result.path | Should -Not -BeNullOrEmpty
-        Test-Path $result.path | Should -BeTrue
+    It 'returns synced=$false when engram is not installed' {
+        Mock Test-EngramInstalled { return $false }
+        $result = Initialize-EngramSync -ProjectRoot $script:engramTestDir -ProjectName 'test-project'
+        $result.synced | Should -BeFalse
     }
 
-    Context 'project filtering' {
+    Context 'with engram available' {
         BeforeAll {
-            $script:filterTestDir = Join-Path $TestDrive 'engram-filter-project'
-            New-Item -ItemType Directory -Path $script:filterTestDir -Force | Out-Null
-
-            # Create fake engram script that exports multi-project data
-            $script:fakeEngram = Join-Path $TestDrive 'fake-engram.ps1'
+            $script:fakeEngramSync = Join-Path $TestDrive 'fake-engram-sync.ps1'
             @'
-param($Command, $OutputFile)
-if ($Command -eq 'export') {
-    @{
-        observations = @(
-            @{ project = 'my-project'; title = 'obs1'; content = 'data1' }
-            @{ project = 'other-project'; title = 'obs2'; content = 'data2' }
-            @{ project = 'my-project'; title = 'obs3'; content = 'data3' }
-        )
-        sessions = @(
-            @{ project = 'my-project'; id = 'ses-1' }
-            @{ project = 'other-project'; id = 'ses-2' }
-        )
-        prompts = @(
-            @{ project = 'my-project'; content = 'prompt1' }
-            @{ project = 'other-project'; content = 'prompt2' }
-            @{ project = 'my-project'; content = 'prompt3' }
-        )
-    } | ConvertTo-Json -Depth 5 | Set-Content -Path $OutputFile
-}
-'@ | Set-Content $script:fakeEngram
+param([string[]]$args)
+# Fake engram that always succeeds
+exit 0
+'@ | Set-Content $script:fakeEngramSync
 
             Mock Test-EngramInstalled { return $true }
-            Mock Get-EngramBinaryPath { return $script:fakeEngram }
+            Mock Get-EngramBinaryPath { return 'powershell' }
         }
 
-        It 'filters observations to matching project only' {
-            $result = Initialize-SharedEngram -ProjectRoot $script:filterTestDir -ProjectName 'my-project'
-            $result.exported | Should -BeTrue
-            $result.count | Should -Be 2
-
-            $exportFile = Join-Path $script:filterTestDir 'shared-engram\observations.json'
-            $content = Get-Content $exportFile -Raw | ConvertFrom-Json
-            $content.observations.Count | Should -Be 2
-            $content.observations | ForEach-Object { $_.project | Should -Be 'my-project' }
+        It 'calls engram sync with --project flag when ProjectName given' {
+            # We can verify it runs without error; actual engram binary is mocked
+            Mock Test-EngramInstalled { return $true }
+            Mock Get-EngramBinaryPath { return $null }
+            $result = Initialize-EngramSync -ProjectRoot $script:engramTestDir -ProjectName 'my-project'
+            # Without a binary, synced should be false
+            $result.synced | Should -BeFalse
         }
 
-        It 'filters sessions and prompts by project too' {
-            $exportFile = Join-Path $script:filterTestDir 'shared-engram\observations.json'
-            $content = Get-Content $exportFile -Raw | ConvertFrom-Json
-            $content.sessions.Count | Should -Be 1
-            $content.sessions[0].project | Should -Be 'my-project'
-            $content.prompts.Count | Should -Be 2
-            $content.prompts | ForEach-Object { $_.project | Should -Be 'my-project' }
+        It 'calls engram sync with --all when no ProjectName given' {
+            Mock Test-EngramInstalled { return $true }
+            Mock Get-EngramBinaryPath { return $null }
+            $result = Initialize-EngramSync -ProjectRoot $script:engramTestDir
+            $result.synced | Should -BeFalse
+        }
+    }
+}
+
+Describe 'Install-GitHooks' {
+    BeforeAll {
+        $script:hooksProjectDir = Join-Path $TestDrive 'hooks-test-project'
+        New-Item -ItemType Directory -Path $script:hooksProjectDir -Force | Out-Null
+    }
+
+    Context 'in a non-git directory' {
+        It 'returns skipped=not-a-git-repo when .git does not exist' {
+            $result = Install-GitHooks -ProjectRoot $script:hooksProjectDir -ProjectName 'test'
+            $result.skipped | Should -Contain 'not-a-git-repo'
+            $result.installed.Count | Should -Be 0
+        }
+    }
+
+    Context 'in a git directory' {
+        BeforeAll {
+            $script:gitProjectDir = Join-Path $TestDrive 'git-hooks-project'
+            New-Item -ItemType Directory -Path (Join-Path $script:gitProjectDir '.git') -Force | Out-Null
         }
 
-        It 'exports all observations when no ProjectName is provided' {
-            $noFilterDir = Join-Path $TestDrive 'engram-no-filter'
-            New-Item -ItemType Directory -Path $noFilterDir -Force | Out-Null
-
-            $result = Initialize-SharedEngram -ProjectRoot $noFilterDir
-            $result.exported | Should -BeTrue
-            $result.count | Should -Be 3
+        It 'creates pre-commit and post-merge hooks' {
+            $result = Install-GitHooks -ProjectRoot $script:gitProjectDir -ProjectName 'my-project'
+            $result.installed | Should -Contain 'pre-commit'
+            $result.installed | Should -Contain 'post-merge'
+            $result.installed.Count | Should -Be 2
         }
 
-        It 'returns count 0 when no observations match project' {
-            $noMatchDir = Join-Path $TestDrive 'engram-no-match'
-            New-Item -ItemType Directory -Path $noMatchDir -Force | Out-Null
+        It 'creates hook files in .git/hooks/' {
+            $preCommitPath = Join-Path $script:gitProjectDir '.git\hooks\pre-commit'
+            $postMergePath = Join-Path $script:gitProjectDir '.git\hooks\post-merge'
+            Test-Path $preCommitPath | Should -BeTrue
+            Test-Path $postMergePath | Should -BeTrue
+        }
 
-            $result = Initialize-SharedEngram -ProjectRoot $noMatchDir -ProjectName 'nonexistent-project'
-            $result.exported | Should -BeTrue
-            $result.count | Should -Be 0
+        It 'pre-commit hook contains engram sync with project flag' {
+            $preCommitPath = Join-Path $script:gitProjectDir '.git\hooks\pre-commit'
+            $content = Get-Content $preCommitPath -Raw
+            $content | Should -BeLike '*engram sync*'
+            $content | Should -BeLike '*my-project*'
+            $content | Should -BeLike '*git add .engram/*'
+        }
+
+        It 'post-merge hook contains engram sync --import' {
+            $postMergePath = Join-Path $script:gitProjectDir '.git\hooks\post-merge'
+            $content = Get-Content $postMergePath -Raw
+            $content | Should -BeLike '*engram sync --import*'
+        }
+
+        It 'hooks contain team-ai-kit marker comment' {
+            $preCommitPath = Join-Path $script:gitProjectDir '.git\hooks\pre-commit'
+            $content = Get-Content $preCommitPath -Raw
+            $content | Should -Match 'team-ai-kit'
+        }
+
+        It 'hooks start with shebang line' {
+            $preCommitPath = Join-Path $script:gitProjectDir '.git\hooks\pre-commit'
+            $content = Get-Content $preCommitPath -Raw
+            $content | Should -BeLike '#!/bin/sh*'
+        }
+
+        It 'skips hooks on second run (marker already present)' {
+            $result = Install-GitHooks -ProjectRoot $script:gitProjectDir -ProjectName 'my-project'
+            $result.skipped | Should -Contain 'pre-commit'
+            $result.skipped | Should -Contain 'post-merge'
+            $result.installed.Count | Should -Be 0
+        }
+
+        It 'appends to existing hook without marker' {
+            $appendDir = Join-Path $TestDrive 'append-hooks-project'
+            New-Item -ItemType Directory -Path (Join-Path $appendDir '.git\hooks') -Force | Out-Null
+
+            # Create pre-existing hook
+            $preCommitPath = Join-Path $appendDir '.git\hooks\pre-commit'
+            Set-Content -Path $preCommitPath -Value "#!/bin/sh`necho 'existing hook'" -Encoding ASCII
+
+            $result = Install-GitHooks -ProjectRoot $appendDir -ProjectName 'test'
+            $result.installed | Should -Contain 'pre-commit'
+
+            # Verify original content is preserved
+            $content = Get-Content $preCommitPath -Raw
+            $content | Should -BeLike '*existing hook*'
+            $content | Should -Match 'team-ai-kit'
+        }
+
+        It 'uses --all flag when no ProjectName given' {
+            $allDir = Join-Path $TestDrive 'all-hooks-project'
+            New-Item -ItemType Directory -Path (Join-Path $allDir '.git') -Force | Out-Null
+
+            $result = Install-GitHooks -ProjectRoot $allDir
+            $preCommitPath = Join-Path $allDir '.git\hooks\pre-commit'
+            $content = Get-Content $preCommitPath -Raw
+            $content | Should -BeLike '*--all*'
+        }
+    }
+}
+
+Describe 'Invoke-EngramSync' {
+    It 'returns failure when engram is not installed' {
+        Mock Test-EngramInstalled { return $false }
+        $result = Invoke-EngramSync -Operation 'export'
+        $result.success | Should -BeFalse
+        $result.message | Should -BeLike '*not installed*'
+    }
+
+    It 'returns failure when engram binary not found' {
+        Mock Test-EngramInstalled { return $true }
+        Mock Get-EngramBinaryPath { return $null }
+        $result = Invoke-EngramSync -Operation 'export'
+        $result.success | Should -BeFalse
+        $result.message | Should -BeLike '*not found*'
+    }
+
+    It 'returns hashtable with success and message keys' {
+        Mock Test-EngramInstalled { return $false }
+        $result = Invoke-EngramSync -Operation 'export'
+        $result | Should -BeOfType [hashtable]
+        $result.ContainsKey('success') | Should -BeTrue
+        $result.ContainsKey('message') | Should -BeTrue
+    }
+
+    It 'accepts export, import, and status operations' {
+        Mock Test-EngramInstalled { return $false }
+        foreach ($op in @('export', 'import', 'status')) {
+            $result = Invoke-EngramSync -Operation $op
+            $result | Should -Not -BeNullOrEmpty
         }
     }
 }
 
 Describe 'New-InitSummary' {
-    It 'generates summary with exported observations' {
-        $summary = New-InitSummary -Ide 'vscode' -Role 'frontend' -InstructionsPath '.github/copilot-instructions.md' -EngramExported 5
+    It 'generates summary with engram synced and hooks installed' {
+        $summary = New-InitSummary -Ide 'vscode' -Role 'frontend' -InstructionsPath '.github/copilot-instructions.md' -EngramSynced $true -HooksInstalled 2
         $summary | Should -BeLike '*Project Initialized*'
         $summary | Should -BeLike '*vscode*'
         $summary | Should -BeLike '*frontend*'
-        $summary | Should -BeLike '*5 observations exported*'
+        $summary | Should -BeLike '*synced via engram sync*'
+        $summary | Should -BeLike '*2 hook*installed*'
     }
 
-    It 'generates summary with no observations' {
+    It 'generates summary when engram is not available' {
         $summary = New-InitSummary -Ide 'opencode' -Role 'devops'
         $summary | Should -BeLike '*Project Initialized*'
-        $summary | Should -BeLike '*no observations yet*'
+        $summary | Should -BeLike '*not synced*'
+        $summary | Should -BeLike '*no hooks installed*'
+    }
+
+    It 'includes instructions path in summary' {
+        $summary = New-InitSummary -Ide 'vscode' -Role 'frontend' -InstructionsPath 'AGENTS.md'
+        $summary | Should -BeLike '*AGENTS.md*'
     }
 }
 

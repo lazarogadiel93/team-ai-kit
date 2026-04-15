@@ -103,7 +103,7 @@ team-ai-kit init
 Esto genera:
 - `.team-ai-kit.json` -- config del proyecto (rol, IDE, timestamps)
 - `.github/copilot-instructions.md` (VS Code/IntelliJ) o `AGENTS.md` (OpenCode) -- reglas para el AI
-- `shared-engram/` -- directorio para compartir conocimiento del proyecto con el equipo
+- `.engram/` -- directorio nativo de engram sync para compartir conocimiento del proyecto con el equipo (via git hooks)
 
 ### Override de rol por proyecto
 
@@ -165,7 +165,7 @@ ls ~/.config/opencode/skills/team-skills/
 
 ## Paso 4: Engram sync
 
-El `init` crea `shared-engram/` y hace el primer export automaticamente.
+El `init` ejecuta el primer engram sync y instala git hooks (pre-commit + post-merge) automaticamente.
 
 Para mantenerlo actualizado:
 
@@ -177,7 +177,7 @@ engram sync
 engram sync --import
 ```
 
-Los archivos exportados en `shared-engram/` son texto plano -- comitealos al repo para que todo el equipo los tenga.
+Los git hooks se encargan del sync automatico: pre-commit exporta y agrega `.engram/`, post-merge importa. Comitea `.engram/` al repo para que todo el equipo lo tenga.
 
 ---
 
