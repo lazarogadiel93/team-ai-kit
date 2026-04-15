@@ -131,23 +131,73 @@ cmd_setup() {
         fi
         ok "jq available"
 
-        if test_brew_installed; then
-            ok "Homebrew available"
-        else
-            warn "Homebrew not found (optional, but recommended for gentle-ai install)"
+        if ! test_curl_installed; then
+            err "curl is required but not found"
+            exit 1
         fi
 
+        # -- gentle-ai --
         if test_gentle_ai_installed; then
             ok "gentle-ai available"
+        elif test_brew_installed; then
+            step "Installing gentle-ai via Homebrew..."
+            if brew tap Gentleman-Programming/tap 2>/dev/null && brew install gentle-ai 2>/dev/null; then
+                ok "gentle-ai installed via Homebrew"
+            else
+                warn "Homebrew install failed -- trying direct download..."
+                if dl_result=$(install_github_release_binary "Gentleman-Programming" "gentle-ai" "gentle-ai"); then
+                    add_to_path_if_needed "$(get_direct_download_bin_dir)" >/dev/null
+                    local dl_version
+                    dl_version=$(echo "$dl_result" | jq -r '.version')
+                    ok "gentle-ai $dl_version installed via direct download"
+                else
+                    err "Failed to install gentle-ai"
+                    err "Download manually from: https://github.com/Gentleman-Programming/gentle-ai/releases"
+                    exit 1
+                fi
+            fi
         else
-            warn "gentle-ai not found"
-            step "Install: brew tap Gentleman-Programming/tap && brew install gentle-ai"
+            step "Homebrew not available -- downloading gentle-ai directly..."
+            if dl_result=$(install_github_release_binary "Gentleman-Programming" "gentle-ai" "gentle-ai"); then
+                add_to_path_if_needed "$(get_direct_download_bin_dir)" >/dev/null
+                local dl_version
+                dl_version=$(echo "$dl_result" | jq -r '.version')
+                ok "gentle-ai $dl_version installed via direct download"
+            else
+                err "Failed to install gentle-ai"
+                err "Download manually from: https://github.com/Gentleman-Programming/gentle-ai/releases"
+                exit 1
+            fi
         fi
 
+        # -- engram --
         if test_engram_installed; then
             ok "engram available"
         else
-            warn "engram not found -- gentle-ai install will set it up"
+            step "Installing engram..."
+            if test_brew_installed; then
+                if brew install engram 2>/dev/null; then
+                    ok "engram installed via Homebrew"
+                else
+                    if dl_result=$(install_github_release_binary "Gentleman-Programming" "engram" "engram"); then
+                        add_to_path_if_needed "$(get_direct_download_bin_dir)" >/dev/null
+                        local dl_version
+                        dl_version=$(echo "$dl_result" | jq -r '.version')
+                        ok "engram $dl_version installed via direct download"
+                    else
+                        warn "Failed to install engram -- gentle-ai install will set it up"
+                    fi
+                fi
+            else
+                if dl_result=$(install_github_release_binary "Gentleman-Programming" "engram" "engram"); then
+                    add_to_path_if_needed "$(get_direct_download_bin_dir)" >/dev/null
+                    local dl_version
+                    dl_version=$(echo "$dl_result" | jq -r '.version')
+                    ok "engram $dl_version installed via direct download"
+                else
+                    warn "Failed to install engram -- gentle-ai install will set it up"
+                fi
+            fi
         fi
     else
         echo -e "  ${C_DIM}[1/5] Skipping prerequisites (--skip-prerequisites)${C_RESET}"
@@ -232,11 +282,13 @@ cmd_setup() {
     agent_id=$(get_gentle_ai_agent_id "$OPT_IDE" 2>/dev/null) || true
 
     if [[ -n "$agent_id" && "$SKIP_GENTLE_AI" == "false" ]]; then
+        local gentle_bin=""
+        gentle_bin=$(get_gentle_ai_binary_path 2>/dev/null) || true
         step "Running: gentle-ai install --agent $agent_id --preset ecosystem-only"
         step "This installs: engram, SDD, skills, context7, persona"
         echo ""
 
-        if gentle-ai install --agent "$agent_id" --preset ecosystem-only --persona gentleman 2>/dev/null; then
+        if [[ -n "$gentle_bin" ]] && "$gentle_bin" install --agent "$agent_id" --preset ecosystem-only --persona gentleman 2>/dev/null; then
             ok "gentle-ai configured for $agent_id"
         else
             warn "gentle-ai install failed or exited with error"
@@ -727,14 +779,20 @@ cmd_doctor() {
 
     # Homebrew (optional)
     if test_brew_installed; then ok "Homebrew: installed"
-    else warn "Homebrew: NOT found (optional)"; fi
+    else warn "Homebrew: NOT found (optional -- direct download available)"; fi
 
     # gentle-ai
-    if test_gentle_ai_installed; then ok "gentle-ai: installed"
+    if test_gentle_ai_installed; then
+        local gentle_path=""
+        gentle_path=$(get_gentle_ai_binary_path 2>/dev/null) || gentle_path="(in PATH)"
+        ok "gentle-ai: installed ($gentle_path)"
     else err "gentle-ai: NOT found"; all_good=false; fi
 
     # engram
-    if test_engram_installed; then ok "engram: installed"
+    if test_engram_installed; then
+        local engram_path=""
+        engram_path=$(get_engram_binary_path 2>/dev/null) || engram_path="(in PATH)"
+        ok "engram: installed ($engram_path)"
     else err "engram: NOT found"; all_good=false; fi
 
     # Config
@@ -820,6 +878,20 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+# -- Validate provided arguments -----------------------------------------------
+if [[ -n "$OPT_IDE" ]] && ! test_valid_ide "$OPT_IDE"; then
+    err "Invalid IDE: '$OPT_IDE'. Valid values: ${VALID_IDES[*]}"
+    exit 1
+fi
+if [[ -n "$OPT_ROLE" ]] && ! test_valid_role "$OPT_ROLE"; then
+    err "Invalid role: '$OPT_ROLE'. Valid values: ${VALID_ROLES[*]}"
+    exit 1
+fi
+if [[ -n "$OPT_PROVIDER" ]] && ! test_valid_provider "$OPT_PROVIDER"; then
+    err "Invalid provider: '$OPT_PROVIDER'. Valid values: ${VALID_PROVIDERS[*]}"
+    exit 1
+fi
 
 # -- Route subcommand ----------------------------------------------------------
 case "$(_lowercase "$COMMAND")" in
