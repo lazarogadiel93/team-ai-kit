@@ -2,3 +2,20 @@ node_modules/
 .env
 .env.*
 *.local
+
+# Test artifacts
+testResults.xml
+tests/*.xml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# team-ai-kit runtime (generated per-project)
+.team-ai-kit.json

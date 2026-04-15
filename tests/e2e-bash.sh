@@ -2,7 +2,6 @@
 # E2E test for team-ai-kit bash CLI
 # Intentionally NOT using set -e so we can capture failures
 
-export PATH="/c/Users/Win11/scoop/shims:$PATH"
 export HOME="/tmp/team-ai-kit-e2e-home-$$"
 mkdir -p "$HOME"
 
@@ -124,6 +123,8 @@ echo "  PASS: $PASS  FAIL: $FAIL"
 echo "================================"
 if [ "$FAIL" = "0" ]; then
     echo "  All tests passed!"
+    exit 0
 else
     echo "  Some tests failed."
+    exit 1
 fi
