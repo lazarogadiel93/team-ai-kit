@@ -21,7 +21,7 @@ gentle-ai es para el dev individual. Team AI Kit agrega lo que falta para equipo
 ### Windows (Scoop)
 
 ```powershell
-scoop bucket add gentleman https://github.com/Gentleman-Programming/scoop-bucket
+scoop bucket add team-ai-kit https://github.com/lazarogadiel93/scoop-bucket
 scoop install team-ai-kit
 team-ai-kit setup
 ```
