@@ -897,7 +897,7 @@ Describe 'Initialize-SharedEngram' {
             $script:filterTestDir = Join-Path $TestDrive 'engram-filter-project'
             New-Item -ItemType Directory -Path $script:filterTestDir -Force | Out-Null
 
-            # Create fake engram script that exports multi-project observations
+            # Create fake engram script that exports multi-project data
             $script:fakeEngram = Join-Path $TestDrive 'fake-engram.ps1'
             @'
 param($Command, $OutputFile)
@@ -908,7 +908,15 @@ if ($Command -eq 'export') {
             @{ project = 'other-project'; title = 'obs2'; content = 'data2' }
             @{ project = 'my-project'; title = 'obs3'; content = 'data3' }
         )
-        sessions = @()
+        sessions = @(
+            @{ project = 'my-project'; id = 'ses-1' }
+            @{ project = 'other-project'; id = 'ses-2' }
+        )
+        prompts = @(
+            @{ project = 'my-project'; content = 'prompt1' }
+            @{ project = 'other-project'; content = 'prompt2' }
+            @{ project = 'my-project'; content = 'prompt3' }
+        )
     } | ConvertTo-Json -Depth 5 | Set-Content -Path $OutputFile
 }
 '@ | Set-Content $script:fakeEngram
@@ -926,6 +934,15 @@ if ($Command -eq 'export') {
             $content = Get-Content $exportFile -Raw | ConvertFrom-Json
             $content.observations.Count | Should -Be 2
             $content.observations | ForEach-Object { $_.project | Should -Be 'my-project' }
+        }
+
+        It 'filters sessions and prompts by project too' {
+            $exportFile = Join-Path $script:filterTestDir 'shared-engram\observations.json'
+            $content = Get-Content $exportFile -Raw | ConvertFrom-Json
+            $content.sessions.Count | Should -Be 1
+            $content.sessions[0].project | Should -Be 'my-project'
+            $content.prompts.Count | Should -Be 2
+            $content.prompts | ForEach-Object { $_.project | Should -Be 'my-project' }
         }
 
         It 'exports all observations when no ProjectName is provided' {

@@ -201,9 +201,17 @@ function Initialize-SharedEngram {
                     $result.exported = $true
                     $content = Get-Content $exportFile -Raw | ConvertFrom-Json
 
-                    # Filter observations by project name if provided
-                    if ($ProjectName -and $content.observations -is [array]) {
-                        $content.observations = @($content.observations | Where-Object { $_.project -eq $ProjectName })
+                    # Filter all sections by project name if provided
+                    if ($ProjectName) {
+                        if ($content.observations -is [array]) {
+                            $content.observations = @($content.observations | Where-Object { $_.project -eq $ProjectName })
+                        }
+                        if ($content.sessions -is [array]) {
+                            $content.sessions = @($content.sessions | Where-Object { $_.project -eq $ProjectName })
+                        }
+                        if ($content.prompts -is [array]) {
+                            $content.prompts = @($content.prompts | Where-Object { $_.project -eq $ProjectName })
+                        }
                         $content | ConvertTo-Json -Depth 10 | Set-Content $exportFile -Encoding UTF8
                     }
 

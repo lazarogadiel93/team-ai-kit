@@ -176,9 +176,13 @@ initialize_shared_engram() {
             if "$engram_bin" export "$export_file" 2>/dev/null; then
                 exported="true"
                 if [[ -f "$export_file" ]]; then
-                    # Filter observations by project name if provided
+                    # Filter all sections by project name if provided
                     if [[ -n "$project_name" ]]; then
-                        jq --arg proj "$project_name" '.observations = [.observations[]? | select(.project == $proj)]' "$export_file" > "${export_file}.tmp" 2>/dev/null \
+                        jq --arg proj "$project_name" '
+                            .observations = [.observations[]? | select(.project == $proj)] |
+                            .sessions = [.sessions[]? | select(.project == $proj)] |
+                            .prompts = [.prompts[]? | select(.project == $proj)]
+                        ' "$export_file" > "${export_file}.tmp" 2>/dev/null \
                             && mv "${export_file}.tmp" "$export_file"
                     fi
                     count=$(jq '.observations | if type == "array" then length else 0 end' "$export_file" 2>/dev/null || echo 0)
