@@ -199,8 +199,14 @@ function Initialize-SharedEngram {
                 $null = & $engramBin export $exportFile 2>$null
                 if ($LASTEXITCODE -eq 0 -and (Test-Path $exportFile)) {
                     $result.exported = $true
-                    # Count exported observations
                     $content = Get-Content $exportFile -Raw | ConvertFrom-Json
+
+                    # Filter observations by project name if provided
+                    if ($ProjectName -and $content.observations -is [array]) {
+                        $content.observations = @($content.observations | Where-Object { $_.project -eq $ProjectName })
+                        $content | ConvertTo-Json -Depth 10 | Set-Content $exportFile -Encoding UTF8
+                    }
+
                     if ($content.observations -is [array]) {
                         $result.count = $content.observations.Count
                     }

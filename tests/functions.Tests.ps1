@@ -786,6 +786,28 @@ Describe 'Save-SkillManifest' {
                         hash        = 'ABC123'
                         source      = 'default'
                         installedAt = '2026-04-14T00:00:00'
+                    }
+                }
+            }
+            $path = Save-SkillManifest -Manifest $manifest
+            Test-Path $path | Should -BeTrue
+        }
+        finally {
+            $env:USERPROFILE = $originalProfile
+        }
+    }
+
+    It 'manifest roundtrips through Save + Get' {
+        $originalProfile = $env:USERPROFILE
+        $env:USERPROFILE = $script:manifestTestDir
+        try {
+            $readBack = Get-SkillManifest
+            $readBack.files.Count | Should -Be 1
+            $readBack.files['team-skills\shared\architecture\SKILL.md'].hash | Should -Be 'ABC123'
+            $readBack.files['team-skills\shared\architecture\SKILL.md'].source | Should -Be 'default'
+        }
+        finally {
+            $env:USERPROFILE = $originalProfile
         }
     }
 }
@@ -869,6 +891,61 @@ Describe 'Initialize-SharedEngram' {
         $result.path | Should -Not -BeNullOrEmpty
         Test-Path $result.path | Should -BeTrue
     }
+
+    Context 'project filtering' {
+        BeforeAll {
+            $script:filterTestDir = Join-Path $TestDrive 'engram-filter-project'
+            New-Item -ItemType Directory -Path $script:filterTestDir -Force | Out-Null
+
+            # Create fake engram script that exports multi-project observations
+            $script:fakeEngram = Join-Path $TestDrive 'fake-engram.ps1'
+            @'
+param($Command, $OutputFile)
+if ($Command -eq 'export') {
+    @{
+        observations = @(
+            @{ project = 'my-project'; title = 'obs1'; content = 'data1' }
+            @{ project = 'other-project'; title = 'obs2'; content = 'data2' }
+            @{ project = 'my-project'; title = 'obs3'; content = 'data3' }
+        )
+        sessions = @()
+    } | ConvertTo-Json -Depth 5 | Set-Content -Path $OutputFile
+}
+'@ | Set-Content $script:fakeEngram
+
+            Mock Test-EngramInstalled { return $true }
+            Mock Get-EngramBinaryPath { return $script:fakeEngram }
+        }
+
+        It 'filters observations to matching project only' {
+            $result = Initialize-SharedEngram -ProjectRoot $script:filterTestDir -ProjectName 'my-project'
+            $result.exported | Should -BeTrue
+            $result.count | Should -Be 2
+
+            $exportFile = Join-Path $script:filterTestDir 'shared-engram\observations.json'
+            $content = Get-Content $exportFile -Raw | ConvertFrom-Json
+            $content.observations.Count | Should -Be 2
+            $content.observations | ForEach-Object { $_.project | Should -Be 'my-project' }
+        }
+
+        It 'exports all observations when no ProjectName is provided' {
+            $noFilterDir = Join-Path $TestDrive 'engram-no-filter'
+            New-Item -ItemType Directory -Path $noFilterDir -Force | Out-Null
+
+            $result = Initialize-SharedEngram -ProjectRoot $noFilterDir
+            $result.exported | Should -BeTrue
+            $result.count | Should -Be 3
+        }
+
+        It 'returns count 0 when no observations match project' {
+            $noMatchDir = Join-Path $TestDrive 'engram-no-match'
+            New-Item -ItemType Directory -Path $noMatchDir -Force | Out-Null
+
+            $result = Initialize-SharedEngram -ProjectRoot $noMatchDir -ProjectName 'nonexistent-project'
+            $result.exported | Should -BeTrue
+            $result.count | Should -Be 0
+        }
+    }
 }
 
 Describe 'New-InitSummary' {
@@ -898,28 +975,6 @@ Describe 'Test-ValidCommand includes init' {
         Test-ValidCommand -Command 'status' | Should -BeTrue
         Test-ValidCommand -Command 'doctor' | Should -BeTrue
         Test-ValidCommand -Command 'help' | Should -BeTrue
-    }
-}
-            $path = Save-SkillManifest -Manifest $manifest
-            Test-Path $path | Should -BeTrue
-        }
-        finally {
-            $env:USERPROFILE = $originalProfile
-        }
-    }
-
-    It 'manifest roundtrips through Save + Get' {
-        $originalProfile = $env:USERPROFILE
-        $env:USERPROFILE = $script:manifestTestDir
-        try {
-            $readBack = Get-SkillManifest
-            $readBack.files.Count | Should -Be 1
-            $readBack.files['team-skills\shared\architecture\SKILL.md'].hash | Should -Be 'ABC123'
-            $readBack.files['team-skills\shared\architecture\SKILL.md'].source | Should -Be 'default'
-        }
-        finally {
-            $env:USERPROFILE = $originalProfile
-        }
     }
 }
 
