@@ -31,6 +31,24 @@ scoop install team-ai-kit
 team-ai-kit setup
 ```
 
+### Windows (sin Scoop -- entornos corporativos)
+
+En entornos corporativos con restricciones de PowerShell (Constrained Language Mode, GPO, AppLocker), Scoop no funciona. Usa la instalacion directa:
+
+```powershell
+# 1. Descargar el release desde GitHub
+#    https://github.com/lazarogadiel93/team-ai-kit/releases/latest
+
+# 2. Extraer el zip en una ubicacion permanente, por ejemplo:
+#    C:\tools\team-ai-kit
+
+# 3. Ejecutar setup desde la carpeta extraida
+cd C:\tools\team-ai-kit
+.\setup.ps1
+```
+
+El setup detecta automaticamente que Scoop no esta disponible y descarga `gentle-ai` y `engram` directo desde GitHub Releases. Los binarios se instalan en `%LOCALAPPDATA%\team-ai-kit\bin` y se agregan al PATH.
+
 ### macOS / Linux
 
 ```bash
