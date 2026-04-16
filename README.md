@@ -33,17 +33,17 @@ team-ai-kit setup
 
 ### Windows (sin Scoop -- entornos corporativos)
 
-En entornos corporativos con restricciones de PowerShell (Constrained Language Mode, GPO, AppLocker), Scoop no funciona. Usa la instalacion directa:
+En entornos corporativos con restricciones de PowerShell (Constrained Language Mode, GPO, AppLocker), Scoop no funciona. Clonar el repo directamente:
 
 ```powershell
-# 1. Descargar el release desde GitHub
-#    https://github.com/lazarogadiel93/team-ai-kit/releases/latest
+# Instalar
+git clone https://github.com/lazarogadiel93/team-ai-kit
+cd team-ai-kit
+.\setup.ps1
 
-# 2. Extraer el zip en una ubicacion permanente, por ejemplo:
-#    C:\tools\team-ai-kit
-
-# 3. Ejecutar setup desde la carpeta extraida
-cd C:\tools\team-ai-kit
+# Actualizar
+cd team-ai-kit
+git pull
 .\setup.ps1
 ```
 
