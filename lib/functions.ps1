@@ -447,6 +447,19 @@ function Get-PlatformArchitecture {
     return @{ os = 'windows'; arch = $arch }
 }
 
+function Set-TlsProtocol {
+    <#
+    .SYNOPSIS
+        Ensures TLS 1.2 for .NET HTTP requests (safety net for PS 5.1).
+    .DESCRIPTION
+        Wrapped in try/catch because Constrained Language Mode (CLM) blocks
+        .NET property setting. Modern Windows 10+ already defaults to TLS 1.2,
+        so this is safe to skip in CLM environments.
+    #>
+    try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 }
+    catch { <# CLM blocks .NET property access -- safe to continue on Win10+ #> }
+}
+
 function Get-GithubLatestReleaseAssetUrl {
     <#
     .SYNOPSIS
@@ -462,7 +475,7 @@ function Get-GithubLatestReleaseAssetUrl {
         [Parameter(Mandatory)]
         [string]$AssetPattern
     )
-    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    Set-TlsProtocol
     $apiUrl = "https://api.github.com/repos/$Owner/$Repo/releases/latest"
     $headers = @{ 'User-Agent' = 'team-ai-kit' }
     if ($env:GITHUB_TOKEN) {
@@ -524,7 +537,6 @@ function Install-GithubReleaseBinary {
     $tempExtract = Join-Path $env:TEMP "$Repo-extract-$(Get-Random)"
 
     try {
-        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
         Invoke-WebRequest -Uri $release.url -OutFile $tempZip -UseBasicParsing
 
         if (Test-Path $tempExtract) { Remove-Item -Recurse -Force $tempExtract }
@@ -573,11 +585,23 @@ function Add-ToUserPath {
     }
 
     # Add to persistent user PATH (exact element match, not substring)
-    $userPath = [Environment]::GetEnvironmentVariable('PATH', 'User')
+    try {
+        $userPath = [Environment]::GetEnvironmentVariable('PATH', 'User')
+    }
+    catch {
+        # CLM blocks .NET static methods -- fall back to registry
+        $userPath = (Get-ItemProperty -Path 'HKCU:\Environment' -Name Path -ErrorAction SilentlyContinue).Path
+    }
     $userElements = if ($userPath) { $userPath -split ';' | Where-Object { $_ -ne '' } } else { @() }
     if (-not $userPath -or $userElements -notcontains $Directory) {
         $newPath = if ($userPath) { "$Directory;$userPath" } else { $Directory }
-        [Environment]::SetEnvironmentVariable('PATH', $newPath, 'User')
+        try {
+            [Environment]::SetEnvironmentVariable('PATH', $newPath, 'User')
+        }
+        catch {
+            # CLM blocks .NET static methods -- fall back to registry (ExpandString = REG_EXPAND_SZ)
+            New-ItemProperty -Path 'HKCU:\Environment' -Name Path -Value $newPath -PropertyType ExpandString -Force | Out-Null
+        }
         return $true
     }
     return $false

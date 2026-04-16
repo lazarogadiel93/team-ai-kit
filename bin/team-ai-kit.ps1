@@ -143,8 +143,7 @@ function Invoke-SetupCommand {
     if (-not $SkipPrerequisites) {
         Write-Host '  [1/5] Checking prerequisites...' -ForegroundColor White
 
-        # Ensure TLS 1.2 for GitHub API (required on PS 5.1)
-        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        Set-TlsProtocol
 
         # -- gentle-ai --
         if (Test-GentleAiInstalled) {
