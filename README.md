@@ -5,14 +5,84 @@
 
 > [gentle-ai](https://github.com/Gentleman-Programming/gentle-ai) para equipos. Un comando, 3 preguntas, y todo tu equipo tiene la misma base de AI configurada.
 
+## El problema
+
+Hoy cada dev configura su asistente de AI por su cuenta. Las convenciones del equipo no llegan al AI, el conocimiento se pierde al cerrar cada sesion, y cada nuevo integrante arranca de cero.
+
+**Sin estandarizar:**
+
+```
+Dev A → AI genera componentes con any y useEffect para fetching
+Dev B → AI genera Server Components con tipos estrictos
+Dev C → AI ni siquiera sabe que el equipo usa Zod
+```
+
+**Con Team AI Kit:**
+
+```
+Todos → AI genera Server Components, TypeScript estricto, Zod, patrones del equipo
+         Porque los skills y reglas son los mismos para todos.
+```
+
 ## Que resuelve
 
-gentle-ai es para el dev individual. Team AI Kit agrega lo que falta para equipos:
+| Problema | Solucion |
+|----------|----------|
+| Cada dev tiene su AI configurado diferente | **Skills por rol** -- Frontend, Backend, DevOps, Python. Mismos patrones para todos |
+| El conocimiento se pierde entre sesiones | **[Memoria compartida](docs/engram-guide.md)** -- engram sync entre devs. Lo que aprende uno, lo saben todos |
+| Updates del equipo pisan configs locales | **Merge inteligente** -- updates NUNCA pisan tus customizaciones |
+| Onboarding lento para nuevos integrantes | **Zero config** -- un setup, 2 minutos, listo |
+| No hay forma de compartir convenciones | **[Team Knowledge Repo](docs/team-knowledge-repo.md)** -- repo centralizado con skills y reglas custom |
 
-- **Skills por rol** -- Frontend, Backend, DevOps, Python. Cada uno recibe los patrones que necesita.
-- **Memoria compartida** -- engram sync entre devs. Lo que aprende uno, lo saben todos.
-- **Merge inteligente** -- updates del equipo NUNCA pisan tus customizaciones locales.
-- **Zero config** -- un setup y listo. El dev no tiene que saber como funciona por dentro.
+---
+
+## Ejemplo rapido
+
+Un dev de **Backend** escribe un controller. Asi cambia el comportamiento del AI:
+
+<table>
+<tr>
+<th>❌ Sin estandarizar</th>
+<th>✅ Con Team AI Kit</th>
+</tr>
+<tr>
+<td>
+
+```typescript
+// Todo en el controller, SQL crudo
+app.get('/users/:id', async (req, res) => {
+  const user = await db.query(
+    'SELECT * FROM users WHERE id = $1',
+    [req.params.id]
+  );
+  res.json(user);
+});
+```
+
+</td>
+<td>
+
+```typescript
+// Controller: valida y delega
+async getById(req: Request, res: Response) {
+  const { id } = userIdSchema.parse(req.params);
+  const user = await this.service.getById(id);
+  res.json(user);
+}
+
+// Service: logica de negocio
+async getById(id: string): Promise<User> {
+  const user = await this.repo.findById(id);
+  if (!user) throw new NotFoundError('User');
+  return user;
+}
+```
+
+</td>
+</tr>
+</table>
+
+> 📖 Ejemplos para todos los roles (Frontend, Backend, DevOps, QA/Funcionales): **[docs/examples-by-role.md](docs/examples-by-role.md)**
 
 ---
 
@@ -33,7 +103,7 @@ team-ai-kit setup
 
 ### Windows (sin Scoop -- entornos corporativos)
 
-En entornos corporativos con restricciones de PowerShell (Constrained Language Mode, GPO, AppLocker), Scoop no funciona. Clonar el repo directamente:
+En entornos con restricciones de PowerShell (Constrained Language Mode, GPO, AppLocker), Scoop no funciona. Clonar el repo directamente:
 
 ```powershell
 # Instalar
@@ -126,6 +196,82 @@ team-ai-kit setup --ide vscode --role frontend --team-repo https://github.com/te
 
 ---
 
+## Roles y Skills
+
+Cada rol recibe **5 skills compartidos** + **2 skills especificos**:
+
+### Skills compartidos (todos los roles)
+
+| Skill | Que hace | Trigger |
+|-------|----------|---------|
+| 🏗️ **architecture** | Patrones de estructura, modulos, dependencias | Disenar arquitectura |
+| ✨ **code-quality** | Reglas de calidad, convenciones, clean code | Escribir o revisar codigo |
+| 🔍 **debug** | Root cause analysis, narrowing sistematico | Investigar bugs |
+| 🧠 **thinking** | Descomponer problemas, evaluar alternativas | Analizar antes de proponer |
+| ⚡ **performance** | Optimizar bundle, rendering, tokens, queries | Mejorar rendimiento |
+
+### Skills por rol
+
+| Rol | Skills especificos | Ejemplo de impacto |
+|-----|-------------------|-------------------|
+| **frontend** | react, nextjs | Server Components por defecto, TypeScript estricto, cero `any` |
+| **backend-node** | api-design, testing | Separacion en capas, Zod en el borde, DI para testing |
+| **devops** | cicd, monitoring | Multi-stage Dockerfiles, pipelines fail-fast, logging JSON |
+| **python** | api-design, testing | Estructura de API, testing patterns |
+
+> 📖 Ejemplos detallados con codigo para cada rol: **[docs/examples-by-role.md](docs/examples-by-role.md)**
+
+---
+
+## Team Knowledge Repo
+
+Un repo Git centralizado donde el Tech Lead define skills y reglas que **todo el equipo recibe automaticamente**:
+
+```
+team-knowledge/              # Repo mantenido por tech leads
+├── skills/
+│   ├── shared/              # Skills para TODOS los roles
+│   │   └── logging/
+│   │       └── SKILL.md     # Estandar de logging del equipo
+│   └── roles/
+│       └── frontend/
+│           └── design-system.skill.md
+└── rules/                   # Reglas cross-proyecto
+    └── team-conventions.md
+```
+
+```powershell
+# Setup con team repo
+team-ai-kit setup -Ide vscode -Role frontend -TeamRepo https://dev.azure.com/equipo/team-knowledge
+
+# Actualizar cuando el equipo publique cambios
+team-ai-kit update
+```
+
+**Prioridad de merge** (lo local siempre gana):
+
+1. 🟢 **Customizaciones locales** -- lo que vos modificaste → **nunca se pisa**
+2. 🔵 **Team Knowledge Repo** -- skills del equipo → se agregan si son nuevos
+3. ⚪ **Defaults del package** -- skills base → menor prioridad
+
+> 📖 Guia completa con ejemplo real paso a paso: **[docs/team-knowledge-repo.md](docs/team-knowledge-repo.md)**
+
+---
+
+## engram -- Memoria del equipo
+
+Lo que un dev aprende, todo el equipo lo sabe. Automatico, via git hooks:
+
+```
+Dev A resuelve bug → engram save → git push → Dev B hace pull → AI de Dev B ya sabe
+```
+
+El AI recuerda decisiones, bugs resueltos, patrones establecidos -- entre sesiones y entre devs. Sin hacer nada manual.
+
+> 📖 Como funciona, flujo completo, ejemplo real: **[docs/engram-guide.md](docs/engram-guide.md)**
+
+---
+
 ## Arquitectura
 
 ```
@@ -142,59 +288,7 @@ team-ai-kit setup --ide vscode --role frontend --team-repo https://github.com/te
 +-------------------------------------------+
 ```
 
-**Merge sin overwrite**: cuando corres `update`, el merge sigue esta prioridad:
-
-1. Lo que VOS modificaste localmente -- **NUNCA se pisa**
-2. Skills/rules del team repo -- se agregan si son nuevos
-3. Defaults del package -- base, menor prioridad
-
-El tracking se hace con SHA256 hashes en `~/.team-ai-kit/manifest.json`.
-
----
-
-## Roles y Skills
-
-Todos los roles reciben 5 skills compartidos:
-
-| Skill | Trigger |
-|-------|---------|
-| **architecture** | Disenar estructura, definir modulos, dependencias |
-| **code-quality** | Escribir o revisar codigo |
-| **debug** | Investigar bugs, root cause analysis |
-| **thinking** | Analizar problemas, evaluar alternativas |
-| **performance** | Optimizar bundle, rendering, tokens |
-
-Mas 2 skills especificos del rol:
-
-| Rol | Skills |
-|-----|--------|
-| **frontend** | react, nextjs |
-| **backend-node** | api-design, testing |
-| **devops** | cicd, monitoring |
-| **python** | api-design, testing |
-
----
-
-## Team Knowledge Repo
-
-Para equipos que quieren compartir skills y reglas cross-proyecto:
-
-```
-team-knowledge/            # Repo mantenido por tech leads
-|-- skills/
-|   |-- shared/            # Skills para TODOS los roles
-|   +-- roles/
-|       +-- frontend/      # Skills solo para FE
-+-- rules/                 # Reglas cross-proyecto
-```
-
-```powershell
-# Setup con team repo
-team-ai-kit setup -Ide vscode -Role frontend -TeamRepo https://dev.azure.com/equipo/team-knowledge
-
-# Actualizar cuando el equipo publique cambios
-team-ai-kit update
-```
+El tracking de merge se hace con SHA256 hashes en `~/.team-ai-kit/manifest.json`.
 
 ---
 
@@ -276,26 +370,44 @@ bash tests/e2e-bash.sh
 
 ```
 team-ai-kit/
-|-- bin/
-|   |-- team-ai-kit.ps1           CLI (Windows)
-|   +-- team-ai-kit               CLI (macOS/Linux)
-|-- lib/
-|   |-- functions.ps1              Funciones (Windows)
-|   +-- functions.sh               Funciones (macOS/Linux)
-|-- skills/
-|   |-- shared/                    5 skills compartidos
-|   +-- roles/                     2 skills por rol
-|-- packs/                         Reglas por rol
-|-- templates/                     Solo IntelliJ (MCP config)
-|-- tests/
-|   |-- functions.Tests.ps1        135 unit tests (Pester)
-|   |-- skills.Tests.ps1           19 validation tests (Pester)
-|   +-- e2e-bash.sh                9 E2E tests (bash)
-|-- scoop/team-ai-kit.json         Scoop manifest
-|-- setup.ps1                      Wrapper Windows
-|-- setup.sh                       Wrapper macOS/Linux
-+-- README.md
+├── bin/
+│   ├── team-ai-kit.ps1           CLI (Windows)
+│   └── team-ai-kit               CLI (macOS/Linux)
+├── lib/
+│   ├── functions.ps1              Funciones (Windows)
+│   └── functions.sh               Funciones (macOS/Linux)
+├── skills/
+│   ├── shared/                    5 skills compartidos
+│   └── roles/                     2 skills por rol
+├── packs/                         Reglas por rol
+├── templates/                     Solo IntelliJ (MCP config)
+├── tests/
+│   ├── functions.Tests.ps1        135 unit tests (Pester)
+│   ├── skills.Tests.ps1           19 validation tests (Pester)
+│   └── e2e-bash.sh                9 E2E tests (bash)
+├── docs/
+│   ├── examples-by-role.md        Ejemplos detallados por rol
+│   ├── team-knowledge-repo.md     Guia del Team Knowledge Repo
+│   ├── engram-guide.md            Guia de engram
+│   ├── onboarding.md              Guia de onboarding
+│   └── presentation.html          Presentacion visual
+├── scoop/team-ai-kit.json         Scoop manifest
+├── setup.ps1                      Wrapper Windows
+├── setup.sh                       Wrapper macOS/Linux
+└── README.md
 ```
+
+---
+
+## Documentacion
+
+| Documento | Contenido |
+|-----------|-----------|
+| **[Ejemplos por rol](docs/examples-by-role.md)** | Comparaciones antes/despues para Frontend, Backend, DevOps y QA/Funcionales |
+| **[Team Knowledge Repo](docs/team-knowledge-repo.md)** | Como crear y mantener el repo de conocimiento del equipo |
+| **[Guia de engram](docs/engram-guide.md)** | Memoria compartida: como funciona, flujo, ejemplo real |
+| **[Guia de onboarding](docs/onboarding.md)** | Paso a paso para nuevos integrantes del equipo |
+| **[Presentacion](docs/presentation.html)** | Presentacion visual de la herramienta |
 
 ---
 
