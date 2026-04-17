@@ -1,0 +1,1541 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Team AI Kit — Propuesta Técnica</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <style>
+    /* ── Reset & Variables ──────────────────────────────── */
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg-primary: #ffffff;
+      --bg-secondary: #f8fafc;
+      --bg-dark: #0c1222;
+      --bg-dark-alt: #111827;
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-light: #94a3b8;
+      --text-on-dark: #e2e8f0;
+      --accent: #3b82f6;
+      --accent-dark: #2563eb;
+      --success: #22c55e;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --warning-bg: #fffbeb;
+      --border: #e2e8f0;
+      --border-dark: #1e293b;
+      --code-bg: #1e293b;
+      --code-text: #e2e8f0;
+      --font-display: 'Bricolage Grotesque', 'Segoe UI', system-ui, sans-serif;
+      --font-body: 'DM Sans', 'Segoe UI', system-ui, sans-serif;
+      --font-mono: 'JetBrains Mono', 'Cascadia Code', 'Consolas', monospace;
+      --max-width: 1100px;
+      --section-padding: 80px 0;
+    }
+
+    html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+
+    body {
+      font-family: var(--font-body);
+      color: var(--text-primary);
+      background: var(--bg-primary);
+      line-height: 1.7;
+      font-size: 16px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Typography ─────────────────────────────────────── */
+    h1, h2, h3, h4 { font-family: var(--font-display); line-height: 1.2; }
+
+    h2 {
+      font-size: 2.2rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      letter-spacing: -0.02em;
+    }
+
+    h3 {
+      font-size: 1.35rem;
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+    }
+
+    p { margin-bottom: 1rem; }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .container { max-width: var(--max-width); margin: 0 auto; padding: 0 24px; }
+
+    .section-subtitle {
+      font-size: 1.15rem;
+      color: var(--text-secondary);
+      max-width: 680px;
+      margin-bottom: 3rem;
+    }
+
+    .label {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 400;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 4px 12px;
+      border-radius: 4px;
+      margin-bottom: 1rem;
+    }
+
+    .label--accent { background: #dbeafe; color: var(--accent-dark); }
+    .label--dark { background: var(--bg-dark); color: var(--text-on-dark); }
+
+    /* ── Navigation ─────────────────────────────────────── */
+    nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      background: rgba(12, 18, 34, 0.95);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-dark);
+    }
+
+    nav .container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 64px;
+    }
+
+    nav .logo {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: #fff;
+      letter-spacing: -0.02em;
+    }
+
+    nav .logo span { color: var(--accent); }
+
+    nav ul {
+      display: flex;
+      list-style: none;
+      gap: 8px;
+    }
+
+    nav ul a {
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-light);
+      padding: 6px 14px;
+      border-radius: 6px;
+      transition: color 0.2s, background 0.2s;
+    }
+
+    nav ul a:hover,
+    nav ul a.active {
+      color: #fff;
+      background: rgba(255,255,255,0.08);
+      text-decoration: none;
+    }
+
+    /* ── Hero ───────────────────────────────────────────── */
+    .hero {
+      padding: 160px 0 100px;
+      background:
+        linear-gradient(135deg, #0c1222 0%, #162035 50%, #0c1222 100%);
+      color: #fff;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        repeating-linear-gradient(0deg, transparent, transparent 60px, rgba(255,255,255,0.02) 60px, rgba(255,255,255,0.02) 61px),
+        repeating-linear-gradient(90deg, transparent, transparent 60px, rgba(255,255,255,0.02) 60px, rgba(255,255,255,0.02) 61px);
+      pointer-events: none;
+    }
+
+    .hero .container { position: relative; z-index: 1; }
+
+    .hero h1 {
+      font-size: 3.5rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin-bottom: 1.25rem;
+    }
+
+    .hero h1 span { color: var(--accent); }
+
+    .hero .tagline {
+      font-size: 1.35rem;
+      color: var(--text-on-dark);
+      max-width: 600px;
+      margin-bottom: 2rem;
+      line-height: 1.6;
+    }
+
+    .hero .stats {
+      display: flex;
+      gap: 40px;
+      margin-top: 2.5rem;
+    }
+
+    .hero .stat {
+      text-align: left;
+    }
+
+    .hero .stat-number {
+      font-family: var(--font-display);
+      font-size: 2rem;
+      font-weight: 800;
+      color: var(--accent);
+    }
+
+    .hero .stat-label {
+      font-size: 0.85rem;
+      color: var(--text-light);
+      margin-top: 2px;
+    }
+
+    /* ── Sections ───────────────────────────────────────── */
+    .section { padding: var(--section-padding); }
+    .section--alt { background: var(--bg-secondary); }
+    .section--dark { background: var(--bg-dark); color: #fff; }
+    .section--dark h2 { color: #fff; }
+    .section--dark .section-subtitle { color: var(--text-light); }
+
+    .section--warning {
+      background: linear-gradient(135deg, #1c1206 0%, #1a0c04 100%);
+      color: #fff;
+    }
+    .section--warning h2 { color: var(--warning); }
+    .section--warning .section-subtitle { color: #d4a574; }
+
+    /* ── Comparison Table ───────────────────────────────── */
+    .comparison {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+      margin-top: 2rem;
+    }
+
+    .comparison-col {
+      padding: 32px;
+      border-radius: 12px;
+    }
+
+    .comparison-col--without {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+    }
+
+    .comparison-col--with {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+    }
+
+    .comparison-col h3 {
+      font-size: 1.1rem;
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .comparison-col--without h3 { color: #b91c1c; }
+    .comparison-col--with h3 { color: #15803d; }
+
+    .comparison-col ul {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .comparison-col li {
+      font-size: 0.95rem;
+      padding-left: 24px;
+      position: relative;
+      line-height: 1.5;
+    }
+
+    .comparison-col--without li::before {
+      content: '\2715';
+      position: absolute;
+      left: 0;
+      color: var(--danger);
+      font-weight: 600;
+    }
+
+    .comparison-col--with li::before {
+      content: '\2713';
+      position: absolute;
+      left: 0;
+      color: var(--success);
+      font-weight: 600;
+    }
+
+    /* ── Role Cards ─────────────────────────────────────── */
+    .roles-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 24px;
+      margin-top: 2rem;
+    }
+
+    .role-card {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 32px;
+      background: var(--bg-primary);
+      transition: border-color 0.2s;
+    }
+
+    .role-card:hover { border-color: var(--accent); }
+
+    .role-card.role-card--wide {
+      grid-column: 1 / -1;
+    }
+
+    .role-badge {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      font-weight: 400;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 4px;
+      margin-bottom: 16px;
+    }
+
+    .role-badge--fe { background: #dbeafe; color: #1d4ed8; }
+    .role-badge--be { background: #dcfce7; color: #15803d; }
+    .role-badge--devops { background: #fef3c7; color: #92400e; }
+    .role-badge--qa { background: #f3e8ff; color: #7c3aed; }
+    .role-badge--lead { background: #0f172a; color: #f8fafc; }
+
+    .role-card h3 { margin-bottom: 1rem; }
+
+    .role-card ul {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .role-card li {
+      font-size: 0.92rem;
+      line-height: 1.5;
+      padding-left: 20px;
+      position: relative;
+      color: var(--text-secondary);
+    }
+
+    .role-card li::before {
+      content: '\25B8';
+      position: absolute;
+      left: 0;
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .role-card .code-example {
+      margin-top: 16px;
+    }
+
+    /* ── Conversation Blocks ───────────────────────────── */
+    .convo-split {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .convo-block {
+      border-radius: 10px;
+      overflow: hidden;
+      background: var(--code-bg);
+    }
+
+    .convo-header {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      padding: 10px 20px;
+    }
+
+    .convo-header--bad { color: #fca5a5; background: rgba(239, 68, 68, 0.1); }
+    .convo-header--good { color: #86efac; background: rgba(34, 197, 94, 0.1); }
+
+    .convo-body {
+      background: var(--code-bg);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      font-size: 0.85rem;
+      line-height: 1.55;
+    }
+
+    .convo-msg {
+      padding: 10px 14px;
+      border-radius: 8px;
+      max-width: 92%;
+    }
+
+    .convo-msg--user {
+      background: rgba(59, 130, 246, 0.15);
+      color: #93c5fd;
+      align-self: flex-end;
+      border-bottom-right-radius: 2px;
+    }
+
+    .convo-msg--ai {
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-on-dark);
+      align-self: flex-start;
+      border-bottom-left-radius: 2px;
+    }
+
+    .convo-msg .convo-label {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      opacity: 0.6;
+      margin-bottom: 4px;
+    }
+
+    @media (max-width: 768px) {
+      .convo-split { grid-template-columns: 1fr; }
+    }
+
+    /* ── Tree Diagram ──────────────────────────────────── */
+    .tree-diagram {
+      background: var(--code-bg);
+      border-radius: 10px;
+      padding: 28px 32px;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      line-height: 1.7;
+      color: var(--code-text);
+      overflow-x: auto;
+      max-width: 560px;
+    }
+
+    .tree-diagram .tree-folder { color: #fbbf24; font-weight: 600; }
+    .tree-diagram .tree-file { color: #86efac; }
+    .tree-diagram .tree-comment { color: #6b7280; }
+
+    /* ── Layer Stack ───────────────────────────────────── */
+    .layer-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      max-width: 600px;
+      margin: 2rem 0;
+    }
+
+    .layer-item {
+      padding: 20px 28px;
+      border: 1px solid rgba(255,255,255,0.1);
+      text-align: center;
+    }
+
+    .layer-item:first-child { border-radius: 10px 10px 0 0; }
+    .layer-item:last-child { border-radius: 0 0 10px 10px; }
+
+    .layer-item--local {
+      background: rgba(34, 197, 94, 0.12);
+      border-color: rgba(34, 197, 94, 0.3);
+    }
+
+    .layer-item--team {
+      background: rgba(59, 130, 246, 0.12);
+      border-color: rgba(59, 130, 246, 0.3);
+    }
+
+    .layer-item--defaults {
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .layer-title {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 0.95rem;
+      margin-bottom: 4px;
+    }
+
+    .layer-item--local .layer-title { color: var(--success); }
+    .layer-item--team .layer-title { color: var(--accent); }
+    .layer-item--defaults .layer-title { color: var(--text-light); }
+
+    .layer-desc {
+      font-size: 0.82rem;
+      color: var(--text-light);
+    }
+
+    .layer-priority {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-top: 4px;
+    }
+
+    .layer-item--local .layer-priority { color: var(--success); }
+    .layer-item--team .layer-priority { color: var(--accent); }
+    .layer-item--defaults .layer-priority { color: var(--text-light); }
+
+    /* ── Two Column Layout ─────────────────────────────── */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+      align-items: start;
+    }
+
+    @media (max-width: 768px) {
+      .two-col { grid-template-columns: 1fr; }
+    }
+
+    /* ── Code Blocks ────────────────────────────────────── */
+    .code-split {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 2rem;
+    }
+
+    .code-block {
+      background: var(--code-bg);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .code-block--inline {
+      margin-top: 16px;
+    }
+
+    .code-header {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      padding: 10px 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .code-header--bad { color: #fca5a5; background: rgba(239, 68, 68, 0.1); }
+    .code-header--good { color: #86efac; background: rgba(34, 197, 94, 0.1); }
+    .code-header--neutral { color: var(--text-light); }
+
+    .code-block pre {
+      padding: 20px;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      line-height: 1.65;
+      color: var(--code-text);
+      overflow-x: auto;
+    }
+
+    .code-block pre .comment { color: #6b7280; }
+    .code-block pre .keyword { color: #c084fc; }
+    .code-block pre .string { color: #86efac; }
+    .code-block pre .type { color: #67e8f9; }
+    .code-block pre .fn { color: #fbbf24; }
+
+    code {
+      font-family: var(--font-mono);
+      font-size: 0.88em;
+      background: #f1f5f9;
+      padding: 2px 7px;
+      border-radius: 4px;
+      color: var(--accent-dark);
+    }
+
+    .section--dark code,
+    .section--warning code {
+      background: rgba(255,255,255,0.1);
+      color: #93c5fd;
+    }
+
+    /* ── Engram Flow Diagram ────────────────────────────── */
+    .engram-flow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      margin: 3rem 0 2rem;
+      flex-wrap: wrap;
+    }
+
+    .flow-node {
+      background: var(--bg-dark);
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 20px 24px;
+      text-align: center;
+      min-width: 160px;
+    }
+
+    .flow-node--highlight {
+      border-color: var(--accent);
+      background: #1e293b;
+    }
+
+    .flow-node .flow-icon {
+      font-size: 1.5rem;
+      margin-bottom: 8px;
+    }
+
+    .flow-node .flow-title {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+
+    .flow-node .flow-desc {
+      font-size: 0.78rem;
+      color: var(--text-light);
+    }
+
+    .flow-arrow {
+      font-size: 1.5rem;
+      color: var(--accent);
+      padding: 0 12px;
+      flex-shrink: 0;
+    }
+
+    /* ── Alert Block ────────────────────────────────────── */
+    .alert {
+      border-radius: 10px;
+      padding: 24px 28px;
+      margin: 2rem 0;
+    }
+
+    .alert--warning {
+      background: rgba(245, 158, 11, 0.1);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .alert--info {
+      background: rgba(59, 130, 246, 0.1);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+
+    .alert h4 {
+      font-size: 1rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .alert--warning h4 { color: var(--warning); }
+    .alert--info h4 { color: var(--accent); }
+
+    .alert p, .alert li {
+      font-size: 0.92rem;
+      color: var(--text-on-dark);
+    }
+
+    /* ── Steps ──────────────────────────────────────────── */
+    .steps {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      margin: 2rem 0;
+    }
+
+    .step {
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+    }
+
+    .step-number {
+      flex-shrink: 0;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .section--warning .step-number {
+      background: var(--warning);
+      color: #000;
+    }
+
+    .step-content h4 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .step-content p {
+      font-size: 0.92rem;
+      color: var(--text-secondary);
+      margin: 0;
+    }
+
+    .section--dark .step-content p,
+    .section--warning .step-content p { color: var(--text-light); }
+    .section--dark .step-content h4,
+    .section--warning .step-content h4 { color: #fff; }
+
+    /* ── Options List ───────────────────────────────────── */
+    .options {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin: 2rem 0;
+    }
+
+    .option {
+      padding: 24px 28px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .option h4 {
+      color: var(--warning);
+      font-size: 1rem;
+      margin-bottom: 8px;
+    }
+
+    .option p {
+      font-size: 0.92rem;
+      color: var(--text-light);
+      margin: 0;
+    }
+
+    /* ── Footer ─────────────────────────────────────────── */
+    footer {
+      padding: 40px 0;
+      background: var(--bg-dark);
+      border-top: 1px solid var(--border-dark);
+      text-align: center;
+    }
+
+    footer p {
+      font-size: 0.85rem;
+      color: var(--text-light);
+    }
+
+    footer a { color: var(--accent); }
+
+    /* ── Animations ─────────────────────────────────────── */
+    .fade-in {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+
+    .fade-in.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* ── Responsive ─────────────────────────────────────── */
+    @media (max-width: 768px) {
+      .hero h1 { font-size: 2.2rem; }
+      .hero .tagline { font-size: 1.1rem; }
+      .hero .stats { flex-direction: column; gap: 20px; }
+      h2 { font-size: 1.7rem; }
+      .comparison { grid-template-columns: 1fr; }
+      .roles-grid { grid-template-columns: 1fr; }
+      .code-split { grid-template-columns: 1fr; }
+      .engram-flow { flex-direction: column; }
+      .flow-arrow { transform: rotate(90deg); padding: 8px 0; }
+      nav ul { display: none; }
+      :root { --section-padding: 48px 0; }
+    }
+
+    /* ── Print ──────────────────────────────────────────── */
+    @media print {
+      nav { display: none; }
+      .hero { padding-top: 40px; }
+      .section { padding: 32px 0; }
+      .fade-in { opacity: 1; transform: none; }
+      .role-card, .code-block, .comparison-col, .option, .convo-block, .tree-diagram, .layer-stack { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ════ Navigation ════════════════════════════════════ -->
+  <nav>
+    <div class="container">
+      <div class="logo">team<span>-ai-</span>kit</div>
+      <ul>
+        <li><a href="#problema">Problema</a></li>
+        <li><a href="#roles">Por Rol</a></li>
+        <li><a href="#team-repo">Team Repo</a></li>
+        <li><a href="#gentleai">gentle-ai</a></li>
+        <li><a href="#engram">engram</a></li>
+        <li><a href="#corporativo">Corporativo</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- ════ Hero ══════════════════════════════════════════ -->
+  <header class="hero">
+    <div class="container">
+      <span class="label label--dark">Open Source &middot; MIT License</span>
+      <h1>Team AI <span>Kit</span></h1>
+      <p class="tagline">
+        Configuración de AI estandarizada para equipos de desarrollo.
+        Un comando, 3 preguntas, y todo el equipo tiene la misma base configurada.
+      </p>
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-number">2 min</div>
+          <div class="stat-label">Setup completo por dev</div>
+        </div>
+        <div class="stat">
+          <div class="stat-number">7</div>
+          <div class="stat-label">Skills instalados por rol</div>
+        </div>
+        <div class="stat">
+          <div class="stat-number">4</div>
+          <div class="stat-label">Roles soportados</div>
+        </div>
+        <div class="stat">
+          <div class="stat-number">0</div>
+          <div class="stat-label">Config manual necesaria</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ════ Problem / Solution ════════════════════════════ -->
+  <section id="problema" class="section">
+    <div class="container">
+      <span class="label label--accent">El problema real</span>
+      <h2>Cada dev configura su AI por su cuenta</h2>
+      <p class="section-subtitle">
+        Hoy no hay estándar. Cada dev tiene su asistente de AI configurado diferente. Las convenciones
+        del equipo no llegan al AI, y el conocimiento se pierde al cerrar cada sesión.
+      </p>
+
+      <div class="comparison fade-in">
+        <div class="comparison-col comparison-col--without">
+          <h3>&#10007; Sin estandarizar</h3>
+          <ul>
+            <li>El AI de cada dev sigue convenciones diferentes</li>
+            <li>Lo que un dev aprende en una sesión se pierde al cerrarla</li>
+            <li>Cada nuevo integrante arranca de cero con su AI</li>
+            <li>Las decisiones arquitectónicas no llegan al asistente</li>
+            <li>El AI genera código que no sigue los patrones del equipo</li>
+          </ul>
+        </div>
+        <div class="comparison-col comparison-col--with">
+          <h3>&#10003; Con Team AI Kit</h3>
+          <ul>
+            <li>Skills y reglas por rol, iguales para todos</li>
+            <li>Memoria compartida: lo que aprende un dev, lo sabe el equipo</li>
+            <li>Onboarding de 2 minutos: un comando y listo</li>
+            <li>Convenciones del equipo inyectadas automáticamente</li>
+            <li>Updates que nunca pisan las customizaciones locales</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════ Benefits by Role ══════════════════════════════ -->
+  <section id="roles" class="section section--alt">
+    <div class="container">
+      <span class="label label--accent">Beneficios concretos</span>
+      <h2>Qué recibe cada rol</h2>
+      <p class="section-subtitle">
+        Cada rol tiene skills y reglas específicas. Estos son ejemplos reales de cómo cambia
+        el comportamiento del AI cuando el equipo está estandarizado.
+      </p>
+
+      <div class="roles-grid">
+
+        <!-- Frontend -->
+        <div class="role-card role-card--wide fade-in">
+          <span class="role-badge role-badge--fe">Frontend</span>
+          <h3>React / Next.js</h3>
+          <ul>
+            <li>TypeScript estricto: cero <code>any</code>, tipos de retorno explícitos</li>
+            <li>Server Components por defecto en Next.js, <code>use client</code> solo cuando es necesario</li>
+            <li>Cada feature es un módulo cerrado, sin imports cruzados entre features</li>
+            <li>Componentes presentacionales puros, lógica de negocio en hooks/services</li>
+            <li>Validación con Zod, schemas co-localizados con la feature</li>
+          </ul>
+          <div class="code-split code-example">
+            <div class="code-block">
+              <div class="code-header code-header--bad">Sin estandarizar</div>
+              <pre><span class="comment">// Componente monolítico, any, fetch en cliente</span>
+<span class="keyword">const</span> Products = () =&gt; {
+  <span class="keyword">const</span> [data, setData] = useState&lt;<span class="type">any</span>[]&gt;([]);
+  useEffect(() =&gt; {
+    fetch(<span class="string">'/api/products'</span>)
+      .then(r =&gt; r.json())
+      .then(setData);
+  }, []);
+  <span class="keyword">return</span> data.map((p, i) =&gt;
+    &lt;div key={i}&gt;{p.name}&lt;/div&gt;);
+}</pre>
+            </div>
+            <div class="code-block">
+              <div class="code-header code-header--good">Con Team AI Kit</div>
+              <pre><span class="comment">// Server Component + separación</span>
+<span class="keyword">export default async function</span> <span class="fn">ProductsPage</span>() {
+  <span class="keyword">const</span> products = <span class="keyword">await</span> <span class="fn">getProducts</span>();
+  <span class="keyword">return</span> &lt;<span class="type">ProductList</span> products={products} /&gt;;
+}
+
+<span class="comment">// Presentacional, tipado, key estable</span>
+<span class="keyword">interface</span> <span class="type">Props</span> { products: <span class="type">Product</span>[] }
+<span class="keyword">export function</span> <span class="fn">ProductList</span>({ products }: <span class="type">Props</span>) {
+  <span class="keyword">return</span> products.map(p =&gt;
+    &lt;<span class="type">ProductCard</span> key={p.id} product={p} /&gt;);
+}</pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Backend -->
+        <div class="role-card role-card--wide fade-in">
+          <span class="role-badge role-badge--be">Backend Node.js</span>
+          <h3>API Design / Testing</h3>
+          <ul>
+            <li>Separación en capas: routes &rarr; controllers &rarr; services &rarr; repositories</li>
+            <li>Validación con Zod en el borde de entrada, no dispersa</li>
+            <li>Error handling centralizado con clases tipadas</li>
+            <li>Inyección de dependencias para facilitar testing</li>
+            <li>Secrets y configs siempre vía variables de entorno</li>
+          </ul>
+          <div class="code-split code-example">
+            <div class="code-block">
+              <div class="code-header code-header--bad">Sin estandarizar</div>
+              <pre><span class="comment">// Todo en el controller, SQL crudo</span>
+app.<span class="fn">get</span>(<span class="string">'/users/:id'</span>, <span class="keyword">async</span> (req, res) =&gt; {
+  <span class="keyword">const</span> user = <span class="keyword">await</span> db.<span class="fn">query</span>(
+    <span class="string">'SELECT * FROM users WHERE id = $1'</span>,
+    [req.params.id]
+  );
+  res.<span class="fn">json</span>(user);
+});</pre>
+            </div>
+            <div class="code-block">
+              <div class="code-header code-header--good">Con Team AI Kit</div>
+              <pre><span class="comment">// Controller: valida y delega</span>
+<span class="keyword">async</span> <span class="fn">getById</span>(req: <span class="type">Request</span>, res: <span class="type">Response</span>) {
+  <span class="keyword">const</span> { id } = userIdSchema.<span class="fn">parse</span>(req.params);
+  <span class="keyword">const</span> user = <span class="keyword">await</span> <span class="keyword">this</span>.service.<span class="fn">getById</span>(id);
+  res.<span class="fn">json</span>(user);
+}
+
+<span class="comment">// Service: lógica de negocio</span>
+<span class="keyword">async</span> <span class="fn">getById</span>(id: <span class="type">string</span>): <span class="type">Promise</span>&lt;<span class="type">User</span>&gt; {
+  <span class="keyword">const</span> user = <span class="keyword">await</span> <span class="keyword">this</span>.repo.<span class="fn">findById</span>(id);
+  <span class="keyword">if</span> (!user) <span class="keyword">throw new</span> <span class="type">NotFoundError</span>(<span class="string">'User'</span>);
+  <span class="keyword">return</span> user;
+}</pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- DevOps -->
+        <div class="role-card role-card--wide fade-in">
+          <span class="role-badge role-badge--devops">DevOps</span>
+          <h3>CI/CD / Contenedores / Observabilidad</h3>
+          <ul>
+            <li>Pipelines con etapas claras: lint &rarr; test &rarr; build &rarr; deploy, con <strong>fail-fast</strong> entre stages</li>
+            <li>Dockerfiles multi-stage, imagen base con versión explícita, usuario non-root, health check</li>
+            <li>Secrets nunca en el repo &mdash; variable groups, Key Vault o env vars del CI</li>
+            <li>Logging estructurado (JSON) con request ID para trazabilidad end-to-end</li>
+            <li>Métricas RED (Rate, Errors, Duration) como estándar de observabilidad</li>
+            <li>Dry-run / plan antes de apply en producción, cambios reversibles siempre</li>
+          </ul>
+          <div class="code-split code-example">
+            <div class="code-block">
+              <div class="code-header code-header--bad">Dockerfile sin estandarizar</div>
+              <pre><span class="comment"># Sin multi-stage, root, sin health check</span>
+<span class="keyword">FROM</span> node:latest
+<span class="keyword">WORKDIR</span> /app
+<span class="keyword">COPY</span> . .
+<span class="keyword">RUN</span> npm install
+<span class="keyword">EXPOSE</span> 3000
+<span class="keyword">CMD</span> [<span class="string">"npm"</span>, <span class="string">"start"</span>]
+
+<span class="comment"># Imagen pesada, no reproducible,</span>
+<span class="comment"># corre como root, sin health check</span></pre>
+            </div>
+            <div class="code-block">
+              <div class="code-header code-header--good">Dockerfile con Team AI Kit</div>
+              <pre><span class="comment"># Multi-stage, versión fija, non-root</span>
+<span class="keyword">FROM</span> node:<span class="string">20-alpine</span> <span class="keyword">AS</span> builder
+<span class="keyword">WORKDIR</span> /app
+<span class="keyword">COPY</span> package*.json ./
+<span class="keyword">RUN</span> npm ci --only=production
+<span class="keyword">COPY</span> . .
+<span class="keyword">RUN</span> npm run build
+
+<span class="keyword">FROM</span> node:<span class="string">20-alpine</span> <span class="keyword">AS</span> runtime
+<span class="keyword">RUN</span> adduser -u 1001 -D appuser
+<span class="keyword">COPY</span> --from=builder /app/dist ./dist
+<span class="keyword">USER</span> appuser
+<span class="keyword">HEALTHCHECK</span> CMD wget -qO- <span class="string">localhost:3000/health</span>
+<span class="keyword">CMD</span> [<span class="string">"node"</span>, <span class="string">"dist/index.js"</span>]</pre>
+            </div>
+          </div>
+          <div class="code-split code-example" style="margin-top: 12px;">
+            <div class="code-block">
+              <div class="code-header code-header--bad">Pipeline sin estandarizar</div>
+              <pre><span class="comment"># Sin stages, sin fail-fast, secret hardcoded</span>
+<span class="keyword">trigger</span>: [main]
+<span class="keyword">steps</span>:
+  - <span class="fn">script</span>: npm test
+  - <span class="fn">script</span>: docker build -t app:latest .
+  - <span class="fn">script</span>: docker push app:latest
+    <span class="keyword">env</span>:
+      <span class="type">REGISTRY_PASS</span>: <span class="string">'s3cret123'</span>  <span class="comment"># en el repo</span></pre>
+            </div>
+            <div class="code-block">
+              <div class="code-header code-header--good">Pipeline con Team AI Kit</div>
+              <pre><span class="keyword">stages</span>:
+  - <span class="keyword">stage</span>: Validate  <span class="comment"># lint + test</span>
+    <span class="keyword">jobs</span>:
+      - <span class="fn">script</span>: npm run lint
+      - <span class="fn">script</span>: npm test -- --coverage
+
+  - <span class="keyword">stage</span>: Build
+    <span class="keyword">dependsOn</span>: Validate  <span class="comment"># fail-fast</span>
+    <span class="keyword">jobs</span>:
+      - <span class="fn">script</span>: docker build -t app:<span class="type">$(Build.BuildId)</span> .
+
+  - <span class="keyword">stage</span>: Deploy
+    <span class="keyword">condition</span>: <span class="fn">succeeded</span>()
+    <span class="keyword">variables</span>:
+      - <span class="keyword">group</span>: <span class="string">production-secrets</span>  <span class="comment"># Key Vault</span></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- QA / Funcionales -->
+        <div class="role-card role-card--wide fade-in">
+          <span class="role-badge role-badge--qa">QA / Analistas Funcionales</span>
+          <h3>Análisis estructurado / Debug / Investigación</h3>
+          <ul>
+            <li>Skills de <strong>thinking</strong> y <strong>debug</strong> cargados automáticamente &mdash; el AI no salta a soluciones</li>
+            <li>Descomposición del problema antes de proponer: ¿cuál es el problema real? ¿qué supuestos hay?</li>
+            <li>Root cause analysis sistemático: aislar capa &rarr; función &rarr; input &rarr; causa raíz</li>
+            <li>Investigaciones de bugs guardadas en engram para futuras sesiones y otros miembros</li>
+            <li>Análisis de impacto: el AI evalúa riesgos y blast radius antes de proponer cambios</li>
+          </ul>
+          <div class="convo-split code-example">
+            <div class="convo-block">
+              <div class="convo-header convo-header--bad">Sin estandarizar</div>
+              <div class="convo-body">
+                <div class="convo-msg convo-msg--user">
+                  <div class="convo-label">Analista</div>
+                  Los usuarios reportan que el checkout falla intermitentemente
+                </div>
+                <div class="convo-msg convo-msg--ai">
+                  <div class="convo-label">AI</div>
+                  Aquí está el código para agregar un retry al checkout con exponential backoff...
+                  <br><br><em style="opacity: 0.5;">(Salto directo al código sin entender el problema)</em>
+                </div>
+              </div>
+            </div>
+            <div class="convo-block">
+              <div class="convo-header convo-header--good">Con Team AI Kit (skill: thinking + debug)</div>
+              <div class="convo-body">
+                <div class="convo-msg convo-msg--user">
+                  <div class="convo-label">Analista</div>
+                  Los usuarios reportan que el checkout falla intermitentemente
+                </div>
+                <div class="convo-msg convo-msg--ai">
+                  <div class="convo-label">AI</div>
+                  Antes de proponer soluciones, necesito entender el alcance:
+                  <br>&bull; ¿Falla en un paso específico (pago, stock, dirección)?
+                  <br>&bull; ¿Hay patrón horario o de carga?
+                  <br>&bull; ¿Los logs muestran timeouts, errores 4xx o 5xx?
+                  <br>&bull; ¿Algún cambio reciente en el servicio de pagos?
+                </div>
+                <div class="convo-msg convo-msg--user">
+                  <div class="convo-label">Analista</div>
+                  Solo en el paso de pago, en horarios pico
+                </div>
+                <div class="convo-msg convo-msg--ai">
+                  <div class="convo-label">AI</div>
+                  Patrón claro: fallo bajo carga &rarr; posible race condition o pool de conexiones agotado en el servicio de pagos. Verifiquemos los logs del gateway...
+                  <br><br><em style="opacity: 0.5;">(Narrowing sistemático hasta la causa raíz)</em>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="alert alert--info" style="margin-top: 16px; background: rgba(59,130,246,0.08); border-color: rgba(59,130,246,0.2);">
+            <h4 style="color: var(--accent);">Engram en acción para funcionales</h4>
+            <p style="color: var(--text-secondary);">
+              El analista investiga el incidente y documenta: causa raíz (pool de conexiones), solución aplicada (pool size dinámico), y precauciones.
+              <strong>engram guarda todo automáticamente</strong>. Semanas después, otro analista reporta síntomas similares en otro servicio &mdash;
+              el AI ya conoce el patrón y sugiere verificar el pool de conexiones <strong>antes</strong> de que escale.
+            </p>
+          </div>
+        </div>
+
+        <!-- Tech Lead -->
+        <div class="role-card role-card--wide fade-in">
+          <span class="role-badge role-badge--lead">Tech Lead / Arquitecto</span>
+          <h3>Gobernanza y consistencia del equipo</h3>
+          <ul>
+            <li><strong><a href="#team-repo">Team Knowledge Repo</a></strong>: un repo centralizado con skills y reglas custom para todo el equipo &mdash; <em>ver sección dedicada abajo</em></li>
+            <li>Los nuevos integrantes se onboardean en 2 minutos: <code>team-ai-kit setup</code> y tienen todo configurado</li>
+            <li>Consistencia garantizada: todos los devs reciben los mismos patrones y convenciones sin esfuerzo</li>
+            <li>Decisiones arquitectónicas persisten como memoria del equipo vía engram &mdash; no se pierden en Slack o meetings</li>
+            <li>Merge inteligente: updates del equipo nunca pisan las customizaciones locales de cada dev</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════ Team Knowledge Repo ════════════════════════════ -->
+  <section id="team-repo" class="section section--dark">
+    <div class="container">
+      <span class="label label--dark" style="background: var(--accent); color: #fff;">Profundización</span>
+      <h2>Team Knowledge Repo</h2>
+      <p class="section-subtitle">
+        Un repositorio Git centralizado donde el Tech Lead define los skills, reglas y convenciones
+        que <strong>todo el equipo</strong> recibe automáticamente. Es el cerebro compartido del equipo.
+      </p>
+
+      <div class="two-col fade-in">
+        <!-- Left: Structure -->
+        <div>
+          <h3 style="color: var(--accent); margin-bottom: 1rem;">Estructura del repositorio</h3>
+          <p style="color: var(--text-on-dark); margin-bottom: 1.25rem; font-size: 0.92rem;">
+            El Tech Lead mantiene este repo. Puede estar en GitHub, Azure DevOps, GitLab &mdash; cualquier remote Git.
+          </p>
+
+          <div class="tree-diagram">
+            <span class="tree-folder">team-knowledge/</span><br>
+            ├── <span class="tree-folder">skills/</span><br>
+            │&nbsp;&nbsp; ├── <span class="tree-folder">shared/</span> <span class="tree-comment">&nbsp;&nbsp;# Skills para TODOS los roles</span><br>
+            │&nbsp;&nbsp; │&nbsp;&nbsp; ├── <span class="tree-folder">nuestro-api-standard/</span><br>
+            │&nbsp;&nbsp; │&nbsp;&nbsp; │&nbsp;&nbsp; └── <span class="tree-file">SKILL.md</span> <span class="tree-comment">&nbsp;# Estándar de API del equipo</span><br>
+            │&nbsp;&nbsp; │&nbsp;&nbsp; └── <span class="tree-folder">error-handling/</span><br>
+            │&nbsp;&nbsp; │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; └── <span class="tree-file">SKILL.md</span> <span class="tree-comment">&nbsp;# Manejo de errores custom</span><br>
+            │&nbsp;&nbsp; └── <span class="tree-folder">roles/</span> <span class="tree-comment">&nbsp;&nbsp;&nbsp;# Skills por rol específico</span><br>
+            │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ├── <span class="tree-folder">frontend/</span><br>
+            │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; │&nbsp;&nbsp; └── <span class="tree-file">design-system.skill.md</span><br>
+            │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; └── <span class="tree-folder">devops/</span><br>
+            │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; └── <span class="tree-file">azure-pipelines.skill.md</span><br>
+            └── <span class="tree-folder">rules/</span> <span class="tree-comment">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# Reglas cross-proyecto</span><br>
+            &nbsp;&nbsp;&nbsp;&nbsp; └── <span class="tree-file">team-conventions.md</span>
+          </div>
+        </div>
+
+        <!-- Right: How it works -->
+        <div>
+          <h3 style="color: var(--accent); margin-bottom: 1rem;">Cómo funciona</h3>
+          <div class="steps">
+            <div class="step">
+              <div class="step-number">1</div>
+              <div class="step-content">
+                <h4>Tech Lead configura el repo</h4>
+                <p>Crea skills y reglas que reflejan las convenciones del equipo. Ejemplo: cómo nombrar endpoints, qué logger usar, patrones de testing.</p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-number">2</div>
+              <div class="step-content">
+                <h4>Dev hace setup con el repo</h4>
+                <p><code>team-ai-kit setup --team-repo https://dev.azure.com/equipo/knowledge</code><br>
+                Los skills y reglas del equipo se descargan y se inyectan en el AI del dev.</p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-number">3</div>
+              <div class="step-content">
+                <h4>Updates sin romper nada</h4>
+                <p><code>team-ai-kit update</code> &mdash; Pull del repo del equipo. Los skills nuevos se agregan, los actualizados se aplican, pero <strong>lo que el dev customizó localmente nunca se pisa</strong>.</p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-number">4</div>
+              <div class="step-content">
+                <h4>Nuevo integrante = 2 minutos</h4>
+                <p>Un dev nuevo corre <code>team-ai-kit setup</code>, elige su rol, apunta al team repo, y <strong>tiene toda la configuración del equipo</strong> sin leer documentación.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Merge Priority -->
+      <div class="fade-in" style="margin-top: 3.5rem;">
+        <h3 style="color: var(--accent); margin-bottom: 0.5rem; text-align: center;">Prioridad de merge</h3>
+        <p style="color: var(--text-light); text-align: center; margin-bottom: 1.5rem; font-size: 0.9rem;">
+          Cuando corrés <code>team-ai-kit update</code>, las capas se resuelven así &mdash; lo local siempre gana.
+        </p>
+
+        <div style="display: flex; justify-content: center;">
+          <div class="layer-stack">
+            <div class="layer-item layer-item--local">
+              <div class="layer-title">Customizaciones locales del dev</div>
+              <div class="layer-desc">Skills o reglas que el dev modificó personalmente</div>
+              <div class="layer-priority">Prioridad máxima &mdash; nunca se pisa</div>
+            </div>
+            <div class="layer-item layer-item--team">
+              <div class="layer-title">Team Knowledge Repo</div>
+              <div class="layer-desc">Skills y reglas definidos por el Tech Lead</div>
+              <div class="layer-priority">Se agregan si son nuevos, se actualizan si no fueron modificados</div>
+            </div>
+            <div class="layer-item layer-item--defaults">
+              <div class="layer-title">Defaults del package</div>
+              <div class="layer-desc">Skills base incluidos en team-ai-kit</div>
+              <div class="layer-priority">Base &mdash; menor prioridad</div>
+            </div>
+          </div>
+        </div>
+
+        <p style="color: var(--text-light); text-align: center; margin-top: 1.5rem; font-size: 0.85rem;">
+          El tracking se hace con hashes SHA256. Si el dev no tocó un archivo, se actualiza. Si lo personalizó, se respeta.
+        </p>
+      </div>
+
+      <!-- Real example -->
+      <div class="fade-in" style="margin-top: 3.5rem; max-width: 760px; margin-left: auto; margin-right: auto;">
+        <h3 style="color: var(--accent); margin-bottom: 1rem;">Ejemplo real: estandarizar logging en el equipo</h3>
+
+        <div class="steps">
+          <div class="step">
+            <div class="step-number">1</div>
+            <div class="step-content">
+              <h4>El Tech Lead detecta un problema</h4>
+              <p>Cada dev loguea diferente: unos usan <code>console.log</code>, otros pino, otros winston. Los logs de producción son imposibles de parsear.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-number">2</div>
+            <div class="step-content">
+              <h4>Crea un skill en el Team Knowledge Repo</h4>
+              <p>Agrega <code>skills/shared/logging/SKILL.md</code> con las reglas: pino como logger, JSON estructurado, request ID obligatorio, nunca loguear datos sensibles.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-number">3</div>
+            <div class="step-content">
+              <h4>Pushea al repo y avisa al equipo</h4>
+              <p>Los devs corren <code>team-ai-kit update</code> (o se actualiza automáticamente). El nuevo skill se instala en todos.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-number">4</div>
+            <div class="step-content">
+              <h4>Resultado</h4>
+              <p>A partir de ahora, cuando <strong>cualquier dev</strong> del equipo escribe código que involucra logging, el AI automáticamente aplica pino, JSON estructurado, y request ID. <strong>Sin que el dev tenga que recordarlo.</strong></p>
+            </div>
+          </div>
+        </div>
+
+        <div class="alert alert--info" style="margin-top: 2rem;">
+          <h4>Lo mismo aplica para cualquier estándar del equipo</h4>
+          <p style="color: var(--text-on-dark);">
+            Convenciones de naming, patrones de error handling, estructura de endpoints, reglas de testing,
+            configuración de pipelines, manejo de secrets &mdash; todo lo que el equipo quiera estandarizar
+            se documenta como skill o regla en el Team Knowledge Repo, y el AI de <strong>cada dev lo aplica automáticamente</strong>.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════ gentle-ai ═════════════════════════════════════ -->
+  <section id="gentleai" class="section">
+    <div class="container">
+      <span class="label label--accent">Dependencia</span>
+      <h2>gentle-ai</h2>
+      <p class="section-subtitle">
+        La base sobre la que Team AI Kit se construye. Open source, mantenido por
+        <a href="https://github.com/Gentleman-Programming" target="_blank" rel="noopener">Gentleman Programming</a>.
+      </p>
+
+      <div class="fade-in" style="max-width: 700px;">
+        <p>
+          <strong>gentle-ai</strong> configura tu entorno de AI (VS Code + Copilot, IntelliJ, OpenCode) con:
+        </p>
+        <ul style="margin: 1rem 0; padding-left: 24px; display: flex; flex-direction: column; gap: 8px;">
+          <li><strong>Skills</strong> &mdash; instrucciones que el AI carga automáticamente según el contexto (ej: cuando detecta un bug, carga el skill de debug)</li>
+          <li><strong>MCP Servers</strong> &mdash; herramientas externas que el AI puede usar (documentación actualizada vía Context7, etc.)</li>
+          <li><strong>Instrucciones personalizadas</strong> &mdash; reglas inyectadas directamente en el AI</li>
+        </ul>
+        <p>
+          gentle-ai es para el <strong>dev individual</strong>. Team AI Kit extiende gentle-ai para
+          <strong>equipos</strong>: agrega roles, skills compartidos, team knowledge repos, engram sync,
+          y merge inteligente.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════ engram ════════════════════════════════════════ -->
+  <section id="engram" class="section section--dark">
+    <div class="container">
+      <span class="label label--dark" style="background: var(--accent); color: #fff;">Punto clave</span>
+      <h2>engram &mdash; La memoria del equipo</h2>
+      <p class="section-subtitle">
+        Este es el diferencial más importante. Sin esto, cada sesión de AI empieza de cero.
+      </p>
+
+      <div class="fade-in" style="max-width: 760px;">
+        <h3 style="color: var(--accent); margin-bottom: 1rem;">El problema sin memoria</h3>
+        <p style="color: var(--text-on-dark);">
+          Imaginemos que cada vez que usamos una calculadora, tenemos que cargar los números de nuevo.
+          No hay memoria, no hay historial. Eso es exactamente lo que pasa hoy con los asistentes
+          de AI: cada sesión empieza en blanco. El dev explica el contexto, el AI trabaja, y al
+          cerrar &mdash; todo desaparece.
+        </p>
+
+        <h3 style="color: var(--accent); margin-top: 2.5rem; margin-bottom: 1rem;">Qué resuelve engram</h3>
+
+        <div class="steps">
+          <div class="step">
+            <div class="step-number">1</div>
+            <div class="step-content">
+              <h4>Memoria individual</h4>
+              <p>El AI recuerda tus decisiones, bugs que resolviste, patrones que estableciste. Entre sesiones. Sin que hagas nada manual.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-number">2</div>
+            <div class="step-content">
+              <h4>Memoria compartida</h4>
+              <p>Lo que aprende un dev se sincroniza con el equipo vía git. Git hooks automáticos (pre-commit + post-merge) se encargan de todo.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-number">3</div>
+            <div class="step-content">
+              <h4>Conocimiento acumulado</h4>
+              <p>Con el tiempo, el equipo construye una base de conocimiento que el AI de cada dev puede consultar. Decisiones arquitectónicas, root causes, gotchas.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h3 style="color: var(--accent); margin-top: 3rem; margin-bottom: 0.5rem; text-align: center;">Cómo fluye la información</h3>
+      <p style="color: var(--text-light); text-align: center; margin-bottom: 1rem; font-size: 0.9rem;">Automático, vía git hooks. El dev no tiene que hacer nada.</p>
+
+      <div class="engram-flow fade-in">
+        <div class="flow-node">
+          <div class="flow-title">Dev A trabaja</div>
+          <div class="flow-desc">Resuelve bug, toma decisión, establece patrón</div>
+        </div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-node flow-node--highlight">
+          <div class="flow-title">engram save</div>
+          <div class="flow-desc">Guarda automáticamente en .engram/</div>
+        </div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-node">
+          <div class="flow-title">git push</div>
+          <div class="flow-desc">Pre-commit hook exporta y commitea .engram/</div>
+        </div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-node">
+          <div class="flow-title">Dev B hace pull</div>
+          <div class="flow-desc">Post-merge hook importa automáticamente</div>
+        </div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-node flow-node--highlight">
+          <div class="flow-title">AI de Dev B ya sabe</div>
+          <div class="flow-desc">Tiene contexto del bug, la decisión, el patrón</div>
+        </div>
+      </div>
+
+      <div class="alert alert--info fade-in" style="max-width: 760px; margin: 2rem auto;">
+        <h4>Ejemplo real</h4>
+        <p>
+          <strong>Dev A</strong> investiga un bug de producción. Descubre que es una race condition
+          en el cache de Redis. Documenta la causa raíz, la solución, y las precauciones.
+          engram lo guarda automáticamente.
+        </p>
+        <p style="margin-top: 0.75rem;">
+          <strong>Semanas después</strong>, Dev B trabaja en otro servicio que usa el mismo patrón de cache.
+          Su AI ya sabe del problema anterior y le advierte sobre la race condition
+          <strong>antes de que ocurra</strong>.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════ Corporate Installation Problem ════════════════ -->
+  <section id="corporativo" class="section section--warning">
+    <div class="container">
+      <span class="label" style="background: rgba(245,158,11,0.2); color: var(--warning);">Requiere atención</span>
+      <h2>Instalación en entornos corporativos</h2>
+      <p class="section-subtitle">
+        La herramienta está lista. El único bloqueo es una restricción de seguridad en nuestras PCs
+        que impide la instalación estándar.
+      </p>
+
+      <div class="fade-in" style="max-width: 760px;">
+        <h3 style="color: #fff; margin-bottom: 1.5rem;">El problema técnico</h3>
+
+        <div class="steps">
+          <div class="step">
+            <div class="step-number">1</div>
+            <div class="step-content">
+              <h4>PowerShell Constrained Language Mode (CLM)</h4>
+              <p>Nuestras PCs tienen CLM activado por política de grupo (GPO/AppLocker). Esto es una restricción de seguridad que limita qué puede ejecutar PowerShell.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-number">2</div>
+            <div class="step-content">
+              <h4>Scoop bloqueado</h4>
+              <p>Scoop es el package manager de Windows que usamos para distribuir la herramienta. CLM lo bloquea completamente porque depende de llamadas .NET que están restringidas.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-number">3</div>
+            <div class="step-content">
+              <h4>Llamadas .NET restringidas</h4>
+              <p>CLM bloquea llamadas como <code>[Net.ServicePointManager]::SecurityProtocol</code> y <code>[Environment]::SetEnvironmentVariable</code>, necesarias para descargar e instalar binarios.</p>
+            </div>
+          </div>
+        </div>
+
+        <h3 style="color: #fff; margin-top: 3rem; margin-bottom: 1.5rem;">Lo que ya hicimos</h3>
+        <p style="color: var(--text-light);">
+          No estamos pidiendo que nos resuelvan el problema. Ya implementamos soluciones alternativas:
+        </p>
+
+        <div class="steps" style="margin-top: 1.5rem;">
+          <div class="step">
+            <div class="step-number" style="background: var(--success); color: #000;">&#10003;</div>
+            <div class="step-content">
+              <h4>Fallback de descarga directa</h4>
+              <p>Si Scoop no está disponible, el setup descarga los binarios directo desde GitHub Releases sin usar Scoop.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-number" style="background: var(--success); color: #000;">&#10003;</div>
+            <div class="step-content">
+              <h4>Compatibilidad con CLM</h4>
+              <p>Reemplazamos todas las llamadas .NET bloqueadas con alternativas usando cmdlets de PowerShell nativos (registry cmdlets en lugar de [Environment]::).</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-number" style="background: var(--success); color: #000;">&#10003;</div>
+            <div class="step-content">
+              <h4>Instalación vía git clone</h4>
+              <p>La alternativa actual es <code>git clone</code> + <code>.\setup.ps1</code>. Funciona si Git está permitido y la ejecución de scripts está habilitada.</p>
+            </div>
+          </div>
+        </div>
+
+        <h3 style="color: var(--warning); margin-top: 3rem; margin-bottom: 1rem;">Lo que necesitamos</h3>
+        <p style="color: var(--text-light); margin-bottom: 1.5rem;">
+          Cualquiera de estas opciones desbloquea la adopción:
+        </p>
+
+        <div class="options">
+          <div class="option">
+            <h4>Opción A: Whitelist para el proyecto (ideal)</h4>
+            <p>
+              Agregar la carpeta de instalación a la whitelist de AppLocker/GPO para que los scripts de
+              team-ai-kit puedan ejecutarse sin restricciones de CLM. Esto resuelve todo de una vez.
+            </p>
+          </div>
+          <div class="option">
+            <h4>Opción B: Permitir ejecución desde una carpeta específica</h4>
+            <p>
+              Habilitar una carpeta designada (ej: <code>C:\tools\</code>) donde se pueda clonar y ejecutar
+              scripts de PowerShell sin las restricciones de CLM. Mínimo impacto en seguridad.
+            </p>
+          </div>
+          <div class="option">
+            <h4>Opción C: Acceso a GitHub para descarga de binarios</h4>
+            <p>
+              Asegurar que <code>github.com</code> y <code>api.github.com</code> no estén bloqueados,
+              y que <code>Invoke-WebRequest</code> pueda descargar archivos. El setup se encarga del resto.
+            </p>
+          </div>
+        </div>
+
+        <div class="alert alert--warning fade-in" style="margin-top: 2rem;">
+          <h4>Nota</h4>
+          <p>
+            La herramienta es open source (licencia MIT), no requiere permisos de administrador para ejecutarse,
+            y no modifica configuraciones del sistema. Solo necesita escribir archivos en el directorio del
+            usuario (<code>%LOCALAPPDATA%</code> y <code>%USERPROFILE%</code>).
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════ Footer ════════════════════════════════════════ -->
+  <footer>
+    <div class="container">
+      <p>
+        <a href="https://github.com/lazarogadiel93/team-ai-kit" target="_blank" rel="noopener">
+          github.com/lazarogadiel93/team-ai-kit
+        </a>
+        &nbsp;&middot;&nbsp; MIT License &nbsp;&middot;&nbsp; v2.2.0
+      </p>
+    </div>
+  </footer>
+
+  <!-- ════ Scripts ═══════════════════════════════════════ -->
+  <script>
+    // Fade-in on scroll
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.15 });
+
+    document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+
+    // Active nav link on scroll
+    const sections = document.querySelectorAll('section[id]');
+    const navLinks = document.querySelectorAll('nav ul a');
+
+    window.addEventListener('scroll', () => {
+      let current = '';
+      sections.forEach(section => {
+        const top = section.offsetTop - 100;
+        if (window.scrollY >= top) current = section.getAttribute('id');
+      });
+      navLinks.forEach(link => {
+        link.classList.remove('active');
+        if (link.getAttribute('href') === '#' + current) link.classList.add('active');
+      });
+    }, { passive: true });
+  </script>
+
+</body>
+</html>
