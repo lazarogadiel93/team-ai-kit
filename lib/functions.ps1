@@ -1020,7 +1020,7 @@ function Invoke-TeamRepoClone {
     if (-not (Test-Path $parentDir)) {
         New-Item -ItemType Directory -Path $parentDir -Force | Out-Null
     }
-    & git clone $RepoUrl $localPath 2>&1 | Out-Null
+    $null = & git clone $RepoUrl $localPath 2>&1
     return $LASTEXITCODE -eq 0
 }
 
@@ -1038,7 +1038,7 @@ function Invoke-TeamRepoPull {
     }
     Push-Location $localPath
     try {
-        & git pull 2>&1 | Out-Null
+        $null = & git pull 2>&1
         return $LASTEXITCODE -eq 0
     }
     finally {
