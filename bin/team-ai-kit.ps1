@@ -500,6 +500,7 @@ function Invoke-InitCommand {
     Write-Host ''
     Write-Host '  [2/4] Checking project state...' -ForegroundColor White
 
+    $existingConfig = $null
     if (Test-ProjectInitialized -ProjectRoot $projectRoot) {
         $existingConfig = Get-ProjectConfig -ProjectRoot $projectRoot
 
