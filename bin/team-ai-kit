@@ -25,6 +25,7 @@
 #
 # Init options:
 #   --role <role>             Override global role for this project
+#   --team-repo <url>         Per-project team knowledge repo URL
 #   --force                   Re-initialize without asking
 #
 # Examples:
@@ -33,6 +34,7 @@
 #   team-ai-kit setup --ide vscode --role frontend --team-repo https://github.com/team/knowledge
 #   team-ai-kit init
 #   team-ai-kit init --role backend-node
+#   team-ai-kit init --team-repo https://github.com/team/knowledge
 #   team-ai-kit init --role frontend --force
 #   team-ai-kit update
 #   team-ai-kit status
@@ -361,7 +363,7 @@ cmd_setup() {
     step "Skills target: $target_skills_dir"
 
     local merge_json
-    merge_json=$(install_skills_with_merge "$KIT_ROOT" "$OPT_ROLE" "$target_skills_dir" "$has_team_repo")
+    merge_json=$(install_skills_with_merge "$KIT_ROOT" "$OPT_ROLE" "$target_skills_dir" "$has_team_repo" "$OPT_TEAM_REPO")
     local total_installed total_updated total_skipped
     total_installed=$(echo "$merge_json" | jq -r '.installed')
     total_updated=$(echo "$merge_json" | jq -r '.updated')
@@ -503,9 +505,44 @@ cmd_init() {
     if [[ -n "$pack_rules_path" ]]; then
         pack_rules_content=$(cat "$pack_rules_path")
     fi
+
+    # Resolve team repo URL: CLI param > project config > global config
+    local effective_team_repo=""
+    if [[ -n "$OPT_TEAM_REPO" ]]; then
+        effective_team_repo="$OPT_TEAM_REPO"
+    elif test_project_initialized "$project_root"; then
+        effective_team_repo=$(get_project_config_value "$project_root" "teamRepo" 2>/dev/null) || true
+    fi
+    if [[ -z "$effective_team_repo" ]]; then
+        effective_team_repo=$(get_config_value "teamRepo" 2>/dev/null) || true
+    fi
+
+    # Clone/pull team repo if configured
+    local team_rules_content=""
+    if [[ -n "$effective_team_repo" ]]; then
+        step "Team repo: $effective_team_repo"
+        if test_team_repo_cloned "$effective_team_repo"; then
+            if invoke_team_repo_pull "$effective_team_repo"; then
+                ok "Team repo updated"
+            else
+                warn "Failed to pull -- using cached version"
+            fi
+        else
+            if invoke_team_repo_clone "$effective_team_repo"; then
+                ok "Team repo cloned"
+            else
+                warn "Failed to clone team repo"
+            fi
+        fi
+        team_rules_content=$(get_team_repo_rules_content "$effective_team_repo")
+        if [[ -n "$team_rules_content" ]]; then
+            ok "Team rules loaded from knowledge repo"
+        fi
+    fi
+
     local instructions
-    instructions=$(new_copilot_instructions "$effective_role" "$pack_rules_content")
-    echo "$instructions" > "$instructions_path"
+    instructions=$(new_copilot_instructions "$effective_role" "$pack_rules_content" "$team_rules_content")
+    printf '%s\n' "$instructions" > "$instructions_path"
     local rel_instructions_path="${instructions_path#$project_root/}"
     ok "Created: $rel_instructions_path"
 
@@ -553,10 +590,11 @@ cmd_init() {
     project_config=$(jq -n \
         --arg role "$effective_role" \
         --arg ide "$effective_ide" \
+        --arg team_repo "$effective_team_repo" \
         --arg initialized_at "$now" \
         --arg last_sync "$now" \
         --arg version "2.1.0" \
-        '{role:$role, ide:$ide, initializedAt:$initialized_at, lastSync:$last_sync, version:$version}')
+        '{role:$role, ide:$ide, teamRepo:$team_repo, initializedAt:$initialized_at, lastSync:$last_sync, version:$version}')
     save_project_config "$project_root" "$project_config" >/dev/null
     ok "Project config saved: .team-ai-kit.json"
 
@@ -681,15 +719,24 @@ cmd_update() {
     echo -e "  ${C_WHITE}Updating for: IDE=$config_ide, Role=$config_role${C_RESET}"
     echo ""
 
+    # Resolve team repo: project config > global config
+    local project_root effective_team_repo="" has_project_config="false"
+    project_root=$(pwd)
+    if test_project_initialized "$project_root"; then
+        has_project_config="true"
+        effective_team_repo=$(get_project_config_value "$project_root" "teamRepo" 2>/dev/null) || true
+    fi
+    if [[ -z "$effective_team_repo" ]]; then
+        effective_team_repo=$(get_config_value "teamRepo" 2>/dev/null) || true
+    fi
+
     # Step 1: Pull team repo if configured
     local has_team_repo="false"
-    local config_team_repo
-    config_team_repo=$(get_config_value "teamRepo")
 
-    if [[ -n "$config_team_repo" ]]; then
-        step "Pulling team repo: $config_team_repo"
-        if test_team_repo_cloned; then
-            if invoke_team_repo_pull; then
+    if [[ -n "$effective_team_repo" ]]; then
+        step "Pulling team repo: $effective_team_repo"
+        if test_team_repo_cloned "$effective_team_repo"; then
+            if invoke_team_repo_pull "$effective_team_repo"; then
                 ok "Team repo updated"
                 has_team_repo="true"
             else
@@ -698,7 +745,7 @@ cmd_update() {
             fi
         else
             step "Team repo not cloned yet -- cloning..."
-            if invoke_team_repo_clone "$config_team_repo"; then
+            if invoke_team_repo_clone "$effective_team_repo"; then
                 ok "Team repo cloned"
                 has_team_repo="true"
             else
@@ -720,7 +767,7 @@ cmd_update() {
     step "Merging skills to: $target_skills_dir"
 
     local merge_json
-    merge_json=$(install_skills_with_merge "$KIT_ROOT" "$config_role" "$target_skills_dir" "$has_team_repo")
+    merge_json=$(install_skills_with_merge "$KIT_ROOT" "$config_role" "$target_skills_dir" "$has_team_repo" "$effective_team_repo")
     local m_installed m_updated m_skipped
     m_installed=$(echo "$merge_json" | jq -r '.installed')
     m_updated=$(echo "$merge_json" | jq -r '.updated')
@@ -731,7 +778,26 @@ cmd_update() {
     [[ "$m_updated" -gt 0 ]] && ok "Updated:   $m_updated skills (source changed, yours untouched)"
     [[ "$m_skipped" -gt 0 ]] && step "Unchanged: $m_skipped skills (already up to date or user-modified)"
 
-    # Step 3: Update config timestamp
+    # Step 3: Auto-update team rules in instructions if project is initialized
+    if [[ "$has_team_repo" == "true" && "$has_project_config" == "true" ]]; then
+        local team_rules_content
+        team_rules_content=$(get_team_repo_rules_content "$effective_team_repo")
+        if [[ -n "$team_rules_content" ]]; then
+            local instructions_path
+            instructions_path=$(get_ide_instructions_path "$config_ide" "$project_root")
+            if [[ -f "$instructions_path" ]]; then
+                local rules_result
+                rules_result=$(update_instructions_team_rules "$instructions_path" "$team_rules_content")
+                if [[ "$rules_result" == "changed" ]]; then
+                    ok "Team rules updated in project instructions"
+                else
+                    step "Team rules unchanged in project instructions"
+                fi
+            fi
+        fi
+    fi
+
+    # Step 4: Update config timestamp
     local now
     now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
     local updated_config
@@ -760,11 +826,21 @@ cmd_status() {
         return
     fi
 
+    # Resolve per-project > global team repo
+    local effective_team_repo="$config_team"
+    local project_root
+    project_root=$(pwd)
+    if test_project_initialized "$project_root"; then
+        local pt
+        pt=$(get_project_config_value "$project_root" "teamRepo" 2>/dev/null) || true
+        if [[ -n "$pt" ]]; then effective_team_repo="$pt"; fi
+    fi
+
     echo -e "  ${C_WHITE}Configuration:${C_RESET}"
     echo "    IDE:         $config_ide"
     echo "    Role:        $config_role"
     echo "    Provider:    $config_provider"
-    echo "    Team Repo:   ${config_team:-(none)}"
+    echo "    Team Repo:   ${effective_team_repo:-(none)}"
     echo "    Installed:   $config_installed"
     echo "    Last Update: $config_update"
     echo "    Version:     ${config_version:-unknown}"
@@ -811,9 +887,9 @@ cmd_status() {
     fi
 
     # Team repo status
-    if [[ -n "$config_team" ]]; then
+    if [[ -n "$effective_team_repo" ]]; then
         echo ""
-        if test_team_repo_cloned; then
+        if test_team_repo_cloned "$effective_team_repo"; then
             ok "Team repo: cloned locally"
         else
             warn 'Team repo: configured but not cloned (run "team-ai-kit update")'

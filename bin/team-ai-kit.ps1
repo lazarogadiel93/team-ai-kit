@@ -38,6 +38,9 @@
     team-ai-kit init -Role backend-node
     Initialize with a role override for this specific project.
 .EXAMPLE
+    team-ai-kit init -TeamRepo https://dev.azure.com/equipo/team-knowledge
+    Initialize with a per-project team knowledge repo.
+.EXAMPLE
     team-ai-kit init -Role frontend -Force
     Re-initialize an already configured project.
 .EXAMPLE
@@ -415,7 +418,10 @@ function Invoke-SetupCommand {
         Role      = $Role
         TargetDir = $targetSkillsDir
     }
-    if ($hasTeamRepo) { $mergeParams.IncludeTeamRepo = $true }
+    if ($hasTeamRepo) {
+        $mergeParams.IncludeTeamRepo = $true
+        $mergeParams.TeamRepoUrl = $TeamRepo
+    }
 
     $mergeResults = Install-SkillsWithMerge @mergeParams
     $totalInstalled = $mergeResults.installed.Count
@@ -545,8 +551,37 @@ function Invoke-InitCommand {
     if ($packRulesPath) {
         $packRulesContent = Get-Content -Path $packRulesPath -Raw
     }
-    $instructions = New-CopilotInstructions -Role $effectiveRole -PackRulesContent $packRulesContent
-    Set-Content -Path $instructionsPath -Value $instructions -Encoding UTF8
+
+    # Resolve team repo URL: CLI param > project config > global config
+    $effectiveTeamRepo = if ($TeamRepo) { $TeamRepo }
+        elseif ($existingConfig -and $existingConfig.teamRepo) { $existingConfig.teamRepo }
+        else {
+            $gc = Get-TeamAiKitConfig
+            if ($gc.teamRepo) { $gc.teamRepo } else { '' }
+        }
+
+    # Clone/pull team repo if configured
+    $teamRulesContent = ''
+    if ($effectiveTeamRepo) {
+        Write-Step "Team repo: $effectiveTeamRepo"
+        if (Test-TeamRepoCloned -RepoUrl $effectiveTeamRepo) {
+            $pullOk = Invoke-TeamRepoPull -RepoUrl $effectiveTeamRepo
+            if ($pullOk) { Write-Ok 'Team repo updated' }
+            else { Write-Warn 'Failed to pull -- using cached version' }
+        }
+        else {
+            $cloneOk = Invoke-TeamRepoClone -RepoUrl $effectiveTeamRepo
+            if ($cloneOk) { Write-Ok 'Team repo cloned' }
+            else { Write-Warn 'Failed to clone team repo' }
+        }
+        $teamRulesContent = Get-TeamRepoRulesContent -RepoUrl $effectiveTeamRepo
+        if ($teamRulesContent) {
+            Write-Ok 'Team rules loaded from knowledge repo'
+        }
+    }
+
+    $instructions = New-CopilotInstructions -Role $effectiveRole -PackRulesContent $packRulesContent -TeamRulesContent $teamRulesContent
+    [System.IO.File]::WriteAllText($instructionsPath, $instructions, [System.Text.Encoding]::UTF8)
     $relInstructionsPath = $instructionsPath.Replace($projectRoot, '').TrimStart('\', '/')
     Write-Ok "Created: $relInstructionsPath"
 
@@ -589,6 +624,7 @@ function Invoke-InitCommand {
     $projectConfig = @{
         role          = $effectiveRole
         ide           = $effectiveIde
+        teamRepo      = $effectiveTeamRepo
         initializedAt = $now
         lastSync      = $now
         version       = '2.1.0'
@@ -701,15 +737,25 @@ function Invoke-UpdateCommand {
         exit 1
     }
 
+    # Resolve team repo: project config > global config
+    $projectRoot = (Get-Location).Path
+    $projectConfig = $null
+    if (Test-ProjectInitialized -ProjectRoot $projectRoot) {
+        $projectConfig = Get-ProjectConfig -ProjectRoot $projectRoot
+    }
+    $effectiveTeamRepo = if ($projectConfig -and $projectConfig.teamRepo) { $projectConfig.teamRepo }
+        elseif ($config.teamRepo) { $config.teamRepo }
+        else { '' }
+
     Write-Host "  Updating for: IDE=$($config.ide), Role=$($config.role)" -ForegroundColor White
     Write-Host ''
 
     # Step 1: Pull team repo if configured
     $hasTeamRepo = $false
-    if (-not [string]::IsNullOrWhiteSpace($config.teamRepo)) {
-        Write-Step "Pulling team repo: $($config.teamRepo)"
-        if (Test-TeamRepoCloned) {
-            $pullOk = Invoke-TeamRepoPull
+    if ($effectiveTeamRepo) {
+        Write-Step "Pulling team repo: $effectiveTeamRepo"
+        if (Test-TeamRepoCloned -RepoUrl $effectiveTeamRepo) {
+            $pullOk = Invoke-TeamRepoPull -RepoUrl $effectiveTeamRepo
             if ($pullOk) {
                 Write-Ok 'Team repo updated'
                 $hasTeamRepo = $true
@@ -721,7 +767,7 @@ function Invoke-UpdateCommand {
         }
         else {
             Write-Step 'Team repo not cloned yet -- cloning...'
-            $cloneOk = Invoke-TeamRepoClone -RepoUrl $config.teamRepo
+            $cloneOk = Invoke-TeamRepoClone -RepoUrl $effectiveTeamRepo
             if ($cloneOk) {
                 Write-Ok 'Team repo cloned'
                 $hasTeamRepo = $true
@@ -750,7 +796,10 @@ function Invoke-UpdateCommand {
         Role      = $config.role
         TargetDir = $targetSkillsDir
     }
-    if ($hasTeamRepo) { $mergeParams.IncludeTeamRepo = $true }
+    if ($hasTeamRepo) {
+        $mergeParams.IncludeTeamRepo = $true
+        $mergeParams.TeamRepoUrl = $effectiveTeamRepo
+    }
 
     $mergeResults = Install-SkillsWithMerge @mergeParams
 
@@ -763,7 +812,24 @@ function Invoke-UpdateCommand {
         Write-Step "Unchanged: $($mergeResults.skipped.Count) skills (already up to date or user-modified)"
     }
 
-    # Step 3: Update config timestamp
+    # Step 3: Auto-update team rules in instructions if project is initialized
+    if ($hasTeamRepo -and $projectConfig) {
+        $teamRulesContent = Get-TeamRepoRulesContent -RepoUrl $effectiveTeamRepo
+        if ($teamRulesContent) {
+            $instructionsPath = Get-IdeInstructionsPath -Ide $config.ide -ProjectRoot $projectRoot
+            if (Test-Path $instructionsPath) {
+                $rulesChanged = Update-InstructionsTeamRules -FilePath $instructionsPath -TeamRulesContent $teamRulesContent
+                if ($rulesChanged) {
+                    Write-Ok 'Team rules updated in project instructions'
+                }
+                else {
+                    Write-Step 'Team rules unchanged in project instructions'
+                }
+            }
+        }
+    }
+
+    # Step 4: Update config timestamp
     $config.lastUpdate = Get-Date -Format 'o'
     Save-TeamAiKitConfig -Config $config | Out-Null
     Write-Host ''
@@ -786,7 +852,15 @@ function Invoke-StatusCommand {
     Write-Host "    IDE:         $($config.ide)"
     Write-Host "    Role:        $($config.role)"
     Write-Host "    Provider:    $($config.provider)"
-    Write-Host "    Team Repo:   $(if ($config.teamRepo) { $config.teamRepo } else { '(none)' })"
+    # Team repo status -- resolve per-project > global
+    $projectRoot = (Get-Location).Path
+    $effectiveTeamRepo = $config.teamRepo
+    if (Test-ProjectInitialized -ProjectRoot $projectRoot) {
+        $pc = Get-ProjectConfig -ProjectRoot $projectRoot
+        if ($pc.teamRepo) { $effectiveTeamRepo = $pc.teamRepo }
+    }
+
+    Write-Host "    Team Repo:   $(if ($effectiveTeamRepo) { $effectiveTeamRepo } else { '(none)' })"
     Write-Host "    Installed:   $($config.installedAt)"
     Write-Host "    Last Update: $($config.lastUpdate)"
     Write-Host "    Version:     $(if ($config.version) { $config.version } else { 'unknown' })"
@@ -827,9 +901,9 @@ function Invoke-StatusCommand {
     }
 
     # Team repo status
-    if (-not [string]::IsNullOrWhiteSpace($config.teamRepo)) {
+    if (-not [string]::IsNullOrWhiteSpace($effectiveTeamRepo)) {
         Write-Host ''
-        if (Test-TeamRepoCloned) {
+        if (Test-TeamRepoCloned -RepoUrl $effectiveTeamRepo) {
             Write-Ok "Team repo: cloned locally"
         }
         else {

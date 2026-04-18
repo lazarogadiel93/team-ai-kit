@@ -134,6 +134,16 @@ team-ai-kit init --role backend-node
 
 Esto NO cambia tu config global. Solo aplica a este proyecto.
 
+### Per-project team repo
+
+Si trabajas en equipos distintos y cada proyecto usa un team knowledge repo diferente:
+
+```bash
+team-ai-kit init --team-repo https://github.com/otro-equipo/knowledge
+```
+
+El team repo se guarda en `.team-ai-kit.json` del proyecto y tiene prioridad sobre el global.
+
 ### Re-inicializar
 
 Si corres `init` en un proyecto ya inicializado:
