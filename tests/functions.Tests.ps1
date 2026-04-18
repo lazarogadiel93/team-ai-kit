@@ -28,6 +28,10 @@ Describe 'Get-GentleAiAgentId' {
         Get-GentleAiAgentId -Ide 'intellij' | Should -BeNullOrEmpty
     }
 
+    It 'returns $null for cursor (no gentle-ai adapter)' {
+        Get-GentleAiAgentId -Ide 'cursor' | Should -BeNullOrEmpty
+    }
+
     It 'returns $null for unknown IDEs' {
         Get-GentleAiAgentId -Ide 'vim' | Should -BeNullOrEmpty
     }
@@ -51,6 +55,10 @@ Describe 'Test-GentleAiSupportsIde' {
         Test-GentleAiSupportsIde -Ide 'intellij' | Should -BeFalse
     }
 
+    It 'returns $false for cursor' {
+        Test-GentleAiSupportsIde -Ide 'cursor' | Should -BeFalse
+    }
+
     It 'returns $false for unknown IDEs' {
         Test-GentleAiSupportsIde -Ide 'vim' | Should -BeFalse
     }
@@ -63,6 +71,7 @@ Describe 'Test-ValidIde' {
         Test-ValidIde -Ide 'vscode' | Should -BeTrue
         Test-ValidIde -Ide 'intellij' | Should -BeTrue
         Test-ValidIde -Ide 'opencode' | Should -BeTrue
+        Test-ValidIde -Ide 'cursor' | Should -BeTrue
     }
 
     It 'is case-insensitive' {
@@ -269,6 +278,11 @@ Describe 'Get-IdeSkillsDirectory' {
         $path | Should -BeLike '*opencode*skills*'
     }
 
+    It 'returns .cursor/skills path for cursor' {
+        $path = Get-IdeSkillsDirectory -Ide 'cursor'
+        $path | Should -BeLike '*.cursor?skills*'
+    }
+
     It 'throws for unsupported IDE' {
         { Get-IdeSkillsDirectory -Ide 'vim' } | Should -Throw '*Unsupported IDE*'
     }
@@ -288,6 +302,11 @@ Describe 'Get-IdeInstructionsPath' {
     It 'returns AGENTS.md for opencode' {
         $path = Get-IdeInstructionsPath -Ide 'opencode' -ProjectRoot 'C:\project'
         $path | Should -BeLike '*AGENTS.md'
+    }
+
+    It 'returns .cursor/rules/team-ai-kit.md for cursor' {
+        $path = Get-IdeInstructionsPath -Ide 'cursor' -ProjectRoot 'C:\project'
+        $path | Should -BeLike '*.cursor?rules?team-ai-kit.md'
     }
 
     It 'throws for unsupported IDE' {
@@ -315,6 +334,33 @@ Describe 'New-VsCodeMcpConfig' {
         $config = $json | ConvertFrom-Json
         $config.servers.context7 | Should -Not -BeNullOrEmpty
         $config.servers.context7.url | Should -BeLike '*context7*'
+    }
+}
+
+Describe 'New-CursorMcpConfig' {
+    It 'generates valid JSON' {
+        $json = New-CursorMcpConfig -EngramBinaryPath 'C:\engram.exe'
+        { $json | ConvertFrom-Json } | Should -Not -Throw
+    }
+
+    It 'includes engram server config under mcpServers' {
+        $json = New-CursorMcpConfig -EngramBinaryPath 'C:\engram.exe'
+        $config = $json | ConvertFrom-Json
+        $config.mcpServers.engram | Should -Not -BeNullOrEmpty
+        $config.mcpServers.engram.command | Should -Be 'C:\engram.exe'
+    }
+
+    It 'includes context7 server config under mcpServers' {
+        $json = New-CursorMcpConfig -EngramBinaryPath 'C:\engram.exe'
+        $config = $json | ConvertFrom-Json
+        $config.mcpServers.context7 | Should -Not -BeNullOrEmpty
+        $config.mcpServers.context7.url | Should -BeLike '*context7*'
+    }
+
+    It 'does not have servers key' {
+        $json = New-CursorMcpConfig -EngramBinaryPath 'C:\engram.exe'
+        $config = $json | ConvertFrom-Json
+        ($config.PSObject.Properties.Name -contains 'servers') | Should -Be $false
     }
 }
 
@@ -364,6 +410,12 @@ Describe 'Get-TemplateDirectory' {
         $dir | Should -BeNullOrEmpty
     }
 
+    It 'returns cursor dir for cursor' {
+        $dir = Get-TemplateDirectory -KitRoot $script:kitRoot -Ide 'cursor'
+        $dir | Should -BeLike '*cursor*'
+        Test-Path $dir | Should -BeTrue
+    }
+
     It 'throws for unsupported IDE' {
         { Get-TemplateDirectory -KitRoot $script:kitRoot -Ide 'vim' } | Should -Throw '*Unsupported IDE*'
     }
@@ -372,6 +424,13 @@ Describe 'Get-TemplateDirectory' {
 Describe 'Get-TemplateFiles' {
     It 'finds .template files for intellij' {
         $dir = Get-TemplateDirectory -KitRoot $script:kitRoot -Ide 'intellij'
+        $files = Get-TemplateFiles -TemplateDir $dir
+        $files | Should -Not -BeNullOrEmpty
+        $files | ForEach-Object { $_.Name | Should -BeLike '*.template' }
+    }
+
+    It 'finds .template files for cursor' {
+        $dir = Get-TemplateDirectory -KitRoot $script:kitRoot -Ide 'cursor'
         $files = Get-TemplateFiles -TemplateDir $dir
         $files | Should -Not -BeNullOrEmpty
         $files | ForEach-Object { $_.Name | Should -BeLike '*.template' }
@@ -437,6 +496,57 @@ Describe 'Install-Templates' {
             $content = Get-Content $mcpFile -Raw
             $content | Should -BeLike '*engram.exe*'
             $content | Should -Not -BeLike '*{{ENGRAM_BINARY_PATH}}*'
+        }
+    }
+}
+
+Describe 'Install-Templates (Cursor)' {
+    BeforeAll {
+        $script:cursorTplTempDir = Join-Path $env:TEMP "team-ai-kit-cursor-tpl-test-$(Get-Random)"
+    }
+
+    AfterAll {
+        if (Test-Path $script:cursorTplTempDir) {
+            Remove-Item -Path $script:cursorTplTempDir -Recurse -Force
+        }
+    }
+
+    It 'expands and copies Cursor templates to target dir' {
+        $tplDir = Get-TemplateDirectory -KitRoot $script:kitRoot -Ide 'cursor'
+        $vars = @{
+            ENGRAM_BINARY_PATH = 'C:/tools/engram.exe'
+        }
+        $created = Install-Templates -TemplateDir $tplDir -TargetDir $script:cursorTplTempDir -Variables $vars
+        $created | Should -Not -BeNullOrEmpty
+    }
+
+    It 'creates files without .template extension' {
+        $created = Get-ChildItem -Path $script:cursorTplTempDir -Recurse -File
+        $created | ForEach-Object { $_.Name | Should -Not -BeLike '*.template' }
+    }
+
+    It 'replaces placeholders in Cursor MCP config' {
+        $mcpFile = Join-Path $script:cursorTplTempDir 'mcp.json'
+        if (Test-Path $mcpFile) {
+            $content = Get-Content $mcpFile -Raw
+            $content | Should -BeLike '*engram.exe*'
+            $content | Should -Not -BeLike '*{{ENGRAM_BINARY_PATH}}*'
+        }
+    }
+
+    It 'generates valid JSON for Cursor MCP config' {
+        $mcpFile = Join-Path $script:cursorTplTempDir 'mcp.json'
+        if (Test-Path $mcpFile) {
+            $content = Get-Content $mcpFile -Raw
+            { $content | ConvertFrom-Json } | Should -Not -Throw
+        }
+    }
+
+    It 'Cursor MCP config uses mcpServers key (Cursor format)' {
+        $mcpFile = Join-Path $script:cursorTplTempDir 'mcp.json'
+        if (Test-Path $mcpFile) {
+            $config = Get-Content $mcpFile -Raw | ConvertFrom-Json
+            $config.mcpServers | Should -Not -BeNullOrEmpty
         }
     }
 }
