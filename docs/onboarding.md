@@ -12,7 +12,7 @@
 |-------------|------|
 | **PowerShell 5.1+** | Incluido en Windows |
 | **Git** | `scoop install git` |
-| **Tu IDE** | VS Code, IntelliJ o OpenCode |
+| **Tu IDE** | VS Code, IntelliJ, Cursor o OpenCode |
 
 > Scoop, gentle-ai y engram los instala el setup si faltan.
 
@@ -23,7 +23,7 @@
 | **Bash 4+** | Incluido |
 | **jq** | `brew install jq` / `apt install jq` |
 | **Git** | Incluido o via package manager |
-| **Tu IDE** | VS Code, IntelliJ o OpenCode |
+| **Tu IDE** | VS Code, IntelliJ, Cursor o OpenCode |
 
 ---
 
@@ -74,11 +74,11 @@ team-ai-kit setup
 ./setup.sh
 ```
 
-Te hace **2 preguntas** (VS Code / IntelliJ) o **3** (OpenCode):
+Te hace **2 preguntas** (VS Code / IntelliJ / Cursor) o **3** (OpenCode):
 
-1. **IDE** -- VS Code + Copilot, IntelliJ + Copilot, u OpenCode
+1. **IDE** -- VS Code + Copilot, IntelliJ + Copilot, Cursor, u OpenCode
 2. **Rol** -- Frontend, Backend Node, DevOps, Python
-3. **Provider** -- Solo si elegiste OpenCode (Copilot IDEs auto-detectan `github-copilot`)
+3. **Provider** -- Solo si elegiste OpenCode (Copilot IDEs y Cursor auto-detectan `github-copilot`)
 
 Despues, automaticamente:
 
@@ -115,7 +115,7 @@ team-ai-kit init
 
 Esto genera:
 - `.team-ai-kit.json` -- config del proyecto (rol, IDE, timestamps)
-- `.github/copilot-instructions.md` (VS Code/IntelliJ) o `AGENTS.md` (OpenCode) -- reglas para el AI
+- `.github/copilot-instructions.md` (VS Code/IntelliJ) o `.cursor/rules/team-ai-kit.md` (Cursor) o `AGENTS.md` (OpenCode) -- reglas para el AI
 - `.engram/` -- directorio nativo de engram sync para compartir conocimiento del proyecto con el equipo (via git hooks)
 
 ### Override de rol por proyecto
@@ -162,6 +162,9 @@ team-ai-kit status
 # Windows: VS Code / IntelliJ
 ls "$env:USERPROFILE\.copilot\skills\team-skills"
 
+# Windows: Cursor
+ls "$env:USERPROFILE\.cursor\skills\team-skills"
+
 # Windows: OpenCode
 ls "$env:USERPROFILE\.config\opencode\skills\team-skills"
 ```
@@ -169,6 +172,9 @@ ls "$env:USERPROFILE\.config\opencode\skills\team-skills"
 ```bash
 # macOS/Linux: VS Code / IntelliJ
 ls ~/.copilot/skills/team-skills/
+
+# macOS/Linux: Cursor
+ls ~/.cursor/skills/team-skills/
 
 # macOS/Linux: OpenCode
 ls ~/.config/opencode/skills/team-skills/
@@ -309,8 +315,8 @@ Verificar que la carpeta exista (ver Paso 3 arriba). Si no, correr:
 team-ai-kit update
 ```
 
-### IntelliJ no detecta MCP servers
+### IntelliJ / Cursor no detecta MCP servers
 
 1. Verificar que el Copilot plugin esta actualizado
-2. La config MCP se muestra durante el setup -- copiarla a la config de MCP de IntelliJ
+2. La config MCP se muestra durante el setup -- copiarla a la config de MCP de IntelliJ/Cursor
 3. Verificar engram: `engram --version`
