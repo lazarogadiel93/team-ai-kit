@@ -156,11 +156,12 @@ cd team-ai-kit
 ## Usar
 
 ```
-team-ai-kit setup     # Primera configuracion (3 preguntas, 2 minutos)
-team-ai-kit init      # Inicializar en el proyecto actual
-team-ai-kit update    # Pull del team repo + merge sin pisar lo tuyo
-team-ai-kit status    # Ver config actual y skills instalados
-team-ai-kit doctor    # Verificar que todo este bien
+team-ai-kit setup          # Primera configuracion (3 preguntas, 2 minutos)
+team-ai-kit init           # Inicializar en el proyecto actual
+team-ai-kit init-knowledge # Crear estructura de un Team Knowledge Repo
+team-ai-kit update         # Pull del team repo + merge sin pisar lo tuyo
+team-ai-kit status         # Ver config actual y skills instalados
+team-ai-kit doctor         # Verificar que todo este bien
 ```
 
 ### Flujo completo
@@ -241,6 +242,10 @@ team-knowledge/              # Repo mantenido por tech leads
 ```
 
 ```powershell
+# Crear el repo del equipo
+mkdir team-knowledge; cd team-knowledge; git init
+team-ai-kit init-knowledge
+
 # Setup con team repo
 team-ai-kit setup -Ide vscode -Role frontend -TeamRepo https://dev.azure.com/equipo/team-knowledge
 

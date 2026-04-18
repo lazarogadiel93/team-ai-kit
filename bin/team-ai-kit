@@ -5,9 +5,10 @@
 #   team-ai-kit <command> [options]
 #
 # Commands:
-#   setup    First-time configuration (IDE, role, team repo)
-#   init     Initialize team-ai-kit in the current project
-#   sync     Manually sync engram memories (export + import)
+#   setup          First-time configuration (IDE, role, team repo)
+#   init           Initialize team-ai-kit in the current project
+#   init-knowledge Scaffold a Team Knowledge Repo in the current directory
+#   sync           Manually sync engram memories (export + import)
 #   update   Pull latest team content + merge without overwriting
 #   status   Show current config and installed skills
 #   doctor   Verify prerequisites and installation health
@@ -81,9 +82,10 @@ show_help() {
     echo -e "  ${C_WHITE}Usage: team-ai-kit <command> [options]${C_RESET}"
     echo ""
     echo -e "  ${C_YELLOW}Commands:${C_RESET}"
-    echo "    setup    First-time configuration (IDE, role, team repo)"
-    echo "    init     Initialize team-ai-kit in the current project"
-    echo "    sync     Manually sync engram memories (export + import)"
+    echo "    setup           First-time configuration (IDE, role, team repo)"
+    echo "    init            Initialize team-ai-kit in the current project"
+    echo "    init-knowledge  Scaffold a Team Knowledge Repo in the current directory"
+    echo "    sync            Manually sync engram memories (export + import)"
     echo "    update   Pull latest team content + merge without overwriting"
     echo "    status   Show current config and installed skills"
     echo "    doctor   Verify prerequisites and installation health"
@@ -571,6 +573,51 @@ cmd_init() {
     echo ""
 }
 
+# -- Init Knowledge (scaffold team knowledge repo) ----------------------------
+cmd_init_knowledge() {
+    show_banner
+    local target_dir
+    target_dir=$(pwd)
+
+    echo -e "  ${C_WHITE}Scaffolding Team Knowledge Repo...${C_RESET}"
+    echo ""
+
+    local result_json
+    result_json=$(initialize_knowledge_repo "$target_dir")
+
+    local created_count
+    created_count=$(echo "$result_json" | jq '.created | length')
+
+    if [[ "$created_count" -eq 0 ]]; then
+        warn "All directories already exist. Nothing to create."
+    else
+        local dirs
+        dirs=$(echo "$result_json" | jq -r '.created[]')
+        while IFS= read -r dir; do
+            [[ -z "$dir" ]] && continue
+            ok "Created: $dir"
+        done <<< "$dirs"
+    fi
+
+    echo ""
+    ok "Team Knowledge Repo ready!"
+    echo ""
+    echo -e "  ${C_YELLOW}Structure:${C_RESET}"
+    echo "    skills/shared/    Skills for ALL roles"
+    echo "    skills/roles/     Role-specific skills"
+    echo "    rules/            Cross-project rules"
+    echo ""
+    echo -e "  ${C_YELLOW}Next steps:${C_RESET}"
+    echo -e "    ${C_WHITE}1. Add skills to skills/shared/ or skills/roles/<role>/${C_RESET}"
+    echo -e "    ${C_WHITE}2. Add rules to rules/${C_RESET}"
+    echo -e "    ${C_WHITE}3. git init && git add . && git commit && git push${C_RESET}"
+    echo -e "    ${C_WHITE}4. Share the repo URL with your team:${C_RESET}"
+    echo -e "    ${C_DIM}   team-ai-kit setup --team-repo <url>${C_RESET}"
+    echo ""
+    echo -e "  ${C_DIM}Docs: https://github.com/lazarogadiel93/team-ai-kit/blob/master/docs/team-knowledge-repo.md${C_RESET}"
+    echo ""
+}
+
 # -- Sync (manual engram sync) -------------------------------------------------
 cmd_sync() {
     show_banner
@@ -905,9 +952,10 @@ fi
 
 # -- Route subcommand ----------------------------------------------------------
 case "$(_lowercase "$COMMAND")" in
-    setup)  cmd_setup ;;
-    init)   cmd_init ;;
-    sync)   cmd_sync ;;
+    setup)           cmd_setup ;;
+    init)            cmd_init ;;
+    init-knowledge)  cmd_init_knowledge ;;
+    sync)            cmd_sync ;;
     update) cmd_update ;;
     status) cmd_status ;;
     doctor) cmd_doctor ;;

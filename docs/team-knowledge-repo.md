@@ -45,19 +45,30 @@ team-knowledge/
 
 ## Como funciona
 
-### 1. Tech Lead configura el repo
+### 1. Tech Lead crea el repo
 
-Crea el repo y agrega los skills y reglas que reflejan las convenciones del equipo:
+Crea el repo y usa `init-knowledge` para generar la estructura:
 
 ```bash
 # Crear el repo
 mkdir team-knowledge && cd team-knowledge
 git init
-mkdir -p skills/shared skills/roles rules
 
-# Crear un skill compartido
-mkdir skills/shared/logging
+# Generar la estructura
+team-ai-kit init-knowledge
 ```
+
+Esto crea automaticamente:
+
+```
+team-knowledge/
+├── skills/
+│   ├── shared/
+│   └── roles/
+└── rules/
+```
+
+Ahora agrega el primer skill:
 
 ```markdown
 # skills/shared/logging/SKILL.md
