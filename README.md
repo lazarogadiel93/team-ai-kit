@@ -336,6 +336,7 @@ Explicacion y ejemplos.
 |-----|-----------|-----|-------|
 | **VS Code + Copilot** | Nativo | Via gentle-ai | Full support |
 | **IntelliJ + Copilot** | No | Via template MCP | Config MCP manual |
+| **Cursor** | No | Via template MCP | Config MCP manual |
 | **OpenCode (CLI)** | Nativo | Via gentle-ai | Full support |
 
 ---
@@ -380,7 +381,7 @@ team-ai-kit/
 │   ├── shared/                    5 skills compartidos
 │   └── roles/                     2 skills por rol
 ├── packs/                         Reglas por rol
-├── templates/                     Solo IntelliJ (MCP config)
+├── templates/                     IntelliJ y Cursor (MCP config)
 ├── tests/
 │   ├── functions.Tests.ps1        135 unit tests (Pester)
 │   ├── skills.Tests.ps1           19 validation tests (Pester)

@@ -179,7 +179,7 @@ Si. Las observaciones con scope `personal` no se exportan al repo. Solo quedan e
 
 ### ¿Esto funciona con cualquier AI/IDE?
 
-engram funciona con cualquier IDE que soporte team-ai-kit: VS Code + Copilot, IntelliJ + Copilot, OpenCode (CLI).
+engram funciona con cualquier IDE que soporte team-ai-kit: VS Code + Copilot, IntelliJ + Copilot, Cursor, OpenCode (CLI).
 
 ---
 
