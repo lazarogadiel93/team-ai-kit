@@ -11,7 +11,7 @@ set -euo pipefail
 VALID_IDES=("vscode" "intellij" "opencode" "cursor")
 VALID_ROLES=("frontend" "backend-node" "devops" "python")
 VALID_PROVIDERS=("openai" "azure-openai" "anthropic" "github-copilot")
-VALID_COMMANDS=("setup" "init" "sync" "update" "status" "doctor" "help")
+VALID_COMMANDS=("setup" "init" "init-knowledge" "sync" "update" "status" "doctor" "help")
 
 # -- Helpers -------------------------------------------------------------------
 
@@ -1028,6 +1028,27 @@ install_templates() {
         printf '%s' "$content" > "$dest_path"
         echo "$dest_path"
     done < <(get_template_files "$template_dir")
+}
+
+# -- Knowledge Repo ------------------------------------------------------------
+
+initialize_knowledge_repo() {
+    local target_dir="$1"
+    local dirs=("skills/shared" "skills/roles" "rules")
+    local created=()
+
+    for dir in "${dirs[@]}"; do
+        local full_path="$target_dir/$dir"
+        if [[ ! -d "$full_path" ]]; then
+            mkdir -p "$full_path"
+            created+=("$dir")
+        fi
+    done
+
+    local created_json
+    created_json=$(printf '%s\n' "${created[@]}" | jq -R . | jq -sc '.')
+    jq -n --argjson created "$created_json" --arg path "$target_dir" \
+        '{created: $created, path: $path}'
 }
 
 # -- Summary -------------------------------------------------------------------

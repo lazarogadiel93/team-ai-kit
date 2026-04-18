@@ -1568,3 +1568,41 @@ Describe 'Install-SkillsWithMerge' {
         }
     }
 }
+
+# ── Initialize-KnowledgeRepo ─────────────────────────────────────────────────
+
+Describe 'Initialize-KnowledgeRepo' {
+    It 'creates skills/shared, skills/roles, and rules directories' {
+        $tempDir = Join-Path $env:TEMP "team-ai-kit-knowledge-$(Get-Random)"
+        try {
+            New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
+            $result = Initialize-KnowledgeRepo -TargetDir $tempDir
+            $result.created.Count | Should -Be 3
+            Test-Path (Join-Path $tempDir 'skills/shared') | Should -BeTrue
+            Test-Path (Join-Path $tempDir 'skills/roles') | Should -BeTrue
+            Test-Path (Join-Path $tempDir 'rules') | Should -BeTrue
+        }
+        finally {
+            Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    It 'is idempotent -- reports nothing created on second run' {
+        $tempDir = Join-Path $env:TEMP "team-ai-kit-knowledge-$(Get-Random)"
+        try {
+            New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
+            Initialize-KnowledgeRepo -TargetDir $tempDir | Out-Null
+            $result = Initialize-KnowledgeRepo -TargetDir $tempDir
+            $result.created.Count | Should -Be 0
+        }
+        finally {
+            Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+Describe 'Test-ValidCommand includes init-knowledge' {
+    It 'accepts init-knowledge as valid command' {
+        Test-ValidCommand -Command 'init-knowledge' | Should -BeTrue
+    }
+}

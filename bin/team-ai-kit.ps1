@@ -8,13 +8,14 @@
     and configuration on top.
 
     Subcommands:
-      setup   - First-time configuration (interactive or non-interactive)
-      init    - Initialize team-ai-kit in the current project directory
-      sync    - Manually sync engram memories (export + import)
-      update  - Pull latest team content and merge without overwriting
-      status  - Show current configuration and installed skills
-      doctor  - Verify prerequisites and installation health
-      help    - Show this help message
+      setup          - First-time configuration (interactive or non-interactive)
+      init           - Initialize team-ai-kit in the current project directory
+      init-knowledge - Scaffold a Team Knowledge Repo in the current directory
+      sync           - Manually sync engram memories (export + import)
+      update         - Pull latest team content and merge without overwriting
+      status         - Show current configuration and installed skills
+      doctor         - Verify prerequisites and installation health
+      help           - Show this help message
 .EXAMPLE
     team-ai-kit setup
     Interactive setup -- prompts for IDE and role.
@@ -27,6 +28,9 @@
 .EXAMPLE
     team-ai-kit setup -Ide vscode -Role frontend -TeamRepo https://dev.azure.com/equipo/team-knowledge
     Setup with team content repo (skills and rules shared across projects).
+.EXAMPLE
+    team-ai-kit init-knowledge
+    Scaffold a Team Knowledge Repo in the current directory.
 .EXAMPLE
     team-ai-kit init
     Initialize team-ai-kit in the current project (uses global role).
@@ -100,9 +104,10 @@ function Show-Help {
     Write-Host '  Usage: team-ai-kit <command> [options]' -ForegroundColor White
     Write-Host ''
     Write-Host '  Commands:' -ForegroundColor Yellow
-    Write-Host '    setup    First-time configuration (IDE, role, team repo)'
-    Write-Host '    init     Initialize team-ai-kit in the current project'
-    Write-Host '    sync     Manually sync engram memories (export + import)'
+    Write-Host '    setup           First-time configuration (IDE, role, team repo)'
+    Write-Host '    init            Initialize team-ai-kit in the current project'
+    Write-Host '    init-knowledge  Scaffold a Team Knowledge Repo in the current directory'
+    Write-Host '    sync            Manually sync engram memories (export + import)'
     Write-Host '    update   Pull latest team content + merge without overwriting'
     Write-Host '    status   Show current config and installed skills'
     Write-Host '    doctor   Verify prerequisites and installation health'
@@ -605,6 +610,44 @@ function Invoke-InitCommand {
     Write-Host ''
 }
 
+# -- Init Knowledge (scaffold team knowledge repo) ----------------------------
+function Invoke-InitKnowledgeCommand {
+    Show-Banner
+    $targetDir = (Get-Location).Path
+
+    Write-Host '  Scaffolding Team Knowledge Repo...' -ForegroundColor White
+    Write-Host ''
+
+    $result = Initialize-KnowledgeRepo -TargetDir $targetDir
+
+    if ($result.created.Count -eq 0) {
+        Write-Warn 'All directories already exist. Nothing to create.'
+    }
+    else {
+        foreach ($dir in $result.created) {
+            Write-Ok "Created: $dir"
+        }
+    }
+
+    Write-Host ''
+    Write-Ok 'Team Knowledge Repo ready!'
+    Write-Host ''
+    Write-Host '  Structure:' -ForegroundColor Yellow
+    Write-Host '    skills/shared/    Skills for ALL roles'
+    Write-Host '    skills/roles/     Role-specific skills'
+    Write-Host '    rules/            Cross-project rules'
+    Write-Host ''
+    Write-Host '  Next steps:' -ForegroundColor Yellow
+    Write-Host '    1. Add skills to skills/shared/ or skills/roles/<role>/' -ForegroundColor White
+    Write-Host '    2. Add rules to rules/' -ForegroundColor White
+    Write-Host '    3. git init && git add . && git commit && git push' -ForegroundColor White
+    Write-Host '    4. Share the repo URL with your team:' -ForegroundColor White
+    Write-Host '       team-ai-kit setup -TeamRepo <url>' -ForegroundColor DarkGray
+    Write-Host ''
+    Write-Host '  Docs: https://github.com/lazarogadiel93/team-ai-kit/blob/master/docs/team-knowledge-repo.md' -ForegroundColor DarkGray
+    Write-Host ''
+}
+
 # -- Sync (manual engram sync) -------------------------------------------------
 function Invoke-SyncCommand {
     Show-Banner
@@ -864,9 +907,10 @@ function Invoke-DoctorCommand {
 
 # -- Route subcommand ----------------------------------------------------------
 switch ($Command.ToLower()) {
-    'setup'  { Invoke-SetupCommand }
-    'init'   { Invoke-InitCommand }
-    'sync'   { Invoke-SyncCommand }
+    'setup'          { Invoke-SetupCommand }
+    'init'           { Invoke-InitCommand }
+    'init-knowledge' { Invoke-InitKnowledgeCommand }
+    'sync'           { Invoke-SyncCommand }
     'update' { Invoke-UpdateCommand }
     'status' { Invoke-StatusCommand }
     'doctor' { Invoke-DoctorCommand }

@@ -13,7 +13,7 @@ Set-StrictMode -Version Latest
 $script:VALID_IDES = @('vscode', 'intellij', 'opencode', 'cursor')
 $script:VALID_ROLES = @('frontend', 'backend-node', 'devops', 'python')
 $script:VALID_PROVIDERS = @('openai', 'azure-openai', 'anthropic', 'github-copilot')
-$script:VALID_COMMANDS = @('setup', 'init', 'sync', 'update', 'status', 'doctor', 'help')
+$script:VALID_COMMANDS = @('setup', 'init', 'init-knowledge', 'sync', 'update', 'status', 'doctor', 'help')
 
 # ── Config Persistence ───────────────────────────────────────────────────────
 
@@ -1480,6 +1480,44 @@ function Install-Templates {
     }
 
     return $created
+}
+
+# ── Knowledge Repo ────────────────────────────────────────────────────────────
+
+function Initialize-KnowledgeRepo {
+    <#
+    .SYNOPSIS
+        Scaffolds the directory structure for a Team Knowledge Repo.
+    .DESCRIPTION
+        Creates skills/shared, skills/roles, and rules directories
+        in the specified target directory.
+    .OUTPUTS
+        Hashtable with 'created' (array of created dirs) and 'path' (root).
+    #>
+    param(
+        [Parameter(Mandatory)]
+        [string]$TargetDir
+    )
+
+    $dirs = @(
+        'skills/shared',
+        'skills/roles',
+        'rules'
+    )
+
+    $created = @()
+    foreach ($dir in $dirs) {
+        $fullPath = Join-Path $TargetDir $dir
+        if (-not (Test-Path $fullPath)) {
+            New-Item -ItemType Directory -Path $fullPath -Force | Out-Null
+            $created += $dir
+        }
+    }
+
+    return @{
+        created = $created
+        path    = $TargetDir
+    }
 }
 
 # ── Summary ───────────────────────────────────────────────────────────────────
