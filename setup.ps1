@@ -16,7 +16,7 @@
 #>
 
 param(
-    [ValidateSet('vscode', 'intellij', 'opencode')]
+    [ValidateSet('vscode', 'intellij', 'opencode', 'cursor')]
     [string]$Ide,
 
     [ValidateSet('frontend', 'backend-node', 'devops', 'python')]

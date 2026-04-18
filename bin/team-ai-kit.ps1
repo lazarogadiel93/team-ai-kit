@@ -48,7 +48,7 @@ param(
     [Parameter(Position = 0)]
     [string]$Command = 'help',
 
-    [ValidateSet('vscode', 'intellij', 'opencode')]
+    [ValidateSet('vscode', 'intellij', 'opencode', 'cursor')]
     [string]$Ide,
 
     [ValidateSet('frontend', 'backend-node', 'devops', 'python')]
@@ -109,7 +109,7 @@ function Show-Help {
     Write-Host '    help     Show this help message'
     Write-Host ''
     Write-Host '  Setup options:' -ForegroundColor Yellow
-    Write-Host '    -Ide <vscode|intellij|opencode>'
+    Write-Host '    -Ide <vscode|intellij|opencode|cursor>'
     Write-Host '    -Role <frontend|backend-node|devops|python>'
     Write-Host '    -Provider <openai|azure-openai|anthropic|github-copilot>'
     Write-Host '    -TeamRepo <url>          Team content repo URL'
@@ -235,16 +235,18 @@ function Invoke-SetupCommand {
         Write-Host '    1) VS Code + Copilot'
         Write-Host '    2) IntelliJ + Copilot'
         Write-Host '    3) OpenCode (CLI)'
+        Write-Host '    4) Cursor'
         Write-Host ''
 
         do {
-            $ideChoice = Read-Host '  Your IDE (1-3)'
-        } while ($ideChoice -notin @('1', '2', '3'))
+            $ideChoice = Read-Host '  Your IDE (1-4)'
+        } while ($ideChoice -notin @('1', '2', '3', '4'))
 
         $script:Ide = switch ($ideChoice) {
             '1' { 'vscode' }
             '2' { 'intellij' }
             '3' { 'opencode' }
+            '4' { 'cursor' }
         }
     }
 
@@ -277,7 +279,7 @@ function Invoke-SetupCommand {
 
     # Provider: auto-detect for Copilot IDEs, ask only for OpenCode
     if (-not $Provider) {
-        if ($Ide -eq 'vscode' -or $Ide -eq 'intellij') {
+        if ($Ide -eq 'vscode' -or $Ide -eq 'intellij' -or $Ide -eq 'cursor') {
             $script:Provider = 'github-copilot'
             Write-Ok "Provider: $Provider (auto-detected from IDE)"
         }
@@ -337,8 +339,9 @@ function Invoke-SetupCommand {
         Write-Step 'Skipping gentle-ai install (SkipGentleAi flag)'
     }
     else {
-        # IntelliJ: no gentle-ai adapter
-        Write-Step 'IntelliJ + Copilot: no gentle-ai adapter available'
+        # IntelliJ/Cursor: no gentle-ai adapter
+        $ideName = if ($Ide -eq 'cursor') { 'Cursor' } else { 'IntelliJ + Copilot' }
+        Write-Step "$ideName`: no gentle-ai adapter available"
         Write-Step 'Setting up MCP config from template...'
 
         $templateDir = Get-TemplateDirectory -KitRoot $kitRoot -Ide $Ide
@@ -351,14 +354,22 @@ function Invoke-SetupCommand {
             $templateTargetDir = if ($TargetDir) { Join-Path $TargetDir 'ide-config' } else { $null }
             if ($templateTargetDir) {
                 $createdTemplates = @(Install-Templates -TemplateDir $templateDir -TargetDir $templateTargetDir -Variables $templateVars)
-                Write-Ok "$($createdTemplates.Count) IntelliJ config files generated"
+                Write-Ok "$($createdTemplates.Count) $ideName config files generated"
             }
             else {
                 # Show MCP config for manual setup
                 $engramPath = if ($engramBin) { $engramBin } else { '(path-to-engram)' }
-                $mcpJson = New-VsCodeMcpConfig -EngramBinaryPath $engramPath
-                Write-Ok 'MCP config generated for IntelliJ'
-                Write-Step 'Add this to your IntelliJ MCP settings:'
+                if ($Ide -eq 'cursor') {
+                    $mcpJson = New-CursorMcpConfig -EngramBinaryPath $engramPath
+                }
+                elseif ($Ide -eq 'intellij') {
+                    $mcpJson = New-IntelliJMcpConfig -EngramBinaryPath $engramPath
+                }
+                else {
+                    $mcpJson = New-VsCodeMcpConfig -EngramBinaryPath $engramPath
+                }
+                Write-Ok "MCP config generated for $ideName"
+                Write-Step "Add this to your $ideName MCP settings:"
                 Write-Host ''
                 Write-Host $mcpJson -ForegroundColor DarkGray
                 Write-Host ''
@@ -444,11 +455,11 @@ function Invoke-SetupCommand {
         Write-Host '       (configures instructions, engram sync, and git hooks for the project)' -ForegroundColor DarkGray
         Write-Host '    2. Open your IDE and start working!' -ForegroundColor White
     }
-    elseif ($Ide -eq 'intellij') {
-        Write-Host '    1. Add the MCP config shown above to IntelliJ settings' -ForegroundColor White
+    elseif ($Ide -eq 'intellij' -or $Ide -eq 'cursor') {
+        Write-Host '    1. Add the MCP config shown above to your IDE settings' -ForegroundColor White
         Write-Host '    2. Go to your project and run: team-ai-kit init' -ForegroundColor White
         Write-Host '       (configures instructions, engram sync, and git hooks for the project)' -ForegroundColor DarkGray
-        Write-Host '    3. Open IntelliJ and start working!' -ForegroundColor White
+        Write-Host '    3. Open your IDE and start working!' -ForegroundColor White
     }
     else {
         Write-Host '    1. Run gentle-ai to complete agent configuration' -ForegroundColor White

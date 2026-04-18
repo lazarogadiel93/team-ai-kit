@@ -8,7 +8,7 @@ set -euo pipefail
 
 # -- Constants -----------------------------------------------------------------
 
-VALID_IDES=("vscode" "intellij" "opencode")
+VALID_IDES=("vscode" "intellij" "opencode" "cursor")
 VALID_ROLES=("frontend" "backend-node" "devops" "python")
 VALID_PROVIDERS=("openai" "azure-openai" "anthropic" "github-copilot")
 VALID_COMMANDS=("setup" "init" "sync" "update" "status" "doctor" "help")
@@ -640,6 +640,7 @@ get_ide_skills_directory() {
         vscode)   echo "$HOME/.copilot/skills" ;;
         intellij) echo "$HOME/.copilot/skills" ;;
         opencode) echo "$HOME/.config/opencode/skills" ;;
+        cursor)   echo "$HOME/.cursor/skills" ;;
         *)        echo "ERROR: Unsupported IDE: $1" >&2; return 1 ;;
     esac
 }
@@ -651,6 +652,7 @@ get_ide_instructions_path() {
         vscode)   echo "$project_root/.github/copilot-instructions.md" ;;
         intellij) echo "$project_root/.github/copilot-instructions.md" ;;
         opencode) echo "$project_root/AGENTS.md" ;;
+        cursor)   echo "$project_root/.cursor/rules/team-ai-kit.md" ;;
         *)        echo "ERROR: Unsupported IDE: $1" >&2; return 1 ;;
     esac
 }
@@ -930,6 +932,21 @@ new_vscode_mcp_config() {
     }'
 }
 
+new_cursor_mcp_config() {
+    local engram_path="$1"
+    jq -n --arg engram "$engram_path" '{
+        mcpServers: {
+            engram: {
+                command: $engram,
+                args: ["mcp", "--tools=agent"]
+            },
+            context7: {
+                url: "https://mcp.context7.com/mcp"
+            }
+        }
+    }'
+}
+
 # -- Instructions Generation ---------------------------------------------------
 
 new_copilot_instructions() {
@@ -968,6 +985,7 @@ get_template_directory() {
         vscode)   dir_name="vscode-copilot" ;;
         intellij) dir_name="intellij-copilot" ;;
         opencode) dir_name="opencode" ;;
+        cursor)   dir_name="cursor" ;;
         *)        echo "ERROR: Unsupported IDE: $2" >&2; return 1 ;;
     esac
     local template_dir="$kit_root/templates/$dir_name"

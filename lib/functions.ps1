@@ -10,7 +10,7 @@ Set-StrictMode -Version Latest
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 
-$script:VALID_IDES = @('vscode', 'intellij', 'opencode')
+$script:VALID_IDES = @('vscode', 'intellij', 'opencode', 'cursor')
 $script:VALID_ROLES = @('frontend', 'backend-node', 'devops', 'python')
 $script:VALID_PROVIDERS = @('openai', 'azure-openai', 'anthropic', 'github-copilot')
 $script:VALID_COMMANDS = @('setup', 'init', 'sync', 'update', 'status', 'doctor', 'help')
@@ -872,6 +872,10 @@ function Get-IdeSkillsDirectory {
             # OpenCode: gentle-ai installs skills here
             return Join-Path $env:USERPROFILE '.config\opencode\skills'
         }
+        'cursor' {
+            # Cursor: user-level skills directory
+            return Join-Path $env:USERPROFILE '.cursor\skills'
+        }
         default {
             throw "Unsupported IDE: $Ide"
         }
@@ -898,6 +902,9 @@ function Get-IdeInstructionsPath {
         }
         'opencode' {
             return Join-Path $ProjectRoot 'AGENTS.md'
+        }
+        'cursor' {
+            return Join-Path $ProjectRoot '.cursor\rules\team-ai-kit.md'
         }
         default {
             throw "Unsupported IDE: $Ide"
@@ -1318,6 +1325,30 @@ function New-IntelliJMcpConfig {
     return New-VsCodeMcpConfig -EngramBinaryPath $EngramBinaryPath
 }
 
+function New-CursorMcpConfig {
+    <#
+    .SYNOPSIS
+        Generates the MCP config JSON for Cursor (.cursor/mcp.json).
+        Cursor requires mcpServers as the top-level key (not servers).
+    #>
+    param(
+        [Parameter(Mandatory)]
+        [string]$EngramBinaryPath
+    )
+    $config = @{
+        mcpServers = @{
+            engram = @{
+                command = $EngramBinaryPath
+                args    = @('mcp', '--tools=agent')
+            }
+            context7 = @{
+                url = 'https://mcp.context7.com/mcp'
+            }
+        }
+    }
+    return $config | ConvertTo-Json -Depth 5
+}
+
 # ── Instructions Generation ───────────────────────────────────────────────────
 
 function New-CopilotInstructions {
@@ -1371,6 +1402,7 @@ function Get-TemplateDirectory {
         'vscode'   = 'vscode-copilot'
         'intellij' = 'intellij-copilot'
         'opencode' = 'opencode'
+        'cursor'   = 'cursor'
     }
     $dirName = $ideDirMap[$Ide.ToLower()]
     if (-not $dirName) { throw "Unsupported IDE: $Ide" }
