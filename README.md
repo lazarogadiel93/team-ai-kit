@@ -185,6 +185,10 @@ team-ai-kit init
 # 3. Si el proyecto usa otro rol
 cd mi-api-backend
 team-ai-kit init --role backend-node   # override sin cambiar el global
+
+# 4. Si el proyecto usa un team repo distinto al global
+cd mi-otro-proyecto
+team-ai-kit init --team-repo https://github.com/otro-equipo/knowledge
 ```
 
 ### Setup no interactivo
@@ -254,10 +258,14 @@ team-knowledge/              # Repo mantenido por tech leads
 mkdir team-knowledge; cd team-knowledge; git init
 team-ai-kit init-knowledge
 
-# Setup con team repo
+# Setup con team repo (global default)
 team-ai-kit setup -Ide vscode -Role frontend -TeamRepo https://dev.azure.com/equipo/team-knowledge
 
-# Actualizar cuando el equipo publique cambios
+# O per-project (si trabajas en equipos distintos)
+cd mi-proyecto
+team-ai-kit init --team-repo https://github.com/otro-equipo/knowledge
+
+# Actualizar cuando el equipo publique cambios (skills + reglas en instructions)
 team-ai-kit update
 ```
 

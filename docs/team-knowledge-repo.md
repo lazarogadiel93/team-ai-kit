@@ -12,6 +12,8 @@ El Team Knowledge Repo es un repo Git (GitHub, Azure DevOps, GitLab -- cualquier
 
 Cuando un dev corre `team-ai-kit setup` y apunta a este repo, los skills y reglas se descargan e inyectan en su AI. Cuando el Tech Lead actualiza algo, los devs corren `team-ai-kit update` y reciben los cambios.
 
+**Per-project support:** Si un dev trabaja en proyectos de equipos distintos, cada proyecto puede tener su propio team repo. Se configura con `--team-repo` en `init` o `setup`, y se guarda en el `.team-ai-kit.json` del proyecto.
+
 ---
 
 ## Estructura
@@ -39,7 +41,7 @@ team-knowledge/
 
 **`skills/roles/<rol>/`** -- Skills que solo recibe un rol especifico. Ejemplo: el frontend recibe `design-system.skill.md`, devops recibe `azure-pipelines.skill.md`.
 
-**`rules/`** -- Reglas generales del equipo que se inyectan como instrucciones del AI.
+**`rules/`** -- Reglas generales del equipo que se inyectan automaticamente en las instrucciones del proyecto (el archivo `copilot-instructions.md` o equivalente). Se envuelven en marcadores `<!-- team-ai-kit:team-rules -->` para poder actualizarse sin tocar el resto del archivo.
 
 ---
 
@@ -123,20 +125,29 @@ logger.info({ userId: user.id, hasToken: !!token }, 'Auth attempt')
 ### 2. Dev hace setup con el repo
 
 ```powershell
-# Windows
+# Windows -- setup global
 team-ai-kit setup -Ide vscode -Role frontend -TeamRepo https://dev.azure.com/equipo/team-knowledge
 ```
 
 ```bash
-# macOS / Linux
+# macOS / Linux -- setup global
 team-ai-kit setup --ide vscode --role frontend --team-repo https://github.com/equipo/team-knowledge
+```
+
+O si el dev ya hizo setup y quiere un team repo **solo para este proyecto**:
+
+```bash
+# Per-project team repo (init)
+team-ai-kit init --team-repo https://github.com/otro-equipo/knowledge
 ```
 
 Los skills y reglas del team repo se descargan e inyectan. El dev recibe:
 - Skills compartidos del team repo (logging, error-handling, etc.)
 - Skills de su rol especifico (design-system para frontend)
-- Reglas cross-proyecto
+- Reglas cross-proyecto inyectadas en las instrucciones del AI
 - Todo esto **ademas** de los skills base de team-ai-kit
+
+**Nota:** Cada URL de team repo se clona en una ubicacion unica (`~/.team-ai-kit/team-content/<hash>/`), asi que diferentes proyectos con diferentes team repos no se pisan.
 
 ### 3. Updates sin romper nada
 
@@ -150,6 +161,7 @@ El update:
 1. Hace pull del team repo
 2. Detecta skills nuevos o actualizados
 3. Los instala respetando las customizaciones locales del dev
+4. **Actualiza automaticamente las reglas** en las instrucciones del proyecto (si el proyecto esta inicializado)
 
 ### 4. Nuevo integrante = 2 minutos
 

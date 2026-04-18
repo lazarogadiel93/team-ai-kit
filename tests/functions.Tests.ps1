@@ -389,6 +389,28 @@ Describe 'New-CopilotInstructions' {
         $instructions | Should -Not -BeNullOrEmpty
         $instructions | Should -BeLike '*devops*'
     }
+
+    It 'wraps team rules in markers when TeamRulesContent provided' {
+        $teamRules = "## Architecture`nUse hexagonal architecture"
+        $instructions = New-CopilotInstructions -Role 'frontend' -TeamRulesContent $teamRules
+        $instructions | Should -BeLike '*<!-- team-ai-kit:team-rules -->*'
+        $instructions | Should -BeLike '*<!-- /team-ai-kit:team-rules -->*'
+        $instructions | Should -BeLike '*hexagonal architecture*'
+    }
+
+    It 'includes both pack rules and team rules' {
+        $packRules = "## Pack Rules`nRule 1"
+        $teamRules = "## Team Rules`nRule 2"
+        $instructions = New-CopilotInstructions -Role 'frontend' -PackRulesContent $packRules -TeamRulesContent $teamRules
+        $instructions | Should -BeLike '*Pack Rules*'
+        $instructions | Should -BeLike '*Team Rules*'
+        $instructions | Should -BeLike '*<!-- team-ai-kit:team-rules -->*'
+    }
+
+    It 'does not include markers when TeamRulesContent is empty' {
+        $instructions = New-CopilotInstructions -Role 'frontend'
+        $instructions | Should -Not -BeLike '*team-ai-kit:team-rules*'
+    }
 }
 
 # -- Template Engine -----------------------------------------------------------
@@ -829,6 +851,140 @@ Describe 'Get-TeamRepoSkillPaths' {
             $env:USERPROFILE = $originalProfile
             if (Test-Path $tempProfile) { Remove-Item -Recurse -Force $tempProfile -ErrorAction SilentlyContinue }
         }
+    }
+}
+
+Describe 'Get-TeamRepoRulesContent' {
+    It 'returns empty string when team repo not cloned' {
+        $originalProfile = $env:USERPROFILE
+        $env:USERPROFILE = Join-Path $env:TEMP "team-ai-kit-rules-$(Get-Random)"
+        try {
+            $content = Get-TeamRepoRulesContent
+            $content | Should -BeNullOrEmpty
+        }
+        finally {
+            $env:USERPROFILE = $originalProfile
+        }
+    }
+
+    It 'reads and concatenates rules/*.md files' {
+        $originalProfile = $env:USERPROFILE
+        $tempProfile = Join-Path $env:TEMP "team-ai-kit-rules2-$(Get-Random)"
+        $env:USERPROFILE = $tempProfile
+        try {
+            $teamContent = Get-TeamRepoLocalPath
+            $rulesDir = Join-Path $teamContent 'rules'
+            New-Item -ItemType Directory -Path $rulesDir -Force | Out-Null
+            Set-Content -Path (Join-Path $rulesDir 'architecture.md') -Value '# Architecture Rules'
+            Set-Content -Path (Join-Path $rulesDir 'testing.md') -Value '# Testing Rules'
+
+            $content = Get-TeamRepoRulesContent
+            $content | Should -BeLike '*Architecture Rules*'
+            $content | Should -BeLike '*Testing Rules*'
+        }
+        finally {
+            $env:USERPROFILE = $originalProfile
+            if (Test-Path $tempProfile) { Remove-Item -Recurse -Force $tempProfile -ErrorAction SilentlyContinue }
+        }
+    }
+
+    It 'accepts -RepoUrl for per-project path' {
+        $originalProfile = $env:USERPROFILE
+        $tempProfile = Join-Path $env:TEMP "team-ai-kit-rules3-$(Get-Random)"
+        $env:USERPROFILE = $tempProfile
+        try {
+            $teamContent = Get-TeamRepoLocalPath -RepoUrl 'https://github.com/team/knowledge'
+            $rulesDir = Join-Path $teamContent 'rules'
+            New-Item -ItemType Directory -Path $rulesDir -Force | Out-Null
+            Set-Content -Path (Join-Path $rulesDir 'api.md') -Value '# API Rules'
+
+            $content = Get-TeamRepoRulesContent -RepoUrl 'https://github.com/team/knowledge'
+            $content | Should -BeLike '*API Rules*'
+        }
+        finally {
+            $env:USERPROFILE = $originalProfile
+            if (Test-Path $tempProfile) { Remove-Item -Recurse -Force $tempProfile -ErrorAction SilentlyContinue }
+        }
+    }
+}
+
+Describe 'Update-InstructionsTeamRules' {
+    It 'returns $false when file does not exist' {
+        $result = Update-InstructionsTeamRules -FilePath 'C:\nonexistent\file.md' -TeamRulesContent '# Rules'
+        $result | Should -BeFalse
+    }
+
+    It 'appends markers when they do not exist' {
+        $tempFile = Join-Path $env:TEMP "instructions-$(Get-Random).md"
+        try {
+            Set-Content -Path $tempFile -Value '# Existing content'
+            $result = Update-InstructionsTeamRules -FilePath $tempFile -TeamRulesContent '# New Rules'
+            $result | Should -BeTrue
+            $content = Get-Content -Path $tempFile -Raw
+            $content | Should -BeLike '*<!-- team-ai-kit:team-rules -->*'
+            $content | Should -BeLike '*# New Rules*'
+            $content | Should -BeLike '*<!-- /team-ai-kit:team-rules -->*'
+        }
+        finally {
+            Remove-Item -Path $tempFile -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    It 'replaces content between existing markers' {
+        $tempFile = Join-Path $env:TEMP "instructions-$(Get-Random).md"
+        try {
+            $initial = @"
+# Header
+<!-- team-ai-kit:team-rules -->
+# Old Rules
+<!-- /team-ai-kit:team-rules -->
+# Footer
+"@
+            Set-Content -Path $tempFile -Value $initial
+            $result = Update-InstructionsTeamRules -FilePath $tempFile -TeamRulesContent '# Updated Rules'
+            $result | Should -BeTrue
+            $content = Get-Content -Path $tempFile -Raw
+            $content | Should -BeLike '*Updated Rules*'
+            $content | Should -Not -BeLike '*Old Rules*'
+            $content | Should -BeLike '*# Header*'
+            $content | Should -BeLike '*# Footer*'
+        }
+        finally {
+            Remove-Item -Path $tempFile -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    It 'returns $false when content is unchanged' {
+        $tempFile = Join-Path $env:TEMP "instructions-$(Get-Random).md"
+        try {
+            $rules = '# Same Rules'
+            $initial = "# Header`n`n<!-- team-ai-kit:team-rules -->`n$rules`n<!-- /team-ai-kit:team-rules -->"
+            Set-Content -Path $tempFile -Value $initial
+            $result = Update-InstructionsTeamRules -FilePath $tempFile -TeamRulesContent $rules
+            $result | Should -BeFalse
+        }
+        finally {
+            Remove-Item -Path $tempFile -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+Describe 'Get-TeamRepoLocalPath with -RepoUrl' {
+    It 'returns different paths for different URLs' {
+        $path1 = Get-TeamRepoLocalPath -RepoUrl 'https://github.com/team-a/knowledge'
+        $path2 = Get-TeamRepoLocalPath -RepoUrl 'https://github.com/team-b/knowledge'
+        $path1 | Should -Not -Be $path2
+    }
+
+    It 'returns same path for same URL' {
+        $path1 = Get-TeamRepoLocalPath -RepoUrl 'https://github.com/team/knowledge'
+        $path2 = Get-TeamRepoLocalPath -RepoUrl 'https://github.com/team/knowledge'
+        $path1 | Should -Be $path2
+    }
+
+    It 'falls back to default team-content when no URL' {
+        $path = Get-TeamRepoLocalPath
+        $path | Should -BeLike '*team-content'
     }
 }
 
