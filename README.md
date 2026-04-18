@@ -99,6 +99,9 @@ Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
 scoop bucket add team-ai-kit https://github.com/lazarogadiel93/scoop-bucket
 scoop install team-ai-kit
 team-ai-kit setup
+
+# Actualizar a la ultima version
+scoop update team-ai-kit
 ```
 
 ### Windows (sin Scoop -- entornos corporativos)
@@ -132,6 +135,11 @@ brew install jq        # macOS
 # Instalar team-ai-kit
 git clone https://github.com/lazarogadiel93/team-ai-kit
 cd team-ai-kit
+./setup.sh
+
+# Actualizar a la ultima version
+cd team-ai-kit
+git pull
 ./setup.sh
 ```
 
