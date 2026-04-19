@@ -1093,12 +1093,12 @@ function Get-TeamRepoSkillPaths {
 
     [string[]]$all = @()
 
-    $sharedDir = Join-Path $localPath 'skills\shared'
+    $sharedDir = Join-Path $localPath (Join-Path 'skills' 'shared')
     if (Test-Path $sharedDir) {
         $all += @(Get-ChildItem -Path $sharedDir -Filter 'SKILL.md' -Recurse | Select-Object -ExpandProperty FullName)
     }
 
-    $roleDir = Join-Path $localPath "skills\roles\$Role"
+    $roleDir = Join-Path $localPath (Join-Path 'skills' (Join-Path 'roles' $Role))
     if (Test-Path $roleDir) {
         $all += @(Get-ChildItem -Path $roleDir -Filter 'SKILL.md' -Recurse | Select-Object -ExpandProperty FullName)
     }
@@ -1414,6 +1414,10 @@ function Install-ProjectSkills {
 
     foreach ($skillPath in $teamSkills) {
         $skillPath = [System.IO.Path]::GetFullPath($skillPath)
+        if (-not $skillPath.StartsWith($teamSkillsBase, [System.StringComparison]::OrdinalIgnoreCase)) {
+            Write-Warning "Skill path '$skillPath' is not under expected base '$teamSkillsBase', skipping."
+            continue
+        }
         $relativePath = $skillPath.Substring($teamSkillsBase.Length).TrimStart('\', '/')
         $destPath = Join-Path $TargetDir (Join-Path 'team-skills' $relativePath)
 
