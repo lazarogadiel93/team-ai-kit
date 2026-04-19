@@ -1414,8 +1414,8 @@ function Install-ProjectSkills {
 
     foreach ($skillPath in $teamSkills) {
         $skillPath = [System.IO.Path]::GetFullPath($skillPath)
-        $relativePath = $skillPath.Replace($teamSkillsBase, '').TrimStart('\', '/')
-        $destPath = Join-Path $TargetDir "team-skills\$relativePath"
+        $relativePath = $skillPath.Substring($teamSkillsBase.Length).TrimStart('\', '/')
+        $destPath = Join-Path $TargetDir (Join-Path 'team-skills' $relativePath)
 
         $destDir = Split-Path $destPath -Parent
         if (-not (Test-Path $destDir)) {
