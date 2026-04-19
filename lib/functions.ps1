@@ -242,14 +242,7 @@ function Install-GitHooks {
 
     # -- pre-commit hook -------------------------------------------------------
     $preCommitPath = Join-Path $gitHooksDir 'pre-commit'
-    $preCommitBlock = @"
-
-$marker
-if command -v engram >/dev/null 2>&1; then
-    engram sync $projectFlag 2>/dev/null || true
-    git add .engram/ 2>/dev/null || true
-fi
-"@
+    $preCommitBlock = "`n$marker`nif command -v engram >/dev/null 2>&1; then`n    engram sync $projectFlag 2>/dev/null || true`n    git add .engram/ 2>/dev/null || true`nfi"
 
     if (Test-Path $preCommitPath) {
         $existingContent = Get-Content $preCommitPath -Raw -ErrorAction SilentlyContinue
@@ -257,25 +250,21 @@ fi
             $result.skipped += 'pre-commit'
         }
         else {
-            Add-Content -Path $preCommitPath -Value $preCommitBlock -Encoding ASCII
+            $lfContent = ($existingContent + $preCommitBlock) -replace "`r`n", "`n"
+            [System.IO.File]::WriteAllText($preCommitPath, $lfContent, [System.Text.Encoding]::ASCII)
             $result.installed += 'pre-commit'
         }
     }
     else {
-        $hookContent = "#!/bin/sh" + "`n" + $preCommitBlock
-        Set-Content -Path $preCommitPath -Value $hookContent -Encoding ASCII -NoNewline
+        $hookContent = "#!/bin/sh`n" + $preCommitBlock
+        $lfContent = $hookContent -replace "`r`n", "`n"
+        [System.IO.File]::WriteAllText($preCommitPath, $lfContent, [System.Text.Encoding]::ASCII)
         $result.installed += 'pre-commit'
     }
 
     # -- post-merge hook -------------------------------------------------------
     $postMergePath = Join-Path $gitHooksDir 'post-merge'
-    $postMergeBlock = @"
-
-$marker
-if command -v engram >/dev/null 2>&1; then
-    engram sync --import 2>/dev/null || true
-fi
-"@
+    $postMergeBlock = "`n$marker`nif command -v engram >/dev/null 2>&1; then`n    engram sync --import 2>/dev/null || true`nfi"
 
     if (Test-Path $postMergePath) {
         $existingContent = Get-Content $postMergePath -Raw -ErrorAction SilentlyContinue
@@ -283,13 +272,15 @@ fi
             $result.skipped += 'post-merge'
         }
         else {
-            Add-Content -Path $postMergePath -Value $postMergeBlock -Encoding ASCII
+            $lfContent = ($existingContent + $postMergeBlock) -replace "`r`n", "`n"
+            [System.IO.File]::WriteAllText($postMergePath, $lfContent, [System.Text.Encoding]::ASCII)
             $result.installed += 'post-merge'
         }
     }
     else {
-        $hookContent = "#!/bin/sh" + "`n" + $postMergeBlock
-        Set-Content -Path $postMergePath -Value $hookContent -Encoding ASCII -NoNewline
+        $hookContent = "#!/bin/sh`n" + $postMergeBlock
+        $lfContent = $hookContent -replace "`r`n", "`n"
+        [System.IO.File]::WriteAllText($postMergePath, $lfContent, [System.Text.Encoding]::ASCII)
         $result.installed += 'post-merge'
     }
 
@@ -1656,8 +1647,16 @@ function Update-InstructionsEngramProtocol {
     $protocolContent = Get-EngramProtocolContent
     $newSection = $protocolContent.Trim()
 
-    if ($existing -match '(?s)<!-- team-ai-kit:engram-protocol -->.*?<!-- /team-ai-kit:engram-protocol -->') {
-        $updated = $existing -replace '(?s)<!-- team-ai-kit:engram-protocol -->.*?<!-- /team-ai-kit:engram-protocol -->', $newSection
+    $startIdx = $existing.IndexOf($startMarker)
+    if ($startIdx -ge 0) {
+        $endIdx = $existing.IndexOf($endMarker, $startIdx)
+        if ($endIdx -ge 0) {
+            $endIdx += $endMarker.Length
+            $updated = $existing.Substring(0, $startIdx) + $newSection + $existing.Substring($endIdx)
+        }
+        else {
+            $updated = "$existing`n`n$newSection`n"
+        }
     }
     else {
         # Insert after the header section (before pack rules or team rules)
@@ -1740,8 +1739,16 @@ function Update-InstructionsTeamRules {
 
     $newSection = "$startMarker`n$TeamRulesContent`n$endMarker"
 
-    if ($existing -match '(?s)<!-- team-ai-kit:team-rules -->.*?<!-- /team-ai-kit:team-rules -->') {
-        $updated = $existing -replace '(?s)<!-- team-ai-kit:team-rules -->.*?<!-- /team-ai-kit:team-rules -->', $newSection
+    $startIdx = $existing.IndexOf($startMarker)
+    if ($startIdx -ge 0) {
+        $endIdx = $existing.IndexOf($endMarker, $startIdx)
+        if ($endIdx -ge 0) {
+            $endIdx += $endMarker.Length
+            $updated = $existing.Substring(0, $startIdx) + $newSection + $existing.Substring($endIdx)
+        }
+        else {
+            $updated = "$existing`n`n$newSection`n"
+        }
     }
     else {
         $updated = "$existing`n`n$newSection`n"
