@@ -164,11 +164,11 @@ cd team-ai-kit
 ## Usar
 
 ```
-team-ai-kit setup          # Primera configuracion (3 preguntas, 2 minutos)
-team-ai-kit init           # Inicializar en el proyecto actual
+team-ai-kit setup          # Primera configuracion (skills base a global)
+team-ai-kit init           # Inicializar proyecto (team skills + instructions + hooks)
 team-ai-kit init-knowledge # Crear estructura de un Team Knowledge Repo
-team-ai-kit update         # Pull del team repo + merge sin pisar lo tuyo
-team-ai-kit status         # Ver config actual y skills instalados
+team-ai-kit update         # Pull del team repo + actualizar skills (global + proyecto)
+team-ai-kit status         # Ver config, skills globales y de proyecto
 team-ai-kit doctor         # Verificar que todo este bien
 ```
 
@@ -298,19 +298,21 @@ El AI recuerda decisiones, bugs resueltos, patrones establecidos -- entre sesion
 
 ```
 +-------------------------------------------+
-|  TOOL layer   (team-ai-kit package)       |
-|  CLI + default skills + pack rules        |
+|  GLOBAL layer  (~/.copilot/skills/)       |
+|  Kit base skills (architecture, debug...) |
+|  Installed by: setup / update             |
 +-------------------------------------------+
-|  TEAM layer   (team-knowledge repo)       |
-|  Custom skills + cross-project rules      |
+|  PROJECT layer (.github/skills/)          |
+|  Team-knowledge repo skills               |
+|  Installed by: init / update              |
 +-------------------------------------------+
-|  PROJECT layer (committed to each repo)   |
+|  PROJECT config (committed to each repo)  |
 |  .team-ai-kit.json + instructions +       |
 |  .engram/ + git hooks                     |
 +-------------------------------------------+
 ```
 
-El tracking de merge se hace con SHA256 hashes en `~/.team-ai-kit/manifest.json`.
+Cada proyecto tiene sus propios team skills (diferentes equipos, diferentes stacks). Los skills base son globales y compartidos por todos los proyectos.
 
 ---
 

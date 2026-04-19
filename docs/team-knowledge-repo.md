@@ -144,10 +144,10 @@ team-ai-kit init --team-repo https://github.com/otro-equipo/knowledge
 ```
 
 Los skills y reglas del team repo se descargan e inyectan. El dev recibe:
-- Skills compartidos del team repo (logging, error-handling, etc.)
+- Skills compartidos del team repo (logging, error-handling, etc.) **instalados en el proyecto** (`.github/skills/`)
 - Skills de su rol especifico (design-system para frontend)
 - Reglas cross-proyecto inyectadas en las instrucciones del AI
-- Todo esto **ademas** de los skills base de team-ai-kit
+- Todo esto **ademas** de los skills base de team-ai-kit (que estan a nivel global)
 
 **Nota:** Cada URL de team repo se clona en una ubicacion unica (`~/.team-ai-kit/team-content/<hash>/`), asi que diferentes proyectos con diferentes team repos no se pisan.
 
@@ -162,7 +162,7 @@ team-ai-kit update
 El update:
 1. Hace pull del team repo
 2. Detecta skills nuevos o actualizados
-3. Los instala respetando las customizaciones locales del dev
+3. Actualiza skills base (global) y team skills (en el proyecto)
 4. **Actualiza automaticamente las reglas** en las instrucciones del proyecto (si el proyecto esta inicializado)
 
 ### 4. Nuevo integrante = 2 minutos
@@ -180,24 +180,25 @@ En 2 minutos tiene toda la configuracion del equipo sin leer documentacion, sin 
 
 ---
 
-## Prioridad de merge
+## Donde se instalan los skills
 
-Cuando corres `team-ai-kit update`, las capas se resuelven asi:
+Los skills se instalan en **dos niveles**:
 
 ```
 ┌─────────────────────────────────────────────┐
-│  🟢  Customizaciones locales del dev        │  ← NUNCA se pisa
-│      Skills o reglas que el dev modifico     │
+│  📁  GLOBAL (~/.copilot/skills/)            │  ← Skills base de team-ai-kit
+│      architecture, code-quality, debug, etc. │    Instalados por: setup / update
 ├─────────────────────────────────────────────┤
-│  🔵  Team Knowledge Repo                    │  ← Se agregan si son nuevos,
-│      Skills y reglas del Tech Lead          │    se actualizan si no fueron modificados
-├─────────────────────────────────────────────┤
-│  ⚪  Defaults del package                   │  ← Base, menor prioridad
-│      Skills base incluidos en team-ai-kit   │
+│  📂  PROYECTO (.github/skills/)             │  ← Skills del team-knowledge repo
+│      logging, error-handling, design-system  │    Instalados por: init / update
 └─────────────────────────────────────────────┘
 ```
 
-**Como funciona el tracking:**
+**Por que dos niveles?** Porque diferentes proyectos pueden usar stacks diferentes (Next.js+Supabase vs Angular+Firebase). Los skills del equipo son **por proyecto**, los skills base son universales.
+
+El IDE (VSCode, Cursor, OpenCode) detecta ambos niveles automaticamente. Los skills de proyecto tienen prioridad si hay un nombre duplicado.
+
+### Tracking de cambios
 
 - Cada archivo tiene un hash SHA256 guardado en `~/.team-ai-kit/manifest.json`
 - Si el hash actual del archivo coincide con el hash del ultimo update → el dev no lo toco → se puede actualizar

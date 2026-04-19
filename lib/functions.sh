@@ -645,6 +645,20 @@ get_ide_skills_directory() {
     esac
 }
 
+get_ide_project_skills_directory() {
+    # Returns the project-level skills directory for the given IDE.
+    # Usage: get_ide_project_skills_directory ide project_root
+    local ide project_root="$2"
+    ide=$(_lowercase "$1")
+    case "$ide" in
+        vscode)   echo "$project_root/.github/skills" ;;
+        intellij) echo "$project_root/.github/skills" ;;
+        opencode) echo "$project_root/.agents/skills" ;;
+        cursor)   echo "$project_root/.cursor/skills" ;;
+        *)        echo "ERROR: Unsupported IDE: $1" >&2; return 1 ;;
+    esac
+}
+
 get_ide_instructions_path() {
     local ide project_root="$2"
     ide=$(_lowercase "$1")
@@ -937,6 +951,78 @@ install_skills_with_merge() {
             done < <(get_team_repo_skill_paths "$role" "$team_repo_url")
         fi
     fi
+
+    echo "{\"installed\":$installed,\"updated\":$updated,\"skipped\":$skipped}"
+}
+
+install_project_skills() {
+    # Installs team-knowledge repo skills into project-level directory.
+    # Tracks last-installed hashes via a local manifest so user modifications
+    # are not overwritten.
+    # Usage: install_project_skills role team_repo_url target_dir
+    # Outputs: JSON with installed/updated/skipped counts
+    local role="$1" team_repo_url="$2" target_dir="$3"
+
+    local installed=0 updated=0 skipped=0
+
+    local team_repo_path
+    team_repo_path=$(get_team_repo_local_path "$team_repo_url")
+    if [[ ! -d "$team_repo_path" ]]; then
+        echo "{\"installed\":0,\"updated\":0,\"skipped\":0}"
+        return
+    fi
+
+    local team_skills_base="$team_repo_path/skills"
+    local team_skills_dir="$target_dir/team-skills"
+    local manifest_path="$team_skills_dir/.team-ai-kit-skills-manifest.json"
+
+    # Load existing manifest
+    local manifest_json='{"files":{}}'
+    if [[ -f "$manifest_path" ]]; then
+        manifest_json=$(cat "$manifest_path")
+    fi
+
+    while IFS= read -r skill_path; do
+        [[ -z "$skill_path" ]] && continue
+        local relative_path="${skill_path#"$team_skills_base"/}"
+        local dest_path="$target_dir/team-skills/$relative_path"
+        local dest_dir
+        dest_dir=$(dirname "$dest_path")
+        [[ -d "$dest_dir" ]] || mkdir -p "$dest_dir"
+
+        local source_hash
+        source_hash=$(get_file_content_hash "$skill_path") || continue
+
+        if [[ ! -f "$dest_path" ]]; then
+            cp "$skill_path" "$dest_path"
+            manifest_json=$(echo "$manifest_json" | jq --arg key "$relative_path" --arg hash "$source_hash" '.files[$key] = {hash: $hash}')
+            installed=$((installed + 1))
+        else
+            local dest_hash
+            dest_hash=$(get_file_content_hash "$dest_path")
+            if [[ "$source_hash" == "$dest_hash" ]]; then
+                manifest_json=$(echo "$manifest_json" | jq --arg key "$relative_path" --arg hash "$source_hash" '.files[$key] = {hash: $hash}')
+                skipped=$((skipped + 1))
+            else
+                # Source and dest differ -- check if user modified it
+                local last_installed_hash
+                last_installed_hash=$(echo "$manifest_json" | jq -r ".files[\"$relative_path\"].hash // empty" 2>/dev/null)
+                if [[ -n "$last_installed_hash" && "$dest_hash" != "$last_installed_hash" ]]; then
+                    # User modified the file -- skip to preserve their changes
+                    skipped=$((skipped + 1))
+                else
+                    # File matches last-installed hash or no record -- safe to update
+                    cp "$skill_path" "$dest_path"
+                    manifest_json=$(echo "$manifest_json" | jq --arg key "$relative_path" --arg hash "$source_hash" '.files[$key] = {hash: $hash}')
+                    updated=$((updated + 1))
+                fi
+            fi
+        fi
+    done < <(get_team_repo_skill_paths "$role" "$team_repo_url")
+
+    # Save updated manifest
+    [[ -d "$team_skills_dir" ]] || mkdir -p "$team_skills_dir"
+    echo "$manifest_json" | jq '.' > "$manifest_path"
 
     echo "{\"installed\":$installed,\"updated\":$updated,\"skipped\":$skipped}"
 }

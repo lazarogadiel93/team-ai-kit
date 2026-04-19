@@ -852,7 +852,7 @@ function Get-PackRulesPath {
 function Get-IdeSkillsDirectory {
     <#
     .SYNOPSIS
-        Returns the target directory where skills should be copied for the given IDE.
+        Returns the GLOBAL (user-level) directory where kit base skills are installed.
         Uses gentle-ai's native paths for supported IDEs.
     #>
     param(
@@ -875,6 +875,37 @@ function Get-IdeSkillsDirectory {
         'cursor' {
             # Cursor: user-level skills directory
             return Join-Path $env:USERPROFILE '.cursor\skills'
+        }
+        default {
+            throw "Unsupported IDE: $Ide"
+        }
+    }
+}
+
+function Get-IdeProjectSkillsDirectory {
+    <#
+    .SYNOPSIS
+        Returns the PROJECT-LEVEL directory where team-knowledge repo skills are installed.
+        These are committed to the repo so each project has its own team skills.
+    #>
+    param(
+        [Parameter(Mandatory)]
+        [string]$Ide,
+        [Parameter(Mandatory)]
+        [string]$ProjectRoot
+    )
+    switch ($Ide.ToLower()) {
+        'vscode' {
+            return Join-Path $ProjectRoot '.github\skills'
+        }
+        'intellij' {
+            return Join-Path $ProjectRoot '.github\skills'
+        }
+        'opencode' {
+            return Join-Path $ProjectRoot '.agents\skills'
+        }
+        'cursor' {
+            return Join-Path $ProjectRoot '.cursor\skills'
         }
         default {
             throw "Unsupported IDE: $Ide"
@@ -1329,6 +1360,105 @@ function Install-SkillsWithMerge {
 
     # Persist manifest (suppress return value to avoid pipeline pollution)
     $null = Save-SkillManifest -Manifest $manifest
+
+    return $results
+}
+
+function Install-ProjectSkills {
+    <#
+    .SYNOPSIS
+        Installs team-knowledge repo skills into the PROJECT-LEVEL skills directory.
+        These are committed to the repo. Tracks last-installed hashes via a local
+        manifest so user modifications are not overwritten.
+    .OUTPUTS
+        Hashtable with keys: installed (int), updated (int), skipped (int).
+    #>
+    param(
+        [Parameter(Mandatory)]
+        [string]$Role,
+        [Parameter(Mandatory)]
+        [string]$TeamRepoUrl,
+        [Parameter(Mandatory)]
+        [string]$TargetDir
+    )
+
+    $results = @{
+        installed = 0
+        updated   = 0
+        skipped   = 0
+    }
+
+    $teamRepoPath = Get-TeamRepoLocalPath -RepoUrl $TeamRepoUrl
+    if (-not (Test-Path $teamRepoPath)) {
+        return $results
+    }
+
+    $teamSkills = Get-TeamRepoSkillPaths -Role $Role -RepoUrl $TeamRepoUrl
+    $teamSkillsBase = Join-Path $teamRepoPath 'skills'
+
+    # Load project-level manifest for tracking installed hashes
+    $teamSkillsDir = Join-Path $TargetDir 'team-skills'
+    $manifestPath = Join-Path $teamSkillsDir '.team-ai-kit-skills-manifest.json'
+    $manifest = @{ files = @{} }
+    if (Test-Path $manifestPath) {
+        $raw = Get-Content $manifestPath -Raw | ConvertFrom-Json
+        if ($raw.files) {
+            $raw.files.PSObject.Properties | ForEach-Object {
+                $manifest.files[$_.Name] = @{
+                    hash = $_.Value.hash
+                }
+            }
+        }
+    }
+
+    foreach ($skillPath in $teamSkills) {
+        $relativePath = $skillPath.Replace($teamSkillsBase, '').TrimStart('\', '/')
+        $destPath = Join-Path $TargetDir "team-skills\$relativePath"
+
+        $destDir = Split-Path $destPath -Parent
+        if (-not (Test-Path $destDir)) {
+            New-Item -ItemType Directory -Path $destDir -Force | Out-Null
+        }
+
+        $sourceHash = Get-FileContentHash -FilePath $skillPath
+
+        if (-not (Test-Path $destPath)) {
+            Copy-Item -Path $skillPath -Destination $destPath -Force
+            $manifest.files[$relativePath] = @{ hash = $sourceHash }
+            $results.installed++
+        }
+        else {
+            $destHash = Get-FileContentHash -FilePath $destPath
+            if ($sourceHash -eq $destHash) {
+                $manifest.files[$relativePath] = @{ hash = $sourceHash }
+                $results.skipped++
+            }
+            else {
+                # Source and dest differ -- check if user modified it
+                $lastInstalledHash = $null
+                if ($manifest.files.ContainsKey($relativePath)) {
+                    $lastInstalledHash = $manifest.files[$relativePath].hash
+                }
+                if ($lastInstalledHash -and $destHash -ne $lastInstalledHash) {
+                    # User modified the file -- skip to preserve their changes
+                    $results.skipped++
+                }
+                else {
+                    # File matches last-installed hash or no record -- safe to update
+                    Copy-Item -Path $skillPath -Destination $destPath -Force
+                    $manifest.files[$relativePath] = @{ hash = $sourceHash }
+                    $results.updated++
+                }
+            }
+        }
+    }
+
+    # Save updated manifest
+    if (-not (Test-Path $teamSkillsDir)) {
+        New-Item -ItemType Directory -Path $teamSkillsDir -Force | Out-Null
+    }
+    $json = $manifest | ConvertTo-Json -Depth 5
+    $json | Set-Content -Path $manifestPath -Encoding UTF8
 
     return $results
 }
