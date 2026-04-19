@@ -23,3 +23,6 @@ Thumbs.db
 # engram (ignored only in THIS repo -- the tool itself)
 # In project repos, .engram/ MUST be committed (it's the sharing mechanism)
 .engram/
+
+# Release artifacts
+*.zip
