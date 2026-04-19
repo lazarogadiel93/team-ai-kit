@@ -870,7 +870,21 @@ function Invoke-UpdateCommand {
         }
     }
 
-    # Step 4: Update config timestamp
+    # Step 4: Auto-update engram Memory Protocol in instructions
+    if ($projectConfig) {
+        $instructionsPath = Get-IdeInstructionsPath -Ide $config.ide -ProjectRoot $projectRoot
+        if (Test-Path $instructionsPath) {
+            $protocolChanged = Update-InstructionsEngramProtocol -FilePath $instructionsPath
+            if ($protocolChanged) {
+                Write-Ok 'Engram Memory Protocol updated in project instructions'
+            }
+            else {
+                Write-Step 'Engram Memory Protocol unchanged in project instructions'
+            }
+        }
+    }
+
+    # Step 5: Update config timestamp
     $config.lastUpdate = Get-Date -Format 'o'
     Save-TeamAiKitConfig -Config $config | Out-Null
     Write-Host ''
