@@ -855,7 +855,22 @@ cmd_update() {
         fi
     fi
 
-    # Step 4: Update config timestamp
+    # Step 4: Auto-update Engram Memory Protocol in instructions
+    if [[ "$has_project_config" == "true" ]]; then
+        local instructions_path
+        instructions_path=$(get_ide_instructions_path "$config_ide" "$project_root")
+        if [[ -f "$instructions_path" ]]; then
+            local protocol_result
+            protocol_result=$(update_instructions_engram_protocol "$instructions_path")
+            if [[ "$protocol_result" == "changed" ]]; then
+                ok "Engram Memory Protocol updated in project instructions"
+            else
+                step "Engram Memory Protocol unchanged in project instructions"
+            fi
+        fi
+    fi
+
+    # Step 5: Update config timestamp
     local now
     now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
     local updated_config

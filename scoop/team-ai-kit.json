@@ -18,7 +18,7 @@
         "github": "https://github.com/lazarogadiel93/team-ai-kit"
     },
     "autoupdate": {
-        "url": "https://github.com/lazarogadiel93/team-ai-kit/releases/download/v$version/team-ai-kit-$version.zip"
+        "url": "https://github.com/lazarogadiel93/team-ai-kit/releases/download/v$version/team-ai-kit-v$version.zip"
     },
     "notes": [
         "Run 'team-ai-kit setup' to configure your IDE, role, and team repo.",

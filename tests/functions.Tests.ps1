@@ -1111,6 +1111,60 @@ Describe 'Update-InstructionsTeamRules' {
     }
 }
 
+Describe 'Update-InstructionsTeamRules preserves dollar signs in content' {
+    It 'does not corrupt $1 $2 or $variable in team rules' {
+        $tempFile = Join-Path $env:TEMP "instructions-dollar-$(Get-Random).md"
+        try {
+            $initial = @"
+# Header
+<!-- team-ai-kit:team-rules -->
+# Old Rules
+<!-- /team-ai-kit:team-rules -->
+# Footer
+"@
+            Set-Content -Path $tempFile -Value $initial
+            $rulesWithDollars = 'Use $1 for first arg, $variable for config, and $HOME for home dir'
+            $result = Update-InstructionsTeamRules -FilePath $tempFile -TeamRulesContent $rulesWithDollars
+            $result | Should -BeTrue
+            $content = Get-Content -Path $tempFile -Raw
+            $content | Should -BeLike '*$1*'
+            $content | Should -BeLike '*$variable*'
+            $content | Should -BeLike '*$HOME*'
+            $content | Should -BeLike '*# Footer*'
+        }
+        finally {
+            Remove-Item -Path $tempFile -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+Describe 'Update-InstructionsEngramProtocol preserves dollar signs in content' {
+    It 'does not corrupt content containing dollar signs during replacement' {
+        $tempFile = Join-Path $env:TEMP "instructions-engram-dollar-$(Get-Random).md"
+        try {
+            # Create a file with engram protocol markers containing $-variables
+            $initial = @"
+# Header
+<!-- team-ai-kit:engram-protocol -->
+Old protocol with `$1` and `$variable`
+<!-- /team-ai-kit:engram-protocol -->
+# Footer
+"@
+            Set-Content -Path $tempFile -Value $initial
+            $result = Update-InstructionsEngramProtocol -FilePath $tempFile
+            $result | Should -BeTrue
+            $content = Get-Content -Path $tempFile -Raw
+            # The new protocol content should be there and footer preserved
+            $content | Should -BeLike '*engram-protocol*'
+            $content | Should -BeLike '*mem_save*'
+            $content | Should -BeLike '*# Footer*'
+        }
+        finally {
+            Remove-Item -Path $tempFile -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
 Describe 'Get-TeamRepoLocalPath with -RepoUrl' {
     It 'returns different paths for different URLs' {
         $path1 = Get-TeamRepoLocalPath -RepoUrl 'https://github.com/team-a/knowledge'
