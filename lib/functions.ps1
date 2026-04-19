@@ -1394,7 +1394,8 @@ function Install-ProjectSkills {
     }
 
     $teamSkills = Get-TeamRepoSkillPaths -Role $Role -RepoUrl $TeamRepoUrl
-    $teamSkillsBase = Join-Path $teamRepoPath 'skills'
+    # Normalize to long path to avoid 8.3 short name mismatches on CI runners
+    $teamSkillsBase = [System.IO.Path]::GetFullPath((Join-Path $teamRepoPath 'skills'))
 
     # Load project-level manifest for tracking installed hashes
     $teamSkillsDir = Join-Path $TargetDir 'team-skills'
@@ -1412,6 +1413,7 @@ function Install-ProjectSkills {
     }
 
     foreach ($skillPath in $teamSkills) {
+        $skillPath = [System.IO.Path]::GetFullPath($skillPath)
         $relativePath = $skillPath.Replace($teamSkillsBase, '').TrimStart('\', '/')
         $destPath = Join-Path $TargetDir "team-skills\$relativePath"
 
