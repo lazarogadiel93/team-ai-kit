@@ -1354,7 +1354,7 @@ app.<span class="fn">get</span>(<span class="string">'/users/:id'</span>, <span 
         <div class="flow-arrow">&rarr;</div>
         <div class="flow-node flow-node--highlight">
           <div class="flow-title">engram save</div>
-          <div class="flow-desc">Guarda automáticamente en .engram/</div>
+          <div class="flow-desc">Guarda en SQLite local (~/.engram/)</div>
         </div>
         <div class="flow-arrow">&rarr;</div>
         <div class="flow-node">
@@ -1384,6 +1384,21 @@ app.<span class="fn">get</span>(<span class="string">'/users/:id'</span>, <span 
           <strong>Semanas después</strong>, Dev B trabaja en otro servicio que usa el mismo patrón de cache.
           Su AI ya sabe del problema anterior y le advierte sobre la race condition
           <strong>antes de que ocurra</strong>.
+        </p>
+      </div>
+
+      <div class="alert alert--warning fade-in" style="max-width: 760px; margin: 1rem auto;">
+        <h4>Memory Protocol &mdash; la pieza clave</h4>
+        <p>
+          engram provee las herramientas (<code>mem_save</code>, <code>mem_search</code>, etc.) via MCP.
+          Pero tener las herramientas no es suficiente &mdash; <strong>el AI necesita instrucciones
+          comportamentales</strong> que le digan <em>cuándo</em> guardar, <em>cuándo</em> buscar,
+          y <em>cuándo</em> hacer un resumen de sesión.
+        </p>
+        <p style="margin-top: 0.75rem;">
+          Team AI Kit inyecta automáticamente un <strong>Memory Protocol</strong> en las instrucciones
+          del proyecto (<code>team-ai-kit init</code> / <code>team-ai-kit update</code>). Sin este
+          protocolo, el AI tiene las herramientas pero <strong>nunca las usa proactivamente</strong>.
         </p>
       </div>
     </div>
@@ -1503,7 +1518,7 @@ app.<span class="fn">get</span>(<span class="string">'/users/:id'</span>, <span 
         <a href="https://github.com/lazarogadiel93/team-ai-kit" target="_blank" rel="noopener">
           github.com/lazarogadiel93/team-ai-kit
         </a>
-        &nbsp;&middot;&nbsp; MIT License &nbsp;&middot;&nbsp; v2.3.0
+        &nbsp;&middot;&nbsp; MIT License &nbsp;&middot;&nbsp; v2.6.2
       </p>
     </div>
   </footer>

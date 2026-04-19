@@ -290,6 +290,10 @@ Dev A resuelve bug → engram save → git push → Dev B hace pull → AI de De
 
 El AI recuerda decisiones, bugs resueltos, patrones establecidos -- entre sesiones y entre devs. Sin hacer nada manual.
 
+Para que el AI use engram **proactivamente** (guardar sin que le pidas, buscar contexto previo, hacer resumen al cerrar sesion), team-ai-kit inyecta un **Memory Protocol** en las instrucciones del proyecto. Sin este protocolo, el AI tiene las herramientas pero nunca las usa por su cuenta.
+
+El comando `update` mantiene el protocolo actualizado automaticamente.
+
 > 📖 Como funciona, flujo completo, ejemplo real: **[docs/engram-guide.md](docs/engram-guide.md)**
 
 ---
@@ -368,7 +372,7 @@ Explicacion y ejemplos.
 ## Tests
 
 ```powershell
-# Windows: Pester (154 tests)
+# Windows: Pester (222 tests)
 Invoke-Pester tests/ -Output Detailed
 
 # macOS/Linux: E2E bash (9 tests)
@@ -407,7 +411,7 @@ team-ai-kit/
 ├── packs/                         Reglas por rol
 ├── templates/                     IntelliJ y Cursor (MCP config)
 ├── tests/
-│   ├── functions.Tests.ps1        135 unit tests (Pester)
+│   ├── functions.Tests.ps1        203 unit tests (Pester)
 │   ├── skills.Tests.ps1           19 validation tests (Pester)
 │   └── e2e-bash.sh                9 E2E tests (bash)
 ├── docs/
