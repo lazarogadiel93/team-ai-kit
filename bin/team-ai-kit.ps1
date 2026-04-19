@@ -82,7 +82,7 @@ $ErrorActionPreference = 'Stop'
 
 # -- Kit version ---------------------------------------------------------------
 # Single source of truth. Bump this on every release.
-$KitVersion = '2.6.1'
+$KitVersion = '2.6.2'
 
 # -- Resolve paths -------------------------------------------------------------
 # bin/ is one level down from the kit root
@@ -888,8 +888,9 @@ function Invoke-UpdateCommand {
         }
     }
 
-    # Step 5: Update config timestamp
+    # Step 5: Update config timestamp and version
     $config.lastUpdate = Get-Date -Format 'o'
+    $config.version = $KitVersion
     Save-TeamAiKitConfig -Config $config | Out-Null
     Write-Host ''
     Write-Ok 'Update complete'
