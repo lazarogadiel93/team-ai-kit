@@ -80,6 +80,10 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+# -- Kit version ---------------------------------------------------------------
+# Single source of truth. Bump this on every release.
+$KitVersion = '2.5.1'
+
 # -- Resolve paths -------------------------------------------------------------
 # bin/ is one level down from the kit root
 $kitRoot = Split-Path $PSScriptRoot -Parent
@@ -444,7 +448,7 @@ function Invoke-SetupCommand {
         teamRepo    = $TeamRepo
         installedAt = $now
         lastUpdate  = $now
-        version     = '2.1.0'
+        version     = $KitVersion
     }
     $configPath = Save-TeamAiKitConfig -Config $config
     Write-Ok "Config saved: $configPath"
@@ -639,7 +643,7 @@ function Invoke-InitCommand {
         teamRepo      = $effectiveTeamRepo
         initializedAt = $now
         lastSync      = $now
-        version       = '2.1.0'
+        version       = $KitVersion
     }
     $null = Save-ProjectConfig -ProjectRoot $projectRoot -Config $projectConfig
     Write-Ok 'Project config saved: .team-ai-kit.json'
