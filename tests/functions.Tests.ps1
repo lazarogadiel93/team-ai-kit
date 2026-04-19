@@ -288,6 +288,32 @@ Describe 'Get-IdeSkillsDirectory' {
     }
 }
 
+Describe 'Get-IdeProjectSkillsDirectory' {
+    It 'returns .github/skills for vscode' {
+        $path = Get-IdeProjectSkillsDirectory -Ide 'vscode' -ProjectRoot 'C:\project'
+        $path | Should -BeLike '*\.github?skills'
+    }
+
+    It 'returns .github/skills for intellij' {
+        $path = Get-IdeProjectSkillsDirectory -Ide 'intellij' -ProjectRoot 'C:\project'
+        $path | Should -BeLike '*\.github?skills'
+    }
+
+    It 'returns .agents/skills for opencode' {
+        $path = Get-IdeProjectSkillsDirectory -Ide 'opencode' -ProjectRoot 'C:\project'
+        $path | Should -BeLike '*\.agents?skills'
+    }
+
+    It 'returns .cursor/skills for cursor' {
+        $path = Get-IdeProjectSkillsDirectory -Ide 'cursor' -ProjectRoot 'C:\project'
+        $path | Should -BeLike '*\.cursor?skills'
+    }
+
+    It 'throws for unsupported IDE' {
+        { Get-IdeProjectSkillsDirectory -Ide 'vim' -ProjectRoot 'C:\project' } | Should -Throw '*Unsupported IDE*'
+    }
+}
+
 Describe 'Get-IdeInstructionsPath' {
     It 'returns copilot-instructions.md for vscode' {
         $path = Get-IdeInstructionsPath -Ide 'vscode' -ProjectRoot 'C:\project'
@@ -1722,6 +1748,59 @@ Describe 'Install-SkillsWithMerge' {
         finally {
             $env:USERPROFILE = $originalProfile
         }
+    }
+}
+
+# -- Install-ProjectSkills ----------------------------------------------------
+
+Describe 'Install-ProjectSkills' {
+    BeforeAll {
+        $script:projectSkillsDir = Join-Path $env:TEMP "team-ai-kit-proj-skills-$(Get-Random)"
+        # Create a fake team repo with skills
+        $script:fakeTeamRepo = Join-Path $env:TEMP "team-ai-kit-fake-team-$(Get-Random)"
+        $fakeSkillDir = Join-Path $script:fakeTeamRepo 'skills\shared\test-skill'
+        New-Item -ItemType Directory -Path $fakeSkillDir -Force | Out-Null
+        Set-Content -Path (Join-Path $fakeSkillDir 'SKILL.md') -Value '# Test Skill'
+
+        $fakeRoleDir = Join-Path $script:fakeTeamRepo 'skills\roles\frontend\react-skill'
+        New-Item -ItemType Directory -Path $fakeRoleDir -Force | Out-Null
+        Set-Content -Path (Join-Path $fakeRoleDir 'SKILL.md') -Value '# React Skill'
+    }
+
+    AfterAll {
+        if (Test-Path $script:projectSkillsDir) { Remove-Item -Recurse -Force $script:projectSkillsDir }
+        if (Test-Path $script:fakeTeamRepo) { Remove-Item -Recurse -Force $script:fakeTeamRepo }
+    }
+
+    It 'returns zero counts when team repo does not exist' {
+        $results = Install-ProjectSkills -Role 'frontend' -TeamRepoUrl 'https://example.com/nonexistent.git' -TargetDir $script:projectSkillsDir
+        $results.installed | Should -Be 0
+        $results.updated | Should -Be 0
+        $results.skipped | Should -Be 0
+    }
+
+    It 'installs team repo skills to project directory' {
+        # Mock the team repo path to point to our fake
+        Mock Get-TeamRepoLocalPath { return $script:fakeTeamRepo }
+        $results = Install-ProjectSkills -Role 'frontend' -TeamRepoUrl 'https://example.com/fake.git' -TargetDir $script:projectSkillsDir
+        $results.installed | Should -Be 2  # 1 shared + 1 frontend role
+        $results.updated | Should -Be 0
+    }
+
+    It 'skips unchanged skills on second run' {
+        Mock Get-TeamRepoLocalPath { return $script:fakeTeamRepo }
+        $results = Install-ProjectSkills -Role 'frontend' -TeamRepoUrl 'https://example.com/fake.git' -TargetDir $script:projectSkillsDir
+        $results.installed | Should -Be 0
+        $results.skipped | Should -Be 2
+    }
+
+    It 'detects updated skills when source changes' {
+        Mock Get-TeamRepoLocalPath { return $script:fakeTeamRepo }
+        # Modify source
+        Set-Content -Path (Join-Path $script:fakeTeamRepo 'skills\shared\test-skill\SKILL.md') -Value '# Test Skill v2'
+        $results = Install-ProjectSkills -Role 'frontend' -TeamRepoUrl 'https://example.com/fake.git' -TargetDir $script:projectSkillsDir
+        $results.updated | Should -Be 1
+        $results.skipped | Should -Be 1
     }
 }
 

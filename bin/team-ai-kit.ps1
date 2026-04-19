@@ -403,7 +403,7 @@ function Invoke-SetupCommand {
         }
     }
 
-    # 5b. Install skills with 3-layer merge
+    # 5b. Install kit base skills to global (team-repo skills go to project via init)
     if ($TargetDir) {
         $targetSkillsDir = $TargetDir
     }
@@ -411,16 +411,12 @@ function Invoke-SetupCommand {
         $targetSkillsDir = Get-IdeSkillsDirectory -Ide $Ide
     }
 
-    Write-Step "Skills target: $targetSkillsDir"
+    Write-Step "Global skills target: $targetSkillsDir"
 
     $mergeParams = @{
         KitRoot   = $kitRoot
         Role      = $Role
         TargetDir = $targetSkillsDir
-    }
-    if ($hasTeamRepo) {
-        $mergeParams.IncludeTeamRepo = $true
-        $mergeParams.TeamRepoUrl = $TeamRepo
     }
 
     $mergeResults = Install-SkillsWithMerge @mergeParams
@@ -463,19 +459,19 @@ function Invoke-SetupCommand {
     Write-Host '  Next steps:' -ForegroundColor Yellow
     if ($gentleAiAgentId -and -not $SkipGentleAi) {
         Write-Host '    1. Go to your project and run: team-ai-kit init' -ForegroundColor White
-        Write-Host '       (configures instructions, engram sync, and git hooks for the project)' -ForegroundColor DarkGray
+        Write-Host '       (configures instructions, team skills, engram sync, and git hooks)' -ForegroundColor DarkGray
         Write-Host '    2. Open your IDE and start working!' -ForegroundColor White
     }
     elseif ($Ide -eq 'intellij' -or $Ide -eq 'cursor') {
         Write-Host '    1. Add the MCP config shown above to your IDE settings' -ForegroundColor White
         Write-Host '    2. Go to your project and run: team-ai-kit init' -ForegroundColor White
-        Write-Host '       (configures instructions, engram sync, and git hooks for the project)' -ForegroundColor DarkGray
+        Write-Host '       (configures instructions, team skills, engram sync, and git hooks)' -ForegroundColor DarkGray
         Write-Host '    3. Open your IDE and start working!' -ForegroundColor White
     }
     else {
         Write-Host '    1. Run gentle-ai to complete agent configuration' -ForegroundColor White
         Write-Host '    2. Go to your project and run: team-ai-kit init' -ForegroundColor White
-        Write-Host '       (configures instructions, engram sync, and git hooks for the project)' -ForegroundColor DarkGray
+        Write-Host '       (configures instructions, team skills, engram sync, and git hooks)' -ForegroundColor DarkGray
         Write-Host '    3. Open your IDE and start working!' -ForegroundColor White
     }
     Write-Host ''
@@ -586,6 +582,21 @@ function Invoke-InitCommand {
     $relInstructionsPath = $instructionsPath.Replace($projectRoot, '').TrimStart('\', '/')
     Write-Ok "Created: $relInstructionsPath"
 
+    # 3b. Install team-repo skills to project-level directory
+    if ($effectiveTeamRepo -and (Test-TeamRepoCloned -RepoUrl $effectiveTeamRepo)) {
+        $projectSkillsDir = Get-IdeProjectSkillsDirectory -Ide $effectiveIde -ProjectRoot $projectRoot
+        Write-Step "Installing team skills to project: $($projectSkillsDir.Replace($projectRoot, '').TrimStart('\', '/'))"
+
+        $projectSkillResults = Install-ProjectSkills -Role $effectiveRole -TeamRepoUrl $effectiveTeamRepo -TargetDir $projectSkillsDir
+        $pTotal = $projectSkillResults.installed + $projectSkillResults.updated
+        if ($pTotal -gt 0) {
+            Write-Ok "$($projectSkillResults.installed) installed, $($projectSkillResults.updated) updated team skills"
+        }
+        else {
+            Write-Step 'No team skills to install (repo has no skills for this role)'
+        }
+    }
+
     # -- Step 4: Setup engram sync + git hooks --------------------------------
     Write-Host ''
     Write-Host '  [4/4] Setting up engram sync and git hooks...' -ForegroundColor White
@@ -641,8 +652,16 @@ function Invoke-InitCommand {
     Write-Host ''
     Write-Host '  Next steps:' -ForegroundColor Yellow
     Write-Host "    1. Commit .team-ai-kit.json and $relInstructionsPath to your repo" -ForegroundColor White
-    Write-Host '    2. Commit .engram/ to share knowledge with your team' -ForegroundColor White
-    Write-Host '    3. Start working -- git hooks will sync engram automatically!' -ForegroundColor White
+    if ($effectiveTeamRepo) {
+        $relSkillsDir = (Get-IdeProjectSkillsDirectory -Ide $effectiveIde -ProjectRoot $projectRoot).Replace($projectRoot, '').TrimStart('\', '/')
+        Write-Host "    2. Commit $relSkillsDir/ (team skills for this project)" -ForegroundColor White
+        Write-Host '    3. Commit .engram/ to share knowledge with your team' -ForegroundColor White
+        Write-Host '    4. Start working -- git hooks will sync engram automatically!' -ForegroundColor White
+    }
+    else {
+        Write-Host '    2. Commit .engram/ to share knowledge with your team' -ForegroundColor White
+        Write-Host '    3. Start working -- git hooks will sync engram automatically!' -ForegroundColor White
+    }
     Write-Host '       (manual sync: team-ai-kit sync)' -ForegroundColor DarkGray
     Write-Host ''
 }
@@ -777,12 +796,16 @@ function Invoke-UpdateCommand {
                 Write-Warn 'Failed to clone team repo -- continuing with defaults only'
             }
         }
+        # Safety net: if a cached clone exists from a previous run, use it
+        if (-not $hasTeamRepo -and (Test-TeamRepoCloned -RepoUrl $effectiveTeamRepo)) {
+            $hasTeamRepo = $true
+        }
     }
     else {
         Write-Step 'No team repo configured (use "team-ai-kit setup -TeamRepo <url>" to add one)'
     }
 
-    # Step 2: Merge skills with no-overwrite
+    # Step 2: Merge kit base skills to global (no team-repo layer)
     if ($TargetDir) {
         $targetSkillsDir = $TargetDir
     }
@@ -790,16 +813,12 @@ function Invoke-UpdateCommand {
         $targetSkillsDir = Get-IdeSkillsDirectory -Ide $config.ide
     }
 
-    Write-Step "Merging skills to: $targetSkillsDir"
+    Write-Step "Merging kit base skills to global: $targetSkillsDir"
 
     $mergeParams = @{
         KitRoot   = $kitRoot
         Role      = $config.role
         TargetDir = $targetSkillsDir
-    }
-    if ($hasTeamRepo) {
-        $mergeParams.IncludeTeamRepo = $true
-        $mergeParams.TeamRepoUrl = $effectiveTeamRepo
     }
 
     $mergeResults = Install-SkillsWithMerge @mergeParams
@@ -811,6 +830,27 @@ function Invoke-UpdateCommand {
     }
     if ($mergeResults.skipped.Count -gt 0) {
         Write-Step "Unchanged: $($mergeResults.skipped.Count) skills (already up to date or user-modified)"
+    }
+
+    # Step 2b: Install team-repo skills to project-level directory
+    if ($hasTeamRepo -and $projectConfig) {
+        $effectiveIde = if ($projectConfig.ide) { $projectConfig.ide } else { $config.ide }
+        $effectiveRole = if ($projectConfig.role) { $projectConfig.role } else { $config.role }
+        $projectSkillsDir = Get-IdeProjectSkillsDirectory -Ide $effectiveIde -ProjectRoot $projectRoot
+
+        Write-Host ''
+        Write-Step "Merging team skills to project: $($projectSkillsDir.Replace($projectRoot, '').TrimStart('\', '/'))"
+
+        $projectSkillResults = Install-ProjectSkills -Role $effectiveRole -TeamRepoUrl $effectiveTeamRepo -TargetDir $projectSkillsDir
+        if ($projectSkillResults.installed -gt 0) {
+            Write-Ok "Installed: $($projectSkillResults.installed) new team skills"
+        }
+        if ($projectSkillResults.updated -gt 0) {
+            Write-Ok "Updated:   $($projectSkillResults.updated) team skills"
+        }
+        if ($projectSkillResults.skipped -gt 0) {
+            Write-Step "Unchanged: $($projectSkillResults.skipped) team skills"
+        }
     }
 
     # Step 3: Auto-update team rules in instructions if project is initialized
@@ -873,7 +913,7 @@ function Invoke-StatusCommand {
     if ($fileCount -gt 0) {
         $defaultCount = @($manifest.files.Values | Where-Object { $_.source -eq 'default' }).Count
         $teamCount = @($manifest.files.Values | Where-Object { $_.source -eq 'team' }).Count
-        Write-Host "  Tracked Skills: $fileCount total ($defaultCount default, $teamCount team)" -ForegroundColor White
+        Write-Host "  Global Skills: $fileCount tracked ($defaultCount default, $teamCount team)" -ForegroundColor White
 
         # Check for user modifications
         $skillsDir = Get-IdeSkillsDirectory -Ide $config.ide
@@ -894,10 +934,26 @@ function Invoke-StatusCommand {
         $teamSkillsDir = Join-Path $skillsDir 'team-skills'
         if (Test-Path $teamSkillsDir) {
             $skillFiles = @(Get-ChildItem -Path $teamSkillsDir -Filter 'SKILL.md' -Recurse)
-            Write-Host "  Installed Skills: $($skillFiles.Count) (no manifest -- run update to track)" -ForegroundColor White
+            Write-Host "  Global Skills: $($skillFiles.Count) (no manifest -- run update to track)" -ForegroundColor White
         }
         else {
-            Write-Warn "  Skills directory not found: $teamSkillsDir"
+            Write-Warn "  Global skills directory not found: $teamSkillsDir"
+        }
+    }
+
+    # Show project-level skills
+    if (Test-ProjectInitialized -ProjectRoot $projectRoot) {
+        $pc = Get-ProjectConfig -ProjectRoot $projectRoot
+        $projectIde = if ($pc.ide) { $pc.ide } else { $config.ide }
+        $projectSkillsDir = Get-IdeProjectSkillsDirectory -Ide $projectIde -ProjectRoot $projectRoot
+        $projectTeamDir = Join-Path $projectSkillsDir 'team-skills'
+        if (Test-Path $projectTeamDir) {
+            $projectSkillFiles = @(Get-ChildItem -Path $projectTeamDir -Filter 'SKILL.md' -Recurse)
+            $relDir = $projectSkillsDir.Replace($projectRoot, '').TrimStart('\', '/')
+            Write-Host "  Project Skills: $($projectSkillFiles.Count) in $relDir/" -ForegroundColor White
+        }
+        else {
+            Write-Step 'Project skills: none (run "team-ai-kit init" with a team repo)'
         }
     }
 
@@ -949,16 +1005,33 @@ function Invoke-DoctorCommand {
         Write-Warn 'Config: not configured (run "team-ai-kit setup")'
     }
 
-    # Skills directory
+    # Global skills directory
     if ($config.ide) {
         $skillsDir = Get-IdeSkillsDirectory -Ide $config.ide
         $teamSkillsDir = Join-Path $skillsDir 'team-skills'
         if (Test-Path $teamSkillsDir) {
             $count = @(Get-ChildItem -Path $teamSkillsDir -Filter 'SKILL.md' -Recurse).Count
-            Write-Ok "Team skills: $count files in $teamSkillsDir"
+            Write-Ok "Global skills: $count files in $teamSkillsDir"
         }
         else {
-            Write-Warn "Team skills: directory not found ($teamSkillsDir)"
+            Write-Warn "Global skills: directory not found ($teamSkillsDir)"
+        }
+    }
+
+    # Project-level skills
+    $projectRoot = (Get-Location).Path
+    if ($config.ide -and (Test-ProjectInitialized -ProjectRoot $projectRoot)) {
+        $pc = Get-ProjectConfig -ProjectRoot $projectRoot
+        $projectIde = if ($pc.ide) { $pc.ide } else { $config.ide }
+        $projectSkillsDir = Get-IdeProjectSkillsDirectory -Ide $projectIde -ProjectRoot $projectRoot
+        $projectTeamDir = Join-Path $projectSkillsDir 'team-skills'
+        if (Test-Path $projectTeamDir) {
+            $pCount = @(Get-ChildItem -Path $projectTeamDir -Filter 'SKILL.md' -Recurse).Count
+            $relDir = $projectSkillsDir.Replace($projectRoot, '').TrimStart('\', '/')
+            Write-Ok "Project skills: $pCount files in $relDir/"
+        }
+        else {
+            Write-Step 'Project skills: not installed (run "team-ai-kit init" with a team repo)'
         }
     }
 

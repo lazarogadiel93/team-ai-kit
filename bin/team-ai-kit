@@ -352,7 +352,7 @@ cmd_setup() {
         fi
     fi
 
-    # 5b. Install skills with 3-layer merge
+    # 5b. Install kit base skills to global (team-repo skills go to project via init)
     local target_skills_dir
     if [[ -n "$OPT_TARGET_DIR" ]]; then
         target_skills_dir="$OPT_TARGET_DIR"
@@ -360,10 +360,10 @@ cmd_setup() {
         target_skills_dir=$(get_ide_skills_directory "$OPT_IDE")
     fi
 
-    step "Skills target: $target_skills_dir"
+    step "Global skills target: $target_skills_dir"
 
     local merge_json
-    merge_json=$(install_skills_with_merge "$KIT_ROOT" "$OPT_ROLE" "$target_skills_dir" "$has_team_repo" "$OPT_TEAM_REPO")
+    merge_json=$(install_skills_with_merge "$KIT_ROOT" "$OPT_ROLE" "$target_skills_dir" "false" "")
     local total_installed total_updated total_skipped
     total_installed=$(echo "$merge_json" | jq -r '.installed')
     total_updated=$(echo "$merge_json" | jq -r '.updated')
@@ -412,19 +412,19 @@ cmd_setup() {
     echo -e "  ${C_YELLOW}Next steps:${C_RESET}"
     if [[ -n "$agent_id" && "$SKIP_GENTLE_AI" == "false" ]]; then
         echo -e "    ${C_WHITE}1. Go to your project and run: team-ai-kit init${C_RESET}"
-        echo -e "    ${C_DIM}   (configures instructions, engram sync, and git hooks for the project)${C_RESET}"
+        echo -e "    ${C_DIM}   (configures instructions, team skills, engram sync, and git hooks)${C_RESET}"
         echo -e "    ${C_WHITE}2. Open your IDE and start working!${C_RESET}"
     elif [[ "$OPT_IDE" == "intellij" || "$OPT_IDE" == "cursor" ]]; then
         echo -e "    ${C_WHITE}1. Add the MCP config shown above to your IDE settings${C_RESET}"
         echo -e "    ${C_WHITE}2. Go to your project and run: team-ai-kit init${C_RESET}"
-        echo -e "    ${C_DIM}   (configures instructions, engram sync, and git hooks for the project)${C_RESET}"
+        echo -e "    ${C_DIM}   (configures instructions, team skills, engram sync, and git hooks)${C_RESET}"
         local open_ide_name
         if [[ "$OPT_IDE" == "cursor" ]]; then open_ide_name="Cursor"; else open_ide_name="IntelliJ"; fi
         echo -e "    ${C_WHITE}3. Open $open_ide_name and start working!${C_RESET}"
     else
         echo -e "    ${C_WHITE}1. Run gentle-ai to complete agent configuration${C_RESET}"
         echo -e "    ${C_WHITE}2. Go to your project and run: team-ai-kit init${C_RESET}"
-        echo -e "    ${C_DIM}   (configures instructions, engram sync, and git hooks for the project)${C_RESET}"
+        echo -e "    ${C_DIM}   (configures instructions, team skills, engram sync, and git hooks)${C_RESET}"
         echo -e "    ${C_WHITE}3. Open your IDE and start working!${C_RESET}"
     fi
     echo ""
@@ -546,6 +546,25 @@ cmd_init() {
     local rel_instructions_path="${instructions_path#$project_root/}"
     ok "Created: $rel_instructions_path"
 
+    # 3b. Install team-repo skills to project-level directory
+    if [[ -n "$effective_team_repo" ]] && test_team_repo_cloned "$effective_team_repo"; then
+        local project_skills_dir
+        project_skills_dir=$(get_ide_project_skills_directory "$effective_ide" "$project_root")
+        local rel_skills_dir="${project_skills_dir#$project_root/}"
+        step "Installing team skills to project: $rel_skills_dir"
+
+        local ps_json ps_installed ps_updated
+        ps_json=$(install_project_skills "$effective_role" "$effective_team_repo" "$project_skills_dir")
+        ps_installed=$(echo "$ps_json" | jq -r '.installed')
+        ps_updated=$(echo "$ps_json" | jq -r '.updated')
+        local ps_total=$((ps_installed + ps_updated))
+        if [[ "$ps_total" -gt 0 ]]; then
+            ok "$ps_installed installed, $ps_updated updated team skills"
+        else
+            step "No team skills to install (repo has no skills for this role)"
+        fi
+    fi
+
     # -- Step 4: Setup engram sync + git hooks --------------------------------
     echo ""
     echo -e "  ${C_WHITE}[4/4] Setting up engram sync and git hooks...${C_RESET}"
@@ -605,8 +624,17 @@ cmd_init() {
     echo ""
     echo -e "  ${C_YELLOW}Next steps:${C_RESET}"
     echo -e "    ${C_WHITE}1. Commit .team-ai-kit.json and $rel_instructions_path to your repo${C_RESET}"
-    echo -e "    ${C_WHITE}2. Commit .engram/ to share knowledge with your team${C_RESET}"
-    echo -e "    ${C_WHITE}3. Start working -- git hooks will sync engram automatically!${C_RESET}"
+    if [[ -n "$effective_team_repo" ]]; then
+        local rel_skills_dir
+        rel_skills_dir="$(get_ide_project_skills_directory "$effective_ide" "$project_root")"
+        rel_skills_dir="${rel_skills_dir#$project_root/}"
+        echo -e "    ${C_WHITE}2. Commit $rel_skills_dir/ (team skills for this project)${C_RESET}"
+        echo -e "    ${C_WHITE}3. Commit .engram/ to share knowledge with your team${C_RESET}"
+        echo -e "    ${C_WHITE}4. Start working -- git hooks will sync engram automatically!${C_RESET}"
+    else
+        echo -e "    ${C_WHITE}2. Commit .engram/ to share knowledge with your team${C_RESET}"
+        echo -e "    ${C_WHITE}3. Start working -- git hooks will sync engram automatically!${C_RESET}"
+    fi
     echo -e "    ${C_DIM}   (manual sync: team-ai-kit sync)${C_RESET}"
     echo ""
 }
@@ -752,11 +780,15 @@ cmd_update() {
                 warn "Failed to clone team repo -- continuing with defaults only"
             fi
         fi
+        # Safety net: if a cached clone exists from a previous run, use it
+        if [[ "$has_team_repo" == "false" ]] && test_team_repo_cloned "$effective_team_repo"; then
+            has_team_repo="true"
+        fi
     else
         step 'No team repo configured (use "team-ai-kit setup --team-repo <url>" to add one)'
     fi
 
-    # Step 2: Merge skills with no-overwrite
+    # Step 2: Merge kit base skills to global (no team-repo layer)
     local target_skills_dir
     if [[ -n "$OPT_TARGET_DIR" ]]; then
         target_skills_dir="$OPT_TARGET_DIR"
@@ -764,10 +796,10 @@ cmd_update() {
         target_skills_dir=$(get_ide_skills_directory "$config_ide")
     fi
 
-    step "Merging skills to: $target_skills_dir"
+    step "Merging kit base skills to global: $target_skills_dir"
 
     local merge_json
-    merge_json=$(install_skills_with_merge "$KIT_ROOT" "$config_role" "$target_skills_dir" "$has_team_repo" "$effective_team_repo")
+    merge_json=$(install_skills_with_merge "$KIT_ROOT" "$config_role" "$target_skills_dir" "false" "")
     local m_installed m_updated m_skipped
     m_installed=$(echo "$merge_json" | jq -r '.installed')
     m_updated=$(echo "$merge_json" | jq -r '.updated')
@@ -777,6 +809,29 @@ cmd_update() {
     ok "Installed: $m_installed new skills"
     [[ "$m_updated" -gt 0 ]] && ok "Updated:   $m_updated skills (source changed, yours untouched)"
     [[ "$m_skipped" -gt 0 ]] && step "Unchanged: $m_skipped skills (already up to date or user-modified)"
+
+    # Step 2b: Install team-repo skills to project-level directory
+    if [[ "$has_team_repo" == "true" && "$has_project_config" == "true" ]]; then
+        local effective_ide effective_role_proj project_skills_dir
+        effective_ide=$(get_project_config_value "$project_root" "ide" 2>/dev/null) || true
+        [[ -z "$effective_ide" ]] && effective_ide="$config_ide"
+        effective_role_proj=$(get_project_config_value "$project_root" "role" 2>/dev/null) || true
+        [[ -z "$effective_role_proj" ]] && effective_role_proj="$config_role"
+        project_skills_dir=$(get_ide_project_skills_directory "$effective_ide" "$project_root")
+
+        echo ""
+        local rel_dir="${project_skills_dir#$project_root/}"
+        step "Merging team skills to project: $rel_dir"
+
+        local ps_json ps_installed ps_updated ps_skipped
+        ps_json=$(install_project_skills "$effective_role_proj" "$effective_team_repo" "$project_skills_dir")
+        ps_installed=$(echo "$ps_json" | jq -r '.installed')
+        ps_updated=$(echo "$ps_json" | jq -r '.updated')
+        ps_skipped=$(echo "$ps_json" | jq -r '.skipped')
+        [[ "$ps_installed" -gt 0 ]] && ok "Installed: $ps_installed new team skills"
+        [[ "$ps_updated" -gt 0 ]] && ok "Updated:   $ps_updated team skills"
+        [[ "$ps_skipped" -gt 0 ]] && step "Unchanged: $ps_skipped team skills"
+    fi
 
     # Step 3: Auto-update team rules in instructions if project is initialized
     if [[ "$has_team_repo" == "true" && "$has_project_config" == "true" ]]; then
@@ -855,7 +910,7 @@ cmd_status() {
         local default_count team_count
         default_count=$(echo "$manifest_json" | jq '[.files[] | select(.source == "default")] | length')
         team_count=$(echo "$manifest_json" | jq '[.files[] | select(.source == "team")] | length')
-        echo -e "  ${C_WHITE}Tracked Skills: $file_count total ($default_count default, $team_count team)${C_RESET}"
+        echo -e "  ${C_WHITE}Global Skills: $file_count tracked ($default_count default, $team_count team)${C_RESET}"
 
         # Check for user modifications
         local skills_dir modified_count=0
@@ -882,7 +937,24 @@ cmd_status() {
             skill_count=$(find "$team_skills_dir" -name 'SKILL.md' -type f | wc -l | tr -d ' ')
             echo -e "  ${C_WHITE}Installed Skills: $skill_count (no manifest -- run update to track)${C_RESET}"
         else
-            warn "Skills directory not found: $team_skills_dir"
+            warn "Global skills directory not found: $team_skills_dir"
+        fi
+    fi
+
+    # Show project-level skills
+    if test_project_initialized "$project_root"; then
+        local project_ide project_skills_dir project_team_dir
+        project_ide=$(get_project_config_value "$project_root" "ide" 2>/dev/null) || true
+        [[ -z "$project_ide" ]] && project_ide="$config_ide"
+        project_skills_dir=$(get_ide_project_skills_directory "$project_ide" "$project_root")
+        project_team_dir="$project_skills_dir/team-skills"
+        if [[ -d "$project_team_dir" ]]; then
+            local p_count
+            p_count=$(find "$project_team_dir" -name 'SKILL.md' -type f | wc -l | tr -d ' ')
+            local rel_dir="${project_skills_dir#$project_root/}"
+            echo -e "  ${C_WHITE}Project Skills: $p_count in $rel_dir/${C_RESET}"
+        else
+            step 'Project skills: none (run "team-ai-kit init" with a team repo)'
         fi
     fi
 
@@ -939,7 +1011,7 @@ cmd_doctor() {
         warn 'Config: not configured (run "team-ai-kit setup")'
     fi
 
-    # Skills directory
+    # Global skills directory
     if [[ -n "$config_ide" ]]; then
         local skills_dir team_skills_dir
         skills_dir=$(get_ide_skills_directory "$config_ide")
@@ -947,9 +1019,28 @@ cmd_doctor() {
         if [[ -d "$team_skills_dir" ]]; then
             local count
             count=$(find "$team_skills_dir" -name 'SKILL.md' -type f | wc -l | tr -d ' ')
-            ok "Team skills: $count files in $team_skills_dir"
+            ok "Global skills: $count files in $team_skills_dir"
         else
-            warn "Team skills: directory not found ($team_skills_dir)"
+            warn "Global skills: directory not found ($team_skills_dir)"
+        fi
+    fi
+
+    # Project-level skills
+    local project_root
+    project_root=$(pwd)
+    if [[ -n "$config_ide" ]] && test_project_initialized "$project_root"; then
+        local project_ide project_skills_dir project_team_dir
+        project_ide=$(get_project_config_value "$project_root" "ide" 2>/dev/null) || true
+        [[ -z "$project_ide" ]] && project_ide="$config_ide"
+        project_skills_dir=$(get_ide_project_skills_directory "$project_ide" "$project_root")
+        project_team_dir="$project_skills_dir/team-skills"
+        if [[ -d "$project_team_dir" ]]; then
+            local p_count
+            p_count=$(find "$project_team_dir" -name 'SKILL.md' -type f | wc -l | tr -d ' ')
+            local rel_dir="${project_skills_dir#$project_root/}"
+            ok "Project skills: $p_count files in $rel_dir/"
+        else
+            step 'Project skills: not installed (run "team-ai-kit init" with a team repo)'
         fi
     fi
 

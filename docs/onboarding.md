@@ -158,7 +158,7 @@ Si corres `init` en un proyecto ya inicializado:
 team-ai-kit doctor
 ```
 
-Esto verifica: gentle-ai, engram, jq (Unix), config, skills instalados y team repo.
+Esto verifica: gentle-ai, engram, jq (Unix), config, skills instalados (global + proyecto) y team repo.
 
 Si queres ver tu config actual:
 
@@ -167,6 +167,8 @@ team-ai-kit status
 ```
 
 ### Verificar skills manualmente
+
+**Skills base (globales):**
 
 ```powershell
 # Windows: VS Code / IntelliJ
@@ -188,6 +190,19 @@ ls ~/.cursor/skills/team-skills/
 
 # macOS/Linux: OpenCode
 ls ~/.config/opencode/skills/team-skills/
+```
+
+**Skills del team repo (en el proyecto):**
+
+```powershell
+# VS Code / IntelliJ
+ls .github\skills\team-skills
+
+# Cursor
+ls .cursor\skills\team-skills
+
+# OpenCode
+ls .agents\skills\team-skills
 ```
 
 ---
