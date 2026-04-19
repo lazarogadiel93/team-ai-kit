@@ -42,7 +42,7 @@
 set -euo pipefail
 
 # -- Version -------------------------------------------------------------------
-KIT_VERSION='2.6.1'
+KIT_VERSION='2.6.2'
 
 # -- Resolve paths -------------------------------------------------------------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -874,7 +874,7 @@ cmd_update() {
     local now
     now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
     local updated_config
-    updated_config=$(get_config | jq --arg ts "$now" '.lastUpdate = $ts')
+    updated_config=$(get_config | jq --arg ts "$now" --arg ver "$KIT_VERSION" '.lastUpdate = $ts | .version = $ver')
     save_config "$updated_config" >/dev/null
     echo ""
     ok "Update complete"
