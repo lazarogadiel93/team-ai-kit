@@ -1093,12 +1093,12 @@ function Get-TeamRepoSkillPaths {
 
     [string[]]$all = @()
 
-    $sharedDir = Join-Path $localPath 'skills\shared'
+    $sharedDir = Join-Path $localPath (Join-Path 'skills' 'shared')
     if (Test-Path $sharedDir) {
         $all += @(Get-ChildItem -Path $sharedDir -Filter 'SKILL.md' -Recurse | Select-Object -ExpandProperty FullName)
     }
 
-    $roleDir = Join-Path $localPath "skills\roles\$Role"
+    $roleDir = Join-Path $localPath (Join-Path 'skills' (Join-Path 'roles' $Role))
     if (Test-Path $roleDir) {
         $all += @(Get-ChildItem -Path $roleDir -Filter 'SKILL.md' -Recurse | Select-Object -ExpandProperty FullName)
     }
@@ -1394,7 +1394,8 @@ function Install-ProjectSkills {
     }
 
     $teamSkills = Get-TeamRepoSkillPaths -Role $Role -RepoUrl $TeamRepoUrl
-    $teamSkillsBase = Join-Path $teamRepoPath 'skills'
+    # Normalize to long path to avoid 8.3 short name mismatches on CI runners
+    $teamSkillsBase = [System.IO.Path]::GetFullPath((Join-Path $teamRepoPath 'skills'))
 
     # Load project-level manifest for tracking installed hashes
     $teamSkillsDir = Join-Path $TargetDir 'team-skills'
@@ -1412,8 +1413,13 @@ function Install-ProjectSkills {
     }
 
     foreach ($skillPath in $teamSkills) {
-        $relativePath = $skillPath.Replace($teamSkillsBase, '').TrimStart('\', '/')
-        $destPath = Join-Path $TargetDir "team-skills\$relativePath"
+        $skillPath = [System.IO.Path]::GetFullPath($skillPath)
+        if (-not $skillPath.StartsWith($teamSkillsBase, [System.StringComparison]::OrdinalIgnoreCase)) {
+            Write-Warning "Skill path '$skillPath' is not under expected base '$teamSkillsBase', skipping."
+            continue
+        }
+        $relativePath = $skillPath.Substring($teamSkillsBase.Length).TrimStart('\', '/')
+        $destPath = Join-Path $TargetDir (Join-Path 'team-skills' $relativePath)
 
         $destDir = Split-Path $destPath -Parent
         if (-not (Test-Path $destDir)) {
