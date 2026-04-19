@@ -82,7 +82,7 @@ $ErrorActionPreference = 'Stop'
 
 # -- Kit version ---------------------------------------------------------------
 # Single source of truth. Bump this on every release.
-$KitVersion = '2.5.1'
+$KitVersion = '2.6.0'
 
 # -- Resolve paths -------------------------------------------------------------
 # bin/ is one level down from the kit root

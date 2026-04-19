@@ -41,6 +41,9 @@
 
 set -euo pipefail
 
+# -- Version -------------------------------------------------------------------
+KIT_VERSION='2.6.0'
+
 # -- Resolve paths -------------------------------------------------------------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 KIT_ROOT="$(dirname "$SCRIPT_DIR")"
@@ -391,7 +394,7 @@ cmd_setup() {
         --arg team_repo "$OPT_TEAM_REPO" \
         --arg installed_at "$now" \
         --arg last_update "$now" \
-        --arg version "2.1.0" \
+        --arg version "$KIT_VERSION" \
         '{ide:$ide, role:$role, provider:$provider, teamRepo:$team_repo, installedAt:$installed_at, lastUpdate:$last_update, version:$version}')
     local config_path
     config_path=$(save_config "$config_json")
@@ -612,7 +615,7 @@ cmd_init() {
         --arg team_repo "$effective_team_repo" \
         --arg initialized_at "$now" \
         --arg last_sync "$now" \
-        --arg version "2.1.0" \
+        --arg version "$KIT_VERSION" \
         '{role:$role, ide:$ide, teamRepo:$team_repo, initializedAt:$initialized_at, lastSync:$last_sync, version:$version}')
     save_project_config "$project_root" "$project_config" >/dev/null
     ok "Project config saved: .team-ai-kit.json"
