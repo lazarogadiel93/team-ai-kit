@@ -392,6 +392,44 @@ Describe 'New-CursorMcpConfig' {
 
 # -- Instructions Generation ---------------------------------------------------
 
+Describe 'Get-EngramProtocolContent' {
+    It 'returns content with opening and closing markers' {
+        $content = Get-EngramProtocolContent
+        $content | Should -BeLike '*<!-- team-ai-kit:engram-protocol -->*'
+        $content | Should -BeLike '*<!-- /team-ai-kit:engram-protocol -->*'
+    }
+
+    It 'includes all mem_* tool references' {
+        $content = Get-EngramProtocolContent
+        $content | Should -BeLike '*mem_save*'
+        $content | Should -BeLike '*mem_search*'
+        $content | Should -BeLike '*mem_context*'
+        $content | Should -BeLike '*mem_session_summary*'
+        $content | Should -BeLike '*mem_get_observation*'
+        $content | Should -BeLike '*mem_suggest_topic_key*'
+        $content | Should -BeLike '*mem_update*'
+    }
+
+    It 'includes all 4 protocol sections' {
+        $content = Get-EngramProtocolContent
+        $content | Should -BeLike '*PROACTIVE SAVE TRIGGERS*'
+        $content | Should -BeLike '*WHEN TO SEARCH MEMORY*'
+        $content | Should -BeLike '*SESSION CLOSE PROTOCOL*'
+        $content | Should -BeLike '*AFTER COMPACTION*'
+    }
+
+    It 'wraps session summary template in code fence' {
+        $content = Get-EngramProtocolContent
+        $content | Should -Match '(?s)```.*## Goal.*## Relevant Files.*```'
+    }
+
+    It 'uses single backticks for inline code (not double)' {
+        $content = Get-EngramProtocolContent
+        $content | Should -Match 'Call `mem_save`'
+        $content | Should -Not -Match '``mem_save``'
+    }
+}
+
 Describe 'New-CopilotInstructions' {
     It 'includes role in header' {
         $instructions = New-CopilotInstructions -Role 'frontend'
@@ -401,6 +439,23 @@ Describe 'New-CopilotInstructions' {
     It 'includes team conventions section' {
         $instructions = New-CopilotInstructions -Role 'backend-node'
         $instructions | Should -BeLike '*Team Conventions*'
+    }
+
+    It 'includes engram Memory Protocol with markers' {
+        $instructions = New-CopilotInstructions -Role 'frontend'
+        $instructions | Should -BeLike '*<!-- team-ai-kit:engram-protocol -->*'
+        $instructions | Should -BeLike '*<!-- /team-ai-kit:engram-protocol -->*'
+        $instructions | Should -BeLike '*mem_save*'
+        $instructions | Should -BeLike '*mem_context*'
+        $instructions | Should -BeLike '*mem_session_summary*'
+        $instructions | Should -BeLike '*AFTER COMPACTION*'
+    }
+
+    It 'places engram-protocol before team-rules in output' {
+        $instructions = New-CopilotInstructions -Role 'frontend' -TeamRulesContent '## Team Rules'
+        $engramIdx = $instructions.IndexOf('<!-- team-ai-kit:engram-protocol -->')
+        $teamIdx = $instructions.IndexOf('<!-- team-ai-kit:team-rules -->')
+        $engramIdx | Should -BeLessThan $teamIdx
     }
 
     It 'appends pack rules when provided' {
@@ -433,9 +488,70 @@ Describe 'New-CopilotInstructions' {
         $instructions | Should -BeLike '*<!-- team-ai-kit:team-rules -->*'
     }
 
-    It 'does not include markers when TeamRulesContent is empty' {
+    It 'does not include team-rules markers when TeamRulesContent is empty' {
         $instructions = New-CopilotInstructions -Role 'frontend'
         $instructions | Should -Not -BeLike '*team-ai-kit:team-rules*'
+    }
+}
+
+Describe 'Update-InstructionsEngramProtocol' {
+    It 'returns $false when file does not exist' {
+        $result = Update-InstructionsEngramProtocol -FilePath 'C:\nonexistent\file.md'
+        $result | Should -BeFalse
+    }
+
+    It 'appends protocol when markers do not exist' {
+        $tempFile = Join-Path $env:TEMP "instructions-$(Get-Random).md"
+        try {
+            Set-Content -Path $tempFile -Value '# Existing content'
+            $result = Update-InstructionsEngramProtocol -FilePath $tempFile
+            $result | Should -BeTrue
+            $content = Get-Content -Path $tempFile -Raw
+            $content | Should -BeLike '*<!-- team-ai-kit:engram-protocol -->*'
+            $content | Should -BeLike '*mem_save*'
+            $content | Should -BeLike '*<!-- /team-ai-kit:engram-protocol -->*'
+        }
+        finally {
+            Remove-Item -Path $tempFile -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    It 'replaces content between existing markers' {
+        $tempFile = Join-Path $env:TEMP "instructions-$(Get-Random).md"
+        try {
+            $initial = @"
+# Header
+<!-- team-ai-kit:engram-protocol -->
+# Old Protocol
+<!-- /team-ai-kit:engram-protocol -->
+# Footer
+"@
+            Set-Content -Path $tempFile -Value $initial
+            $result = Update-InstructionsEngramProtocol -FilePath $tempFile
+            $result | Should -BeTrue
+            $content = Get-Content -Path $tempFile -Raw
+            $content | Should -BeLike '*mem_save*'
+            $content | Should -Not -BeLike '*Old Protocol*'
+            $content | Should -BeLike '*# Header*'
+            $content | Should -BeLike '*# Footer*'
+        }
+        finally {
+            Remove-Item -Path $tempFile -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    It 'returns $false when content is unchanged' {
+        $tempFile = Join-Path $env:TEMP "instructions-$(Get-Random).md"
+        try {
+            $protocol = Get-EngramProtocolContent
+            $initial = "# Header`n`n$($protocol.Trim())"
+            Set-Content -Path $tempFile -Value $initial
+            $result = Update-InstructionsEngramProtocol -FilePath $tempFile
+            $result | Should -BeFalse
+        }
+        finally {
+            Remove-Item -Path $tempFile -Force -ErrorAction SilentlyContinue
+        }
     }
 }
 
