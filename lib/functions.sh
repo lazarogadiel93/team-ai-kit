@@ -609,14 +609,14 @@ get_shared_skill_paths() {
     local kit_root="$1"
     local shared_dir="$kit_root/skills/shared"
     [[ -d "$shared_dir" ]] || return 0
-    find "$shared_dir" -name '*.md' -type f | sort
+    find "$shared_dir" -name 'SKILL.md' -type f | sort
 }
 
 get_role_skill_paths() {
     local kit_root="$1" role="$2"
     local role_dir="$kit_root/skills/roles/$role"
     [[ -d "$role_dir" ]] || return 0
-    find "$role_dir" -name '*.md' -type f | sort
+    find "$role_dir" -name 'SKILL.md' -type f | sort
 }
 
 get_all_skill_paths_for_role() {
@@ -732,12 +732,12 @@ get_team_repo_skill_paths() {
 
     local shared_dir="$local_path/skills/shared"
     if [[ -d "$shared_dir" ]]; then
-        find "$shared_dir" -name '*.md' -type f | sort
+        find "$shared_dir" -name 'SKILL.md' -type f | sort
     fi
 
     local role_dir="$local_path/skills/roles/$role"
     if [[ -d "$role_dir" ]]; then
-        find "$role_dir" -name '*.md' -type f | sort
+        find "$role_dir" -name 'SKILL.md' -type f | sort
     fi
 }
 

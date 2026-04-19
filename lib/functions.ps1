@@ -793,7 +793,7 @@ function Get-SharedSkillPaths {
     )
     $sharedDir = Join-Path $KitRoot 'skills\shared'
     if (-not (Test-Path $sharedDir)) { return @() }
-    return @(Get-ChildItem -Path $sharedDir -Filter '*.md' -Recurse | Select-Object -ExpandProperty FullName)
+    return @(Get-ChildItem -Path $sharedDir -Filter 'SKILL.md' -Recurse | Select-Object -ExpandProperty FullName)
 }
 
 function Get-RoleSkillPaths {
@@ -809,7 +809,7 @@ function Get-RoleSkillPaths {
     )
     $roleDir = Join-Path $KitRoot "skills\roles\$Role"
     if (-not (Test-Path $roleDir)) { return @() }
-    return @(Get-ChildItem -Path $roleDir -Filter '*.md' -Recurse | Select-Object -ExpandProperty FullName)
+    return @(Get-ChildItem -Path $roleDir -Filter 'SKILL.md' -Recurse | Select-Object -ExpandProperty FullName)
 }
 
 function Get-AllSkillPathsForRole {
@@ -1064,12 +1064,12 @@ function Get-TeamRepoSkillPaths {
 
     $sharedDir = Join-Path $localPath 'skills\shared'
     if (Test-Path $sharedDir) {
-        $all += @(Get-ChildItem -Path $sharedDir -Filter '*.md' -Recurse | Select-Object -ExpandProperty FullName)
+        $all += @(Get-ChildItem -Path $sharedDir -Filter 'SKILL.md' -Recurse | Select-Object -ExpandProperty FullName)
     }
 
     $roleDir = Join-Path $localPath "skills\roles\$Role"
     if (Test-Path $roleDir) {
-        $all += @(Get-ChildItem -Path $roleDir -Filter '*.md' -Recurse | Select-Object -ExpandProperty FullName)
+        $all += @(Get-ChildItem -Path $roleDir -Filter 'SKILL.md' -Recurse | Select-Object -ExpandProperty FullName)
     }
 
     return $all

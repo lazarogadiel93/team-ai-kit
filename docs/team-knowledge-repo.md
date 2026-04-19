@@ -30,16 +30,18 @@ team-knowledge/
 │   │       └── SKILL.md           # Convenciones de naming para APIs
 │   └── roles/                     # Skills por rol especifico
 │       ├── frontend/
-│       │   └── design-system.skill.md
+│       │   └── design-system/
+│       │       └── SKILL.md
 │       └── devops/
-│           └── azure-pipelines.skill.md
+│           └── azure-pipelines/
+│               └── SKILL.md
 └── rules/                         # Reglas cross-proyecto
     └── team-conventions.md
 ```
 
 **`skills/shared/`** -- Skills que reciben TODOS los roles. Ejemplo: estandar de logging, error handling, naming conventions.
 
-**`skills/roles/<rol>/`** -- Skills que solo recibe un rol especifico. Ejemplo: el frontend recibe `design-system.skill.md`, devops recibe `azure-pipelines.skill.md`.
+**`skills/roles/<rol>/`** -- Skills que solo recibe un rol especifico. Cada skill es una carpeta con un `SKILL.md` adentro (misma convencion que shared). Ejemplo: `skills/roles/frontend/design-system/SKILL.md`, `skills/roles/devops/azure-pipelines/SKILL.md`.
 
 **`rules/`** -- Reglas generales del equipo que se inyectan automaticamente en las instrucciones del proyecto (el archivo `copilot-instructions.md` o equivalente). Se envuelven en marcadores `<!-- team-ai-kit:team-rules -->` para poder actualizarse sin tocar el resto del archivo.
 
@@ -253,9 +255,9 @@ A partir de ahora, cuando **cualquier dev** del equipo escribe codigo que involu
 | Estandar de logging | Pino + JSON + request ID | `skills/shared/logging/SKILL.md` |
 | Error handling | Clases de error tipadas, middleware centralizado | `skills/shared/error-handling/SKILL.md` |
 | Naming conventions | Endpoints REST, variables, archivos | `skills/shared/api-naming/SKILL.md` |
-| Design system | Componentes, tokens, spacing | `skills/roles/frontend/design-system.skill.md` |
-| Pipeline standards | Stages, secrets, tags de imagen | `skills/roles/devops/azure-pipelines.skill.md` |
-| Testing patterns | Que testear, como structurar tests | `skills/roles/backend-node/testing-standards.skill.md` |
+| Design system | Componentes, tokens, spacing | `skills/roles/frontend/design-system/SKILL.md` |
+| Pipeline standards | Stages, secrets, tags de imagen | `skills/roles/devops/azure-pipelines/SKILL.md` |
+| Testing patterns | Que testear, como structurar tests | `skills/roles/backend-node/testing-standards/SKILL.md` |
 | Reglas generales | Idioma de commits, branch naming, PR format | `rules/team-conventions.md` |
 
 La clave es que **cualquier convencion del equipo que hoy vive en un wiki, un documento de Confluence, o en la cabeza de alguien** se puede convertir en un skill que el AI aplica automaticamente.

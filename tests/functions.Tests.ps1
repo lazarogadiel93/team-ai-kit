@@ -248,7 +248,7 @@ Describe 'Install-TeamSkills' {
     }
 
     It 'preserves role skills under team-skills/roles/' {
-        $roleReact = Join-Path $script:tempDir 'team-skills\roles\frontend\react.skill.md'
+        $roleReact = Join-Path $script:tempDir 'team-skills\roles\frontend\react\SKILL.md'
         Test-Path $roleReact | Should -BeTrue
     }
 
@@ -836,7 +836,7 @@ Describe 'Get-TeamRepoSkillPaths' {
             # Create mock team repo structure
             $teamContent = Get-TeamRepoLocalPath
             $sharedSkill = Join-Path $teamContent 'skills\shared\e2e-testing\SKILL.md'
-            $roleSkill = Join-Path $teamContent 'skills\roles\frontend\storybook.skill.md'
+            $roleSkill = Join-Path $teamContent 'skills\roles\frontend\storybook\SKILL.md'
             New-Item -ItemType Directory -Path (Split-Path $sharedSkill -Parent) -Force | Out-Null
             New-Item -ItemType Directory -Path (Split-Path $roleSkill -Parent) -Force | Out-Null
             Set-Content -Path $sharedSkill -Value '# E2E Testing skill'
