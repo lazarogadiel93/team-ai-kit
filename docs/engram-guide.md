@@ -127,7 +127,7 @@ El AI de Dev B, al buscar en engram, encuentra la observacion de Dev A:
 engram se configura automaticamente con `team-ai-kit setup`. Para habilitarlo en un proyecto:
 
 ```bash
-# Inicializar en el proyecto (instala git hooks)
+# Inicializar en el proyecto (instala git hooks + Memory Protocol)
 cd mi-proyecto
 team-ai-kit init
 ```
@@ -135,19 +135,33 @@ team-ai-kit init
 Esto:
 1. Crea el directorio `.engram/` en el proyecto
 2. Instala los git hooks (pre-commit + post-merge)
-3. Configura la base local de engram
+3. Inyecta el **Memory Protocol** en las instrucciones del proyecto
+4. Configura la base local de engram
+
+### Memory Protocol
+
+engram provee herramientas (`mem_save`, `mem_search`, `mem_context`, etc.) via MCP. Pero tener las herramientas no es suficiente -- el AI necesita **instrucciones comportamentales** que le digan:
+
+- **Cuando guardar**: despues de decisiones, bugfixes, descubrimientos, patrones establecidos
+- **Cuando buscar**: al inicio de sesion, cuando el usuario menciona algo del pasado, al trabajar en algo que pudo haberse hecho antes
+- **Cuando resumir**: al cerrar sesion, para que la siguiente sesion no arranque ciega
+
+Sin este protocolo, el AI tiene las herramientas pero **nunca las usa proactivamente**. Es como darle un martillo a alguien sin decirle que hay clavos.
+
+`team-ai-kit init` y `team-ai-kit update` inyectan y mantienen este protocolo actualizado automaticamente en las instrucciones del proyecto.
 
 ### Archivos relevantes
 
 ```
 mi-proyecto/
 ├── .engram/
-│   ├── observations.json    # Observaciones exportadas (commiteado)
-│   └── ...
+│   ├── chunks/                  # Observaciones exportadas (commiteado)
+│   │   └── *.jsonl
+│   └── manifest.json            # Metadata del sync
 ├── .git/hooks/
-│   ├── pre-commit           # Exporta engram antes de commit
-│   └── post-merge           # Importa engram despues de pull
-└── .team-ai-kit.json        # Config del proyecto
+│   ├── pre-commit               # Exporta engram antes de commit
+│   └── post-merge               # Importa engram despues de pull
+└── .team-ai-kit.json            # Config del proyecto
 ```
 
 El directorio `.engram/` se commitea al repo. Asi es como las observaciones viajan entre devs.

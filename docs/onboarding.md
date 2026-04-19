@@ -115,7 +115,7 @@ team-ai-kit init
 
 Esto genera:
 - `.team-ai-kit.json` -- config del proyecto (rol, IDE, timestamps)
-- `.github/copilot-instructions.md` (VS Code/IntelliJ) o `.cursor/rules/team-ai-kit.md` (Cursor) o `AGENTS.md` (OpenCode) -- reglas para el AI
+- `.github/copilot-instructions.md` (VS Code/IntelliJ) o `.cursor/rules/team-ai-kit.md` (Cursor) o `AGENTS.md` (OpenCode) -- reglas para el AI, incluyendo el **Memory Protocol** de engram
 - `.engram/` -- directorio nativo de engram sync para compartir conocimiento del proyecto con el equipo (via git hooks)
 
 ### Override de rol por proyecto
@@ -263,7 +263,9 @@ team-ai-kit update
 Esto:
 1. Hace pull del team-knowledge repo (si esta configurado)
 2. Mergea skills nuevos o actualizados
-3. **NUNCA pisa** skills que vos modificaste localmente
+3. Actualiza el **Memory Protocol** de engram en las instrucciones del proyecto
+4. Sincroniza la version en el config
+5. **NUNCA pisa** skills que vos modificaste localmente
 
 ---
 
