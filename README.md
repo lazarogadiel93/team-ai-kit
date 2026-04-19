@@ -248,7 +248,8 @@ team-knowledge/              # Repo mantenido por tech leads
 │   │       └── SKILL.md     # Estandar de logging del equipo
 │   └── roles/
 │       └── frontend/
-│           └── design-system.skill.md
+│           └── design-system/
+│               └── SKILL.md
 └── rules/                   # Reglas cross-proyecto
     └── team-conventions.md
 ```
@@ -315,7 +316,7 @@ El tracking de merge se hace con SHA256 hashes en `~/.team-ai-kit/manifest.json`
 
 ## Crear un skill
 
-1. Crear `skills/shared/<nombre>/SKILL.md` (compartido) o `skills/roles/<rol>/<nombre>.skill.md` (por rol):
+1. Crear `skills/shared/<nombre>/SKILL.md` (compartido) o `skills/roles/<rol>/<nombre>/SKILL.md` (por rol):
 
 ```markdown
 ---

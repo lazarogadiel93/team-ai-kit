@@ -670,12 +670,12 @@ function Invoke-InitKnowledgeCommand {
     Write-Ok 'Team Knowledge Repo ready!'
     Write-Host ''
     Write-Host '  Structure:' -ForegroundColor Yellow
-    Write-Host '    skills/shared/    Skills for ALL roles'
-    Write-Host '    skills/roles/     Role-specific skills'
-    Write-Host '    rules/            Cross-project rules'
+    Write-Host '    skills/shared/<name>/SKILL.md    Skills for ALL roles' -ForegroundColor White
+    Write-Host '    skills/roles/<role>/<name>/SKILL.md    Role-specific skills' -ForegroundColor White
+    Write-Host '    rules/            Cross-project rules' -ForegroundColor White
     Write-Host ''
     Write-Host '  Next steps:' -ForegroundColor Yellow
-    Write-Host '    1. Add skills to skills/shared/ or skills/roles/<role>/' -ForegroundColor White
+    Write-Host '    1. Add skills as folders: skills/shared/<name>/SKILL.md or skills/roles/<role>/<name>/SKILL.md' -ForegroundColor White
     Write-Host '    2. Add rules to rules/' -ForegroundColor White
     Write-Host '    3. git init && git add . && git commit && git push' -ForegroundColor White
     Write-Host '    4. Share the repo URL with your team:' -ForegroundColor White
@@ -893,7 +893,7 @@ function Invoke-StatusCommand {
         $skillsDir = Get-IdeSkillsDirectory -Ide $config.ide
         $teamSkillsDir = Join-Path $skillsDir 'team-skills'
         if (Test-Path $teamSkillsDir) {
-            $skillFiles = @(Get-ChildItem -Path $teamSkillsDir -Filter '*.md' -Recurse)
+            $skillFiles = @(Get-ChildItem -Path $teamSkillsDir -Filter 'SKILL.md' -Recurse)
             Write-Host "  Installed Skills: $($skillFiles.Count) (no manifest -- run update to track)" -ForegroundColor White
         }
         else {
@@ -954,7 +954,7 @@ function Invoke-DoctorCommand {
         $skillsDir = Get-IdeSkillsDirectory -Ide $config.ide
         $teamSkillsDir = Join-Path $skillsDir 'team-skills'
         if (Test-Path $teamSkillsDir) {
-            $count = @(Get-ChildItem -Path $teamSkillsDir -Filter '*.md' -Recurse).Count
+            $count = @(Get-ChildItem -Path $teamSkillsDir -Filter 'SKILL.md' -Recurse).Count
             Write-Ok "Team skills: $count files in $teamSkillsDir"
         }
         else {

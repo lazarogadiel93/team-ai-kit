@@ -641,12 +641,12 @@ cmd_init_knowledge() {
     ok "Team Knowledge Repo ready!"
     echo ""
     echo -e "  ${C_YELLOW}Structure:${C_RESET}"
-    echo "    skills/shared/    Skills for ALL roles"
-    echo "    skills/roles/     Role-specific skills"
-    echo "    rules/            Cross-project rules"
+    echo -e "    ${C_WHITE}skills/shared/<name>/SKILL.md    Skills for ALL roles${C_RESET}"
+    echo -e "    ${C_WHITE}skills/roles/<role>/<name>/SKILL.md    Role-specific skills${C_RESET}"
+    echo -e "    ${C_WHITE}rules/            Cross-project rules${C_RESET}"
     echo ""
     echo -e "  ${C_YELLOW}Next steps:${C_RESET}"
-    echo -e "    ${C_WHITE}1. Add skills to skills/shared/ or skills/roles/<role>/${C_RESET}"
+    echo -e "    ${C_WHITE}1. Add skills as folders: skills/shared/<name>/SKILL.md or skills/roles/<role>/<name>/SKILL.md${C_RESET}"
     echo -e "    ${C_WHITE}2. Add rules to rules/${C_RESET}"
     echo -e "    ${C_WHITE}3. git init && git add . && git commit && git push${C_RESET}"
     echo -e "    ${C_WHITE}4. Share the repo URL with your team:${C_RESET}"
@@ -879,7 +879,7 @@ cmd_status() {
         team_skills_dir="$skills_dir/team-skills"
         if [[ -d "$team_skills_dir" ]]; then
             local skill_count
-            skill_count=$(find "$team_skills_dir" -name '*.md' -type f | wc -l | tr -d ' ')
+            skill_count=$(find "$team_skills_dir" -name 'SKILL.md' -type f | wc -l | tr -d ' ')
             echo -e "  ${C_WHITE}Installed Skills: $skill_count (no manifest -- run update to track)${C_RESET}"
         else
             warn "Skills directory not found: $team_skills_dir"
@@ -946,7 +946,7 @@ cmd_doctor() {
         team_skills_dir="$skills_dir/team-skills"
         if [[ -d "$team_skills_dir" ]]; then
             local count
-            count=$(find "$team_skills_dir" -name '*.md' -type f | wc -l | tr -d ' ')
+            count=$(find "$team_skills_dir" -name 'SKILL.md' -type f | wc -l | tr -d ' ')
             ok "Team skills: $count files in $team_skills_dir"
         else
             warn "Team skills: directory not found ($team_skills_dir)"

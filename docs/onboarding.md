@@ -256,7 +256,7 @@ Esto:
 
 1. Crear archivo:
    - **Compartido**: `skills/shared/<nombre>/SKILL.md`
-   - **Por rol**: `skills/roles/<rol>/<nombre>.skill.md`
+   - **Por rol**: `skills/roles/<rol>/<nombre>/SKILL.md`
 
 2. Estructura minima:
 
