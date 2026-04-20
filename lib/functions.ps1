@@ -706,7 +706,85 @@ function Get-EngramBinaryPath {
     return $null
 }
 
-# ── gentle-ai Install ────────────────────────────────────────────────────────
+# ── Version Check ─────────────────────────────────────────────────────────────
+
+function Get-InstalledVersion {
+    <#
+    .SYNOPSIS
+        Returns the installed version of a tool (gentle-ai or engram).
+    #>
+    param([Parameter(Mandatory)][string]$Tool)
+    try {
+        $output = & $Tool version 2>$null
+        if ($output -match '(\d+\.\d+\.\d+)') { return $Matches[1] }
+    }
+    catch {}
+    return $null
+}
+
+function Get-LatestGithubVersion {
+    <#
+    .SYNOPSIS
+        Returns the latest release version from a GitHub repo.
+    #>
+    param(
+        [Parameter(Mandatory)][string]$Owner,
+        [Parameter(Mandatory)][string]$Repo
+    )
+    if (Get-Command gh -ErrorAction SilentlyContinue) {
+        try {
+            $release = gh release view --repo "$Owner/$Repo" --json tagName 2>$null | ConvertFrom-Json
+            if ($release.tagName -match '(\d+\.\d+\.\d+)') { return $Matches[1] }
+        }
+        catch {
+            Write-Verbose "gh release view failed for ${Owner}/${Repo}: $_"
+        }
+    }
+    else {
+        Write-Verbose 'gh CLI not found -- skipping GitHub API version check'
+    }
+    # Fallback: scoop info
+    if (Test-ScoopInstalled) {
+        try {
+            $info = & scoop info $Repo 2>$null | Out-String
+            if ($info -match 'Version\s*:\s*(\d+\.\d+\.\d+)') { return $Matches[1] }
+        }
+        catch {
+            Write-Verbose "scoop info fallback failed for ${Repo}: $_"
+        }
+    }
+    Write-Verbose "Could not determine latest version for ${Owner}/${Repo}"
+    return $null
+}
+
+function Get-ToolVersionStatus {
+    <#
+    .SYNOPSIS
+        Returns a hashtable with installed, latest, and updateAvailable for a tool.
+    #>
+    param(
+        [Parameter(Mandatory)][string]$Tool,
+        [Parameter(Mandatory)][string]$Owner,
+        [Parameter(Mandatory)][string]$Repo
+    )
+    $installed = Get-InstalledVersion -Tool $Tool
+    $latest = Get-LatestGithubVersion -Owner $Owner -Repo $Repo
+    $updateAvailable = $false
+    if ($installed -and $latest) {
+        try {
+            $updateAvailable = ([System.Version]$installed) -lt ([System.Version]$latest)
+        }
+        catch {
+            Write-Verbose "Version comparison failed for $Tool (installed=$installed, latest=$latest): $_"
+            $updateAvailable = $installed -ne $latest
+        }
+    }
+    return @{
+        installed       = $installed
+        latest          = $latest
+        updateAvailable = $updateAvailable
+    }
+}
 
 function Invoke-GentleAiInstall {
     <#
