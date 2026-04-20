@@ -42,7 +42,7 @@
 set -euo pipefail
 
 # -- Version -------------------------------------------------------------------
-KIT_VERSION='2.6.2'
+KIT_VERSION='2.6.3'
 
 # -- Resolve paths -------------------------------------------------------------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
