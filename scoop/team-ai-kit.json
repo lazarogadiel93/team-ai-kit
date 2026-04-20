@@ -4,7 +4,7 @@
     "homepage": "https://github.com/lazarogadiel93/team-ai-kit",
     "license": "MIT",
     "url": "https://github.com/lazarogadiel93/team-ai-kit/releases/download/v2.6.3/team-ai-kit-v2.6.3.zip",
-    "hash": "",
+    "hash": "5c397ed3216db7b881b60e066bfb0748120c94b4141f44fe77de223c4f00b65f",
     "extract_dir": "team-ai-kit",
     "bin": [
         ["bin\\team-ai-kit.ps1", "team-ai-kit"]
