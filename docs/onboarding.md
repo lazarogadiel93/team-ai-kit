@@ -347,3 +347,31 @@ team-ai-kit update
 1. Verificar que el Copilot plugin esta actualizado
 2. La config MCP se muestra durante el setup -- copiarla a la config de MCP de IntelliJ/Cursor
 3. Verificar engram: `engram --version`
+
+### Scoop no actualiza a la ultima version
+
+Scoop cachea los archivos descargados. Si `scoop update gentle-ai` o `scoop update engram` no instala la version esperada:
+
+```powershell
+# Limpiar cache de Scoop y reintentar
+scoop cache rm gentle-ai
+scoop cache rm engram
+scoop update gentle-ai
+scoop update engram
+```
+
+Si persiste, forzar reinstalacion:
+
+```powershell
+scoop uninstall gentle-ai
+scoop install gentle-ai
+```
+
+### Verificar versiones instaladas
+
+Correr `team-ai-kit doctor` para ver las versiones instaladas y si hay updates disponibles. Tambien se puede verificar manualmente:
+
+```powershell
+gentle-ai version    # version de gentle-ai
+engram version       # version de engram
+```

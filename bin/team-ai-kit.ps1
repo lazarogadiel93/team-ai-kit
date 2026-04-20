@@ -202,12 +202,18 @@ function Invoke-SetupCommand {
 
         # -- engram --
         if (Test-EngramInstalled) {
+            if ($Update -and (Test-ScoopInstalled)) {
+                Write-Step 'Updating engram...'
+                try { & scoop update engram }
+                catch { Write-Warn "Failed to update engram: $_" }
+            }
             Write-Ok 'engram available'
         }
         else {
             Write-Step 'Installing engram...'
             if (Test-ScoopInstalled) {
                 try {
+                    & scoop bucket add team-ai-kit https://github.com/lazarogadiel93/scoop-bucket 2>$null
                     & scoop install engram 2>$null
                     Write-Ok 'engram installed via Scoop'
                 }
@@ -997,6 +1003,21 @@ function Invoke-DoctorCommand {
 
     $allGood = $true
 
+    # team-ai-kit version
+    Write-Step 'Checking for updates...'
+    $kitLatest = Get-LatestGithubVersion -Owner 'lazarogadiel93' -Repo 'team-ai-kit'
+    $kitUpdateAvailable = $false
+    if ($kitLatest -and $KitVersion) {
+        try { $kitUpdateAvailable = ([System.Version]$KitVersion) -lt ([System.Version]$kitLatest) }
+        catch { $kitUpdateAvailable = $kitLatest -ne $KitVersion }
+    }
+    if ($kitUpdateAvailable) {
+        Write-Warn "team-ai-kit: v$KitVersion (update available: v$kitLatest) -- run: scoop update team-ai-kit"
+    }
+    else {
+        Write-Ok "team-ai-kit: v$KitVersion"
+    }
+
     # Scoop (optional)
     if (Test-ScoopInstalled) { Write-Ok 'Scoop: installed' }
     else { Write-Warn 'Scoop: NOT found (optional -- direct download available)' }
@@ -1004,14 +1025,28 @@ function Invoke-DoctorCommand {
     # gentle-ai
     if (Test-GentleAiInstalled) {
         $gentlePath = Get-GentleAiBinaryPath
-        Write-Ok "gentle-ai: installed ($gentlePath)"
+        $gentleVer = Get-ToolVersionStatus -Tool 'gentle-ai' -Owner 'Gentleman-Programming' -Repo 'gentle-ai'
+        $verStr = if ($gentleVer.installed) { "v$($gentleVer.installed)" } else { 'unknown' }
+        if ($gentleVer.updateAvailable) {
+            Write-Warn "gentle-ai: $verStr (update available: v$($gentleVer.latest)) -- run: scoop update gentle-ai"
+        }
+        else {
+            Write-Ok "gentle-ai: $verStr ($gentlePath)"
+        }
     }
     else { Write-Err 'gentle-ai: NOT found'; $allGood = $false }
 
     # engram
     if (Test-EngramInstalled) {
         $engramPath = Get-EngramBinaryPath
-        Write-Ok "engram: installed ($engramPath)"
+        $engramVer = Get-ToolVersionStatus -Tool 'engram' -Owner 'Gentleman-Programming' -Repo 'engram'
+        $verStr = if ($engramVer.installed) { "v$($engramVer.installed)" } else { 'unknown' }
+        if ($engramVer.updateAvailable) {
+            Write-Warn "engram: $verStr (update available: v$($engramVer.latest)) -- run: scoop update engram"
+        }
+        else {
+            Write-Ok "engram: $verStr ($engramPath)"
+        }
     }
     else { Write-Err 'engram: NOT found'; $allGood = $false }
 
