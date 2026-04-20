@@ -102,6 +102,10 @@ team-ai-kit setup
 
 # Actualizar a la ultima version
 scoop update team-ai-kit
+
+# Si Scoop no agarra la ultima version (cache), limpiar y reintentar
+scoop cache rm team-ai-kit
+scoop update team-ai-kit
 ```
 
 ### Windows (sin Scoop -- entornos corporativos)
