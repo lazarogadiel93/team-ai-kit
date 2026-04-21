@@ -11,7 +11,7 @@ Set-StrictMode -Version Latest
 # ── Constants ─────────────────────────────────────────────────────────────────
 
 $script:VALID_IDES = @('vscode', 'intellij', 'opencode', 'cursor')
-$script:VALID_ROLES = @('frontend', 'backend-node', 'devops', 'python')
+$script:VALID_ROLES = @('frontend', 'backend-node', 'backend-java', 'backend-dotnet', 'devops', 'python', 'mobile', 'data')
 $script:VALID_PROVIDERS = @('openai', 'azure-openai', 'anthropic', 'github-copilot')
 $script:VALID_COMMANDS = @('setup', 'init', 'init-knowledge', 'sync', 'update', 'status', 'doctor', 'uninstall', 'help')
 
