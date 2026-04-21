@@ -51,7 +51,10 @@ jobs:
         run: sudo apt-get install -y jq
 
       - name: Make scripts executable
-        run: chmod +x bin/team-ai-kit tests/e2e-bash.sh
+        run: chmod +x bin/team-ai-kit tests/e2e-bash.sh tests/functions-bash.sh
+
+      - name: Run unit tests
+        run: bash tests/functions-bash.sh
 
       - name: Run E2E tests
         run: bash tests/e2e-bash.sh

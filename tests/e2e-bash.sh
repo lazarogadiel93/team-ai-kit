@@ -116,6 +116,75 @@ else
     echo "$output"
 fi
 
+# -- Test 8: Cursor setup uses test_gentle_ai_supports_ide (fix #4) ---
+echo "--- Test 8: cursor setup ---"
+CURSOR_TEST_DIR="/tmp/team-ai-kit-e2e-cursor-$$"
+CURSOR_HOME="/tmp/team-ai-kit-e2e-cursor-home-$$"
+mkdir -p "$CURSOR_HOME"
+output=$(HOME="$CURSOR_HOME" bash "$KIT_ROOT/bin/team-ai-kit" setup --ide cursor --role frontend --target-dir "$CURSOR_TEST_DIR" --skip-prerequisites --skip-gentle-ai 2>&1) || true
+if echo "$output" | grep -q "Setup Complete"; then
+    pass "cursor setup completes"
+else
+    fail "cursor setup didn't complete"
+    echo "$output" | tail -10
+fi
+# Cursor is gentle-ai-supported, so setup should show agent-based flow (not MCP manual)
+if echo "$output" | grep -q "Add the MCP config"; then
+    fail "cursor should not show MCP manual step (fix #4)"
+else
+    pass "cursor setup does not show MCP manual step"
+fi
+rm -rf "$CURSOR_TEST_DIR" "$CURSOR_HOME"
+
+# -- Test 9: Init with vscode skips engram protocol (fix #2, #5) ---
+echo "--- Test 9: vscode init skips engram protocol ---"
+mkdir -p "$TEST_DIR/.git"  # ensure it looks like a git repo
+output=$(bash "$KIT_ROOT/bin/team-ai-kit" init --target-dir "$TEST_DIR" 2>&1) || true
+instructions_path="$TEST_DIR/.github/copilot-instructions.md"
+if [ -f "$instructions_path" ]; then
+    if grep -qF "team-ai-kit:engram-protocol" "$instructions_path"; then
+        fail "vscode init should skip engram protocol (gentle-ai handles it)"
+    else
+        pass "vscode init skips engram protocol"
+    fi
+else
+    fail "instructions file not created"
+fi
+
+# -- Test 10: Init with intellij includes engram protocol (fix #2) ---
+echo "--- Test 10: intellij init includes engram protocol ---"
+IJ_TEST_DIR="/tmp/team-ai-kit-e2e-ij-$$"
+IJ_HOME="/tmp/team-ai-kit-e2e-ij-home-$$"
+mkdir -p "$IJ_HOME" "$IJ_TEST_DIR/.git"
+# Setup with intellij first
+HOME="$IJ_HOME" bash "$KIT_ROOT/bin/team-ai-kit" setup --ide intellij --role backend-node --target-dir "$IJ_TEST_DIR" --skip-prerequisites --skip-gentle-ai 2>&1 >/dev/null || true
+# Now init
+HOME="$IJ_HOME" bash "$KIT_ROOT/bin/team-ai-kit" init --target-dir "$IJ_TEST_DIR" 2>&1 >/dev/null || true
+ij_instructions="$IJ_TEST_DIR/.github/copilot-instructions.md"
+if [ -f "$ij_instructions" ]; then
+    if grep -qF "team-ai-kit:engram-protocol" "$ij_instructions"; then
+        pass "intellij init includes engram protocol"
+    else
+        fail "intellij init should include engram protocol"
+    fi
+else
+    fail "intellij instructions file not created"
+fi
+rm -rf "$IJ_TEST_DIR" "$IJ_HOME"
+
+# -- Test 11: Re-init guard uses team-repo, not IDE (fix #3) ---
+echo "--- Test 11: re-init with --role reruns without prompt ---"
+# Already initialized from test 2. Passing --role should re-init without interactive prompt.
+output=$(bash "$KIT_ROOT/bin/team-ai-kit" init --target-dir "$TEST_DIR" --role backend-node 2>&1) || true
+if echo "$output" | grep -q "Re-initializing"; then
+    pass "re-init with --role triggers force re-init"
+elif echo "$output" | grep -q "Created:"; then
+    pass "re-init with --role proceeds without interactive prompt"
+else
+    fail "re-init with --role should not require interactive prompt (fix #3)"
+    echo "$output" | tail -5
+fi
+
 # -- Summary ---
 echo ""
 echo "================================"
