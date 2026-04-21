@@ -28,8 +28,8 @@ Describe 'Get-GentleAiAgentId' {
         Get-GentleAiAgentId -Ide 'intellij' | Should -BeNullOrEmpty
     }
 
-    It 'returns $null for cursor (no gentle-ai adapter)' {
-        Get-GentleAiAgentId -Ide 'cursor' | Should -BeNullOrEmpty
+    It 'maps cursor to cursor' {
+        Get-GentleAiAgentId -Ide 'cursor' | Should -Be 'cursor'
     }
 
     It 'returns $null for unknown IDEs' {
@@ -39,6 +39,7 @@ Describe 'Get-GentleAiAgentId' {
     It 'is case-insensitive' {
         Get-GentleAiAgentId -Ide 'VSCode' | Should -Be 'vscode-copilot'
         Get-GentleAiAgentId -Ide 'OPENCODE' | Should -Be 'opencode'
+        Get-GentleAiAgentId -Ide 'CURSOR' | Should -Be 'cursor'
     }
 }
 
@@ -55,8 +56,8 @@ Describe 'Test-GentleAiSupportsIde' {
         Test-GentleAiSupportsIde -Ide 'intellij' | Should -BeFalse
     }
 
-    It 'returns $false for cursor' {
-        Test-GentleAiSupportsIde -Ide 'cursor' | Should -BeFalse
+    It 'returns $true for cursor' {
+        Test-GentleAiSupportsIde -Ide 'cursor' | Should -BeTrue
     }
 
     It 'returns $false for unknown IDEs' {
@@ -492,6 +493,26 @@ Describe 'New-CopilotInstructions' {
         $instructions = New-CopilotInstructions -Role 'frontend'
         $instructions | Should -Not -BeLike '*team-ai-kit:team-rules*'
     }
+
+    It 'skips engram protocol when SkipEngramProtocol is set' {
+        $instructions = New-CopilotInstructions -Role 'frontend' -SkipEngramProtocol
+        $instructions | Should -Not -BeLike '*team-ai-kit:engram-protocol*'
+        $instructions | Should -Not -BeLike '*mem_save*'
+        $instructions | Should -BeLike '*Team Conventions*'
+    }
+
+    It 'includes engram protocol when SkipEngramProtocol is not set' {
+        $instructions = New-CopilotInstructions -Role 'frontend'
+        $instructions | Should -BeLike '*team-ai-kit:engram-protocol*'
+        $instructions | Should -BeLike '*mem_save*'
+    }
+
+    It 'skips engram protocol but keeps team rules when both flags used' {
+        $instructions = New-CopilotInstructions -Role 'frontend' -TeamRulesContent '## Team Rules' -SkipEngramProtocol
+        $instructions | Should -Not -BeLike '*team-ai-kit:engram-protocol*'
+        $instructions | Should -BeLike '*<!-- team-ai-kit:team-rules -->*'
+        $instructions | Should -BeLike '*Team Rules*'
+    }
 }
 
 Describe 'Update-InstructionsEngramProtocol' {
@@ -547,6 +568,41 @@ Describe 'Update-InstructionsEngramProtocol' {
             $initial = "# Header`n`n$($protocol.Trim())"
             Set-Content -Path $tempFile -Value $initial
             $result = Update-InstructionsEngramProtocol -FilePath $tempFile
+            $result | Should -BeFalse
+        }
+        finally {
+            Remove-Item -Path $tempFile -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    It 'removes existing protocol when SkipEngramProtocol is set' {
+        $tempFile = Join-Path $env:TEMP "instructions-$(Get-Random).md"
+        try {
+            $initial = @"
+# Header
+<!-- team-ai-kit:engram-protocol -->
+## Old Protocol
+<!-- /team-ai-kit:engram-protocol -->
+# Footer
+"@
+            Set-Content -Path $tempFile -Value $initial
+            $result = Update-InstructionsEngramProtocol -FilePath $tempFile -SkipEngramProtocol
+            $result | Should -BeTrue
+            $content = Get-Content -Path $tempFile -Raw
+            $content | Should -Not -BeLike '*engram-protocol*'
+            $content | Should -BeLike '*# Header*'
+            $content | Should -BeLike '*# Footer*'
+        }
+        finally {
+            Remove-Item -Path $tempFile -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    It 'returns $false when SkipEngramProtocol is set and no markers exist' {
+        $tempFile = Join-Path $env:TEMP "instructions-$(Get-Random).md"
+        try {
+            Set-Content -Path $tempFile -Value '# No protocol here'
+            $result = Update-InstructionsEngramProtocol -FilePath $tempFile -SkipEngramProtocol
             $result | Should -BeFalse
         }
         finally {

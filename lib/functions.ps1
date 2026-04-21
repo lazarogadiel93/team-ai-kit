@@ -396,6 +396,7 @@ function Get-GentleAiAgentId {
     $map = @{
         'vscode'   = 'vscode-copilot'
         'opencode' = 'opencode'
+        'cursor'   = 'cursor'
     }
     return $map[$Ide.ToLower()]
 }
@@ -1706,14 +1707,16 @@ function Update-InstructionsEngramProtocol {
     <#
     .SYNOPSIS
         Updates the engram-protocol section in an existing instructions file.
+        If SkipEngramProtocol is set, removes existing markers instead of updating.
         If markers exist, replaces content between them.
-        If no markers exist, inserts after the Team Conventions header.
+        If no markers exist and not skipping, inserts after the Team Conventions header.
     .OUTPUTS
         $true if the file was changed, $false if content is the same.
     #>
     param(
         [Parameter(Mandatory)]
-        [string]$FilePath
+        [string]$FilePath,
+        [switch]$SkipEngramProtocol
     )
 
     if (-not (Test-Path $FilePath)) { return $false }
@@ -1722,10 +1725,27 @@ function Update-InstructionsEngramProtocol {
     $startMarker = '<!-- team-ai-kit:engram-protocol -->'
     $endMarker = '<!-- /team-ai-kit:engram-protocol -->'
 
+    $startIdx = $existing.IndexOf($startMarker)
+
+    if ($SkipEngramProtocol) {
+        # Remove existing engram protocol block if present
+        if ($startIdx -ge 0) {
+            $endIdx = $existing.IndexOf($endMarker, $startIdx)
+            if ($endIdx -ge 0) {
+                $endIdx += $endMarker.Length
+                $updated = $existing.Substring(0, $startIdx) + $existing.Substring($endIdx)
+                $updated = $updated -replace '(\r?\n){3,}', "`r`n`r`n"
+                $updated = $updated.TrimEnd() + "`r`n"
+                if ($updated -eq $existing) { return $false }
+                [System.IO.File]::WriteAllText($FilePath, $updated, [System.Text.Encoding]::UTF8)
+                return $true
+            }
+        }
+        return $false
+    }
+
     $protocolContent = Get-EngramProtocolContent
     $newSection = $protocolContent.Trim()
-
-    $startIdx = $existing.IndexOf($startMarker)
     if ($startIdx -ge 0) {
         $endIdx = $existing.IndexOf($endMarker, $startIdx)
         if ($endIdx -ge 0) {
@@ -1750,15 +1770,17 @@ function Update-InstructionsEngramProtocol {
 function New-CopilotInstructions {
     <#
     .SYNOPSIS
-        Generates the copilot-instructions.md content with engram Memory Protocol
-        and team rules injected. Engram protocol is always included (team-ai-kit
-        requires engram).
+        Generates the copilot-instructions.md content with team rules injected.
+        Engram protocol is only included for IDEs where gentle-ai does NOT handle it
+        (e.g. IntelliJ). For gentle-ai-supported IDEs, gentle-ai injects the protocol
+        globally and team-ai-kit skips it to avoid duplication.
     #>
     param(
         [Parameter(Mandatory)]
         [string]$Role,
         [string]$PackRulesContent = '',
-        [string]$TeamRulesContent = ''
+        [string]$TeamRulesContent = '',
+        [switch]$SkipEngramProtocol
     )
 
     $header = @"
@@ -1776,9 +1798,12 @@ function New-CopilotInstructions {
 
 "@
 
-    $memoryProtocol = Get-EngramProtocolContent
+    $result = $header
 
-    $result = $header + $memoryProtocol
+    if (-not $SkipEngramProtocol) {
+        $memoryProtocol = Get-EngramProtocolContent
+        $result += $memoryProtocol
+    }
 
     if ($PackRulesContent) {
         $result += "`n$PackRulesContent`n"

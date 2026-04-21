@@ -357,8 +357,9 @@ function Invoke-SetupCommand {
         Write-Step 'Skipping gentle-ai install (SkipGentleAi flag)'
     }
     else {
-        # IntelliJ/Cursor: no gentle-ai adapter
-        $ideName = if ($Ide -eq 'cursor') { 'Cursor' } else { 'IntelliJ + Copilot' }
+        # IDE without gentle-ai adapter -- manual MCP setup
+        $ideNames = @{ 'intellij' = 'IntelliJ + Copilot' }
+        $ideName = if ($ideNames.ContainsKey($Ide.ToLower())) { $ideNames[$Ide.ToLower()] } else { $Ide }
         Write-Step "$ideName`: no gentle-ai adapter available"
         Write-Step 'Setting up MCP config from template...'
 
@@ -377,10 +378,7 @@ function Invoke-SetupCommand {
             else {
                 # Show MCP config for manual setup
                 $engramPath = if ($engramBin) { $engramBin } else { '(path-to-engram)' }
-                if ($Ide -eq 'cursor') {
-                    $mcpJson = New-CursorMcpConfig -EngramBinaryPath $engramPath
-                }
-                elseif ($Ide -eq 'intellij') {
+                if ($Ide -eq 'intellij') {
                     $mcpJson = New-IntelliJMcpConfig -EngramBinaryPath $engramPath
                 }
                 else {
@@ -441,7 +439,8 @@ function Invoke-SetupCommand {
     if ($packRulesPath) {
         $packRulesContent = Get-Content -Path $packRulesPath -Raw
     }
-    $instructions = New-CopilotInstructions -Role $Role -PackRulesContent $packRulesContent
+    $skipProtocol = Test-GentleAiSupportsIde -Ide $Ide
+    $instructions = New-CopilotInstructions -Role $Role -PackRulesContent $packRulesContent -SkipEngramProtocol:$skipProtocol
     Write-Ok "Project instructions generated for role: $Role"
     Write-Step 'Run "team-ai-kit init" in each project to apply instructions'
 
@@ -472,7 +471,7 @@ function Invoke-SetupCommand {
         Write-Host '       (configures instructions, team skills, engram sync, and git hooks)' -ForegroundColor DarkGray
         Write-Host '    2. Open your IDE and start working!' -ForegroundColor White
     }
-    elseif ($Ide -eq 'intellij' -or $Ide -eq 'cursor') {
+    elseif (-not (Test-GentleAiSupportsIde -Ide $Ide)) {
         Write-Host '    1. Add the MCP config shown above to your IDE settings' -ForegroundColor White
         Write-Host '    2. Go to your project and run: team-ai-kit init' -ForegroundColor White
         Write-Host '       (configures instructions, team skills, engram sync, and git hooks)' -ForegroundColor DarkGray
@@ -587,7 +586,8 @@ function Invoke-InitCommand {
         }
     }
 
-    $instructions = New-CopilotInstructions -Role $effectiveRole -PackRulesContent $packRulesContent -TeamRulesContent $teamRulesContent
+    $skipProtocol = Test-GentleAiSupportsIde -Ide $effectiveIde
+    $instructions = New-CopilotInstructions -Role $effectiveRole -PackRulesContent $packRulesContent -TeamRulesContent $teamRulesContent -SkipEngramProtocol:$skipProtocol
     [System.IO.File]::WriteAllText($instructionsPath, $instructions, [System.Text.Encoding]::UTF8)
     $relInstructionsPath = $instructionsPath.Replace($projectRoot, '').TrimStart('\', '/')
     Write-Ok "Created: $relInstructionsPath"
@@ -881,12 +881,19 @@ function Invoke-UpdateCommand {
     }
 
     # Step 4: Auto-update engram Memory Protocol in instructions
+    # Skip for IDEs where gentle-ai handles the protocol globally
     if ($projectConfig) {
         $instructionsPath = Get-IdeInstructionsPath -Ide $config.ide -ProjectRoot $projectRoot
         if (Test-Path $instructionsPath) {
-            $protocolChanged = Update-InstructionsEngramProtocol -FilePath $instructionsPath
+            $skipProtocol = Test-GentleAiSupportsIde -Ide $config.ide
+            $protocolChanged = Update-InstructionsEngramProtocol -FilePath $instructionsPath -SkipEngramProtocol:$skipProtocol
             if ($protocolChanged) {
-                Write-Ok 'Engram Memory Protocol updated in project instructions'
+                if ($skipProtocol) {
+                    Write-Ok 'Engram Memory Protocol removed from project instructions (gentle-ai handles it)'
+                }
+                else {
+                    Write-Ok 'Engram Memory Protocol updated in project instructions'
+                }
             }
             else {
                 Write-Step 'Engram Memory Protocol unchanged in project instructions'
