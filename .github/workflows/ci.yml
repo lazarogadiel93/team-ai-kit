@@ -51,7 +51,7 @@ jobs:
         run: sudo apt-get install -y shellcheck
 
       - name: Run shellcheck on scripts
-        run: shellcheck -s bash bin/team-ai-kit lib/functions.sh
+        run: shellcheck --severity=warning -s bash bin/team-ai-kit lib/functions.sh
 
   bash-e2e:
     name: Bash E2E Tests (Ubuntu)

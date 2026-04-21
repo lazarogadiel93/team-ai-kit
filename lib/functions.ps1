@@ -433,13 +433,27 @@ function Test-GentleAiSupportsIde {
 
 # ── Direct Download Support ───────────────────────────────────────────────────
 
+function Get-LocalAppData {
+    <#
+    .SYNOPSIS
+        Returns the local app data directory with fallback for non-standard environments.
+    .DESCRIPTION
+        Tries $env:LOCALAPPDATA (Windows default), then falls back to
+        Join-Path (Get-UserHome) 'AppData\Local'. Throws if all fail.
+    #>
+    if ($env:LOCALAPPDATA) { return $env:LOCALAPPDATA }
+    $fallback = Join-Path (Get-UserHome) 'AppData\Local'
+    if ($fallback) { return $fallback }
+    throw 'Cannot determine local app data directory. Set LOCALAPPDATA environment variable.'
+}
+
 function Get-DirectDownloadBinDir {
     <#
     .SYNOPSIS
         Returns the path where directly-downloaded binaries are stored.
         Windows: $env:LOCALAPPDATA\team-ai-kit\bin
     #>
-    return Join-Path $env:LOCALAPPDATA 'team-ai-kit\bin'
+    return Join-Path (Get-LocalAppData) 'team-ai-kit\bin'
 }
 
 function Get-PlatformArchitecture {
@@ -692,7 +706,7 @@ function Test-EngramInstalled {
     if (Test-Path $scoopPath) { return $true }
 
     # Check AppData (gentle-ai installs here)
-    $appDataPath = Join-Path $env:LOCALAPPDATA 'engram\bin\engram.exe'
+    $appDataPath = Join-Path (Get-LocalAppData) 'engram\bin\engram.exe'
     if (Test-Path $appDataPath) { return $true }
 
     # Check direct download location
@@ -716,7 +730,7 @@ function Get-EngramBinaryPath {
     $scoopPath = Join-Path (Get-UserHome) 'scoop\shims\engram.exe'
     if (Test-Path $scoopPath) { return $scoopPath }
 
-    $appDataPath = Join-Path $env:LOCALAPPDATA 'engram\bin\engram.exe'
+    $appDataPath = Join-Path (Get-LocalAppData) 'engram\bin\engram.exe'
     if (Test-Path $appDataPath) { return $appDataPath }
 
     $directPath = Join-Path (Get-DirectDownloadBinDir) 'engram.exe'

@@ -35,9 +35,9 @@ Describe 'Get-UserHome' {
         $originalHOME = $env:HOME
         try {
             $env:USERPROFILE = $null
-            $env:HOME = $originalUP  # Use original as fallback
+            $env:HOME = 'C:\test-fallback-home'
             $result = Get-UserHome
-            $result | Should -Be $originalUP
+            $result | Should -Be 'C:\test-fallback-home'
         }
         finally {
             $env:USERPROFILE = $originalUP
@@ -45,19 +45,8 @@ Describe 'Get-UserHome' {
         }
     }
 
-    It 'throws when no home variable is available' {
-        $originalUP = $env:USERPROFILE
-        $originalHOME = $env:HOME
-        try {
-            $env:USERPROFILE = $null
-            $env:HOME = $null
-            # GetFolderPath may still return a value, so this test is best-effort
-            # On normal Windows it will still find a home via .NET
-        }
-        finally {
-            $env:USERPROFILE = $originalUP
-            $env:HOME = $originalHOME
-        }
+    # Throw path is untestable: [Environment]::GetFolderPath cannot be mocked in Pester without a framework
+    It 'throws when no home variable is available' -Skip {
     }
 }
 
