@@ -185,6 +185,40 @@ else
     echo "$output" | tail -5
 fi
 
+# -- Test 12: uninstall command ---
+echo "--- Test 12: uninstall ---"
+# TEST_DIR should be initialized from test 2
+if [ -f "$TEST_DIR/.team-ai-kit.json" ]; then
+    output=$(cd "$TEST_DIR" && bash "$KIT_ROOT/bin/team-ai-kit" uninstall --force 2>&1) || true
+    if echo "$output" | grep -qi "uninstalled"; then
+        pass "uninstall reports success"
+    else
+        fail "uninstall didn't report success"
+        echo "$output" | tail -5
+    fi
+    # Verify artifacts are gone
+    if [ ! -f "$TEST_DIR/.team-ai-kit.json" ]; then
+        pass "uninstall removed .team-ai-kit.json"
+    else
+        fail "uninstall didn't remove .team-ai-kit.json"
+    fi
+else
+    fail "uninstall test: project not initialized (test 2 must have failed)"
+fi
+
+# -- Test 13: uninstall on non-initialized project ---
+echo "--- Test 13: uninstall on non-initialized project ---"
+UNINST_DIR="/tmp/team-ai-kit-uninst-$$"
+mkdir -p "$UNINST_DIR"
+output=$(cd "$UNINST_DIR" && bash "$KIT_ROOT/bin/team-ai-kit" uninstall --force 2>&1) || true
+if echo "$output" | grep -qi "no team-ai-kit project"; then
+    pass "uninstall rejects non-initialized project"
+else
+    fail "uninstall should reject non-initialized project"
+    echo "$output" | tail -5
+fi
+rm -rf "$UNINST_DIR"
+
 # -- Summary ---
 echo ""
 echo "================================"

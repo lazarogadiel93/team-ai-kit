@@ -1953,3 +1953,122 @@ Describe 'Test-ValidCommand includes init-knowledge' {
         Test-ValidCommand -Command 'init-knowledge' | Should -BeTrue
     }
 }
+
+# -- Uninstall -----------------------------------------------------------------
+
+Describe 'Get-UninstallTargets' {
+    BeforeEach {
+        $testDir = Join-Path ([IO.Path]::GetTempPath()) "tak-uninstall-$([guid]::NewGuid().ToString('N').Substring(0,8))"
+        New-Item -ItemType Directory -Path $testDir -Force | Out-Null
+    }
+    AfterEach {
+        if (Test-Path $testDir) { Remove-Item $testDir -Recurse -Force }
+    }
+
+    It 'returns empty when project is not initialized' {
+        $targets = Get-UninstallTargets -ProjectRoot $testDir
+        $targets | Should -BeNullOrEmpty
+    }
+
+    It 'detects .team-ai-kit.json' {
+        $configPath = Join-Path $testDir '.team-ai-kit.json'
+        '{"role":"frontend","ide":"vscode"}' | Set-Content $configPath
+        $targets = @(Get-UninstallTargets -ProjectRoot $testDir)
+        $match = $targets | Where-Object { $_.Path -eq $configPath }
+        $match | Should -Not -BeNullOrEmpty
+        $match.Type | Should -Be 'file'
+    }
+
+    It 'detects instructions file for vscode' {
+        $configPath = Join-Path $testDir '.team-ai-kit.json'
+        '{"role":"frontend","ide":"vscode"}' | Set-Content $configPath
+        $instrDir = Join-Path $testDir '.github'
+        New-Item -ItemType Directory -Path $instrDir -Force | Out-Null
+        $instrPath = Join-Path $instrDir 'copilot-instructions.md'
+        'test' | Set-Content $instrPath
+        $targets = @(Get-UninstallTargets -ProjectRoot $testDir)
+        $match = $targets | Where-Object { $_.Path -eq $instrPath }
+        $match | Should -Not -BeNullOrEmpty
+        $match.Type | Should -Be 'file'
+    }
+
+    It 'detects team-skills directory' {
+        $configPath = Join-Path $testDir '.team-ai-kit.json'
+        '{"role":"frontend","ide":"vscode"}' | Set-Content $configPath
+        $skillsDir = Join-Path $testDir 'team-skills'
+        New-Item -ItemType Directory -Path $skillsDir -Force | Out-Null
+        $targets = @(Get-UninstallTargets -ProjectRoot $testDir)
+        $match = $targets | Where-Object { $_.Path -eq $skillsDir }
+        $match | Should -Not -BeNullOrEmpty
+        $match.Type | Should -Be 'dir'
+    }
+
+    It 'detects git hooks with marker' {
+        $configPath = Join-Path $testDir '.team-ai-kit.json'
+        '{"role":"frontend","ide":"vscode"}' | Set-Content $configPath
+        $hooksDir = Join-Path $testDir '.git\hooks'
+        New-Item -ItemType Directory -Path $hooksDir -Force | Out-Null
+        $hookPath = Join-Path $hooksDir 'pre-commit'
+        "#!/bin/sh`n# [team-ai-kit] engram sync hook`nif command -v engram >/dev/null 2>&1; then`n    engram sync --all`nfi" | Set-Content $hookPath
+        $targets = @(Get-UninstallTargets -ProjectRoot $testDir)
+        $match = $targets | Where-Object { $_.Type -eq 'hook' }
+        $match | Should -Not -BeNullOrEmpty
+        $match.Path | Should -Be $hookPath
+    }
+}
+
+Describe 'Remove-HookMarkerBlock' {
+    BeforeEach {
+        $testDir = Join-Path ([IO.Path]::GetTempPath()) "tak-hook-$([guid]::NewGuid().ToString('N').Substring(0,8))"
+        New-Item -ItemType Directory -Path $testDir -Force | Out-Null
+    }
+    AfterEach {
+        if (Test-Path $testDir) { Remove-Item $testDir -Recurse -Force }
+    }
+
+    It 'removes hook file if only our block remains' {
+        $hookPath = Join-Path $testDir 'pre-commit'
+        "#!/bin/sh`n# [team-ai-kit] engram sync hook`nif command -v engram >/dev/null 2>&1; then`n    engram sync --all`nfi" | Set-Content $hookPath
+        Remove-HookMarkerBlock -HookPath $hookPath
+        Test-Path $hookPath | Should -BeFalse
+    }
+
+    It 'preserves other content in hook' {
+        $hookPath = Join-Path $testDir 'pre-commit'
+        "#!/bin/sh`necho 'custom hook'`n# [team-ai-kit] engram sync hook`nif command -v engram >/dev/null 2>&1; then`n    engram sync --all`nfi" | Set-Content $hookPath
+        Remove-HookMarkerBlock -HookPath $hookPath
+        Test-Path $hookPath | Should -BeTrue
+        $content = Get-Content $hookPath -Raw
+        $content | Should -Not -BeLike '*team-ai-kit*'
+        $content | Should -BeLike '*custom hook*'
+    }
+}
+
+Describe 'Invoke-Uninstall' {
+    BeforeEach {
+        $testDir = Join-Path ([IO.Path]::GetTempPath()) "tak-uninst-$([guid]::NewGuid().ToString('N').Substring(0,8))"
+        New-Item -ItemType Directory -Path $testDir -Force | Out-Null
+    }
+    AfterEach {
+        if (Test-Path $testDir) { Remove-Item $testDir -Recurse -Force }
+    }
+
+    It 'removes project config and team-skills' {
+        $configPath = Join-Path $testDir '.team-ai-kit.json'
+        '{"role":"frontend","ide":"opencode"}' | Set-Content $configPath
+        $skillsDir = Join-Path $testDir 'team-skills'
+        New-Item -ItemType Directory -Path $skillsDir -Force | Out-Null
+        'skill content' | Set-Content (Join-Path $skillsDir 'test-skill.md')
+
+        $result = Invoke-Uninstall -ProjectRoot $testDir
+        $result.removed | Should -BeGreaterThan 0
+        Test-Path $configPath | Should -BeFalse
+        Test-Path $skillsDir | Should -BeFalse
+    }
+}
+
+Describe 'Test-ValidCommand includes uninstall' {
+    It 'accepts uninstall as valid command' {
+        Test-ValidCommand -Command 'uninstall' | Should -BeTrue
+    }
+}
