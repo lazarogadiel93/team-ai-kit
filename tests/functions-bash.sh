@@ -27,7 +27,7 @@ assert_eq() {
 
 assert_contains() {
     local test_name="$1" haystack="$2" needle="$3"
-    if echo "$haystack" | grep -qF "$needle"; then
+    if echo "$haystack" | grep -qF -- "$needle"; then
         pass "$test_name"
     else
         fail "$test_name (missing '$needle')" ""
@@ -36,7 +36,7 @@ assert_contains() {
 
 assert_not_contains() {
     local test_name="$1" haystack="$2" needle="$3"
-    if echo "$haystack" | grep -qF "$needle"; then
+    if echo "$haystack" | grep -qF -- "$needle"; then
         fail "$test_name (should not contain '$needle')" ""
     else
         pass "$test_name"
@@ -303,7 +303,7 @@ ga_created=$(echo "$ga_json" | jq -r '.created')
 assert_eq "creates .gitattributes when absent" "true" "$ga_created"
 assert_contains "file has marker" "$(cat "$ga_tmpdir/.gitattributes")" "# [team-ai-kit] engram diff rules"
 assert_contains "file has linguist-generated" "$(cat "$ga_tmpdir/.gitattributes")" "linguist-generated=true"
-assert_contains "file has -diff" "$(cat "$ga_tmpdir/.gitattributes")" "-diff"
+assert_contains "file has -diff" "$(cat "$ga_tmpdir/.gitattributes")" ".engram/** -diff"
 rm -rf "$ga_tmpdir"
 
 # Test: appends to existing .gitattributes
