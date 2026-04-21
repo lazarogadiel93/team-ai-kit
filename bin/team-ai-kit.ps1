@@ -712,7 +712,7 @@ function Invoke-SyncCommand {
     # Check project config for project name
     $projectName = ''
     if (Test-ProjectInitialized -ProjectRoot $projectRoot) {
-        $projectName = Split-Path $projectRoot -Leaf
+    $projectName = ConvertTo-SafeProjectName (Split-Path $projectRoot -Leaf)
     }
 
     Write-Host '  Syncing engram memories...' -ForegroundColor White

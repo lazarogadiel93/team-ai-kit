@@ -13,6 +13,34 @@ BeforeAll {
     $script:kitRoot = (Resolve-Path "$PSScriptRoot\..").Path
 }
 
+# -- Project Name Sanitization -------------------------------------------------
+
+Describe 'ConvertTo-SafeProjectName' {
+    It 'keeps safe characters unchanged' {
+        ConvertTo-SafeProjectName -Name 'my-project_v2.0' | Should -Be 'my-project_v2.0'
+    }
+
+    It 'strips shell metacharacters' {
+        ConvertTo-SafeProjectName -Name 'proj"; rm -rf /; echo "' | Should -Be 'projrm-rfecho'
+    }
+
+    It 'strips spaces' {
+        ConvertTo-SafeProjectName -Name 'my project' | Should -Be 'myproject'
+    }
+
+    It 'strips dollar signs and backticks' {
+        ConvertTo-SafeProjectName -Name 'proj$HOME`cmd`' | Should -Be 'projHOMEcmd'
+    }
+
+    It 'returns empty string for all-unsafe input' {
+        ConvertTo-SafeProjectName -Name '$(rm -rf /)' | Should -Be 'rm-rf'
+    }
+
+    It 'handles empty string' {
+        ConvertTo-SafeProjectName -Name '' | Should -Be ''
+    }
+}
+
 # -- IDE-to-Agent Mapping ------------------------------------------------------
 
 Describe 'Get-GentleAiAgentId' {

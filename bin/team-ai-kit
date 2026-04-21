@@ -578,7 +578,7 @@ cmd_init() {
     echo -e "  ${C_WHITE}[4/4] Setting up engram sync and git hooks...${C_RESET}"
 
     local project_name
-    project_name=$(basename "$project_root")
+    project_name=$(_sanitize_project_name "$(basename "$project_root")")
 
     # 4a. Run initial engram sync
     local engram_json engram_synced
@@ -701,8 +701,7 @@ cmd_sync() {
     # Check project config for project name
     local project_name=""
     if test_project_initialized "$project_root"; then
-        project_name=$(basename "$project_root")
-    fi
+        project_name=$(_sanitize_project_name "$(basename "$project_root")")    fi
 
     echo -e "  ${C_WHITE}Syncing engram memories...${C_RESET}"
     echo ""

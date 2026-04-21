@@ -67,6 +67,31 @@ echo "=== Unit Tests: lib/functions.sh ==="
 echo ""
 
 # =============================================================================
+# _sanitize_project_name
+# =============================================================================
+echo "--- _sanitize_project_name ---"
+
+assert_eq "keeps safe characters unchanged" \
+    "my-project_v2.0" "$(_sanitize_project_name "my-project_v2.0")"
+
+assert_eq "strips shell metacharacters" \
+    "projrm-rfecho" "$(_sanitize_project_name 'proj"; rm -rf /; echo "')"
+
+assert_eq "strips spaces" \
+    "myproject" "$(_sanitize_project_name "my project")"
+
+assert_eq "strips dollar signs and backticks" \
+    "projHOMEcmd" "$(_sanitize_project_name 'proj$HOME`cmd`')"
+
+assert_eq "returns empty for all-unsafe input" \
+    "rm-rf" "$(_sanitize_project_name '$(rm -rf /)')"
+
+assert_eq "handles empty string" \
+    "" "$(_sanitize_project_name "")"
+
+echo ""
+
+# =============================================================================
 # get_gentle_ai_agent_id
 # =============================================================================
 echo "--- get_gentle_ai_agent_id ---"
