@@ -1438,3 +1438,128 @@ new_setup_summary() {
 ============================================
 EOF
 }
+
+# -- Uninstall -----------------------------------------------------------------
+
+collect_uninstall_targets() {
+    # Collects all files/dirs that team-ai-kit created in a project.
+    # Usage: collect_uninstall_targets project_root
+    # Outputs: one path per line (files and dirs to remove)
+    local project_root="$1"
+    local targets=()
+
+    # 1. Project config
+    local config_path="$project_root/.team-ai-kit.json"
+    [[ -f "$config_path" ]] && targets+=("$config_path")
+
+    # 2. Instructions file (detect IDE from project config)
+    local ide
+    ide=$(get_project_config_value "$project_root" "ide" 2>/dev/null) || true
+    if [[ -n "$ide" ]]; then
+        local instructions_path
+        instructions_path=$(get_ide_instructions_path "$ide" "$project_root" 2>/dev/null) || true
+        if [[ -n "$instructions_path" && -f "$instructions_path" ]]; then
+            targets+=("$instructions_path")
+        fi
+    fi
+
+    # 3. team-skills directory (global skills dir)
+    local global_skills_dir="$project_root/team-skills"
+    [[ -d "$global_skills_dir" ]] && targets+=("$global_skills_dir")
+
+    # 4. IDE-specific project skills (e.g. .cursor/skills)
+    if [[ -n "$ide" ]]; then
+        local project_skills_dir
+        project_skills_dir=$(get_ide_project_skills_directory "$ide" "$project_root" 2>/dev/null) || true
+        if [[ -n "$project_skills_dir" && -d "$project_skills_dir" && "$project_skills_dir" != "$global_skills_dir" ]]; then
+            targets+=("$project_skills_dir")
+        fi
+    fi
+
+    # 5. Git hooks (only if they contain our marker)
+    local marker='# [team-ai-kit] engram sync hook'
+    local hooks_dir="$project_root/.git/hooks"
+    for hook in pre-commit post-merge; do
+        local hook_path="$hooks_dir/$hook"
+        if [[ -f "$hook_path" ]] && grep -qF "$marker" "$hook_path" 2>/dev/null; then
+            targets+=("hook:$hook_path")
+        fi
+    done
+
+    printf '%s\n' "${targets[@]}"
+}
+
+remove_hook_marker_block() {
+    # Removes the team-ai-kit block from a git hook file.
+    # If the hook only contains our block + shebang, removes the file entirely.
+    local hook_path="$1"
+    local marker='# [team-ai-kit] engram sync hook'
+
+    local content
+    content=$(cat "$hook_path")
+
+    # Build cleaned content: remove from marker to next "fi" (inclusive)
+    local cleaned=""
+    local in_block=false
+    while IFS= read -r line; do
+        if [[ "$line" == *"$marker"* ]]; then
+            in_block=true
+            continue
+        fi
+        if [[ "$in_block" == true ]]; then
+            # Our hooks end with "fi"
+            if [[ "$line" == "fi" ]]; then
+                in_block=false
+                continue
+            fi
+            continue
+        fi
+        cleaned+="$line"$'\n'
+    done <<< "$content"
+
+    # Strip leading/trailing blank lines
+    cleaned=$(echo "$cleaned" | sed '/^$/N;/^\n$/d' | sed -e '/^$/d')
+
+    # If only shebang remains (or empty), remove the file
+    if [[ -z "$cleaned" || "$cleaned" == "#!/bin/sh" ]]; then
+        rm -f "$hook_path"
+    else
+        printf '%s\n' "$cleaned" > "$hook_path"
+    fi
+}
+
+uninstall_project() {
+    # Removes all team-ai-kit artifacts from a project.
+    # Usage: uninstall_project project_root
+    # Outputs: JSON with removed items count
+    local project_root="$1"
+    local removed=0
+
+    local targets
+    targets=$(collect_uninstall_targets "$project_root")
+
+    while IFS= read -r target; do
+        [[ -z "$target" ]] && continue
+        if [[ "$target" == hook:* ]]; then
+            local hook_path="${target#hook:}"
+            remove_hook_marker_block "$hook_path"
+            removed=$((removed + 1))
+        elif [[ -d "$target" ]]; then
+            rm -rf "$target"
+            removed=$((removed + 1))
+        elif [[ -f "$target" ]]; then
+            rm -f "$target"
+            removed=$((removed + 1))
+        fi
+    done <<< "$targets"
+
+    # Remove from global manifest
+    local manifest_path
+    manifest_path=$(get_skill_manifest_path)
+    if [[ -f "$manifest_path" ]]; then
+        rm -f "$manifest_path"
+        removed=$((removed + 1))
+    fi
+
+    echo "{\"removed\":$removed}"
+}

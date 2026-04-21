@@ -13,7 +13,7 @@ Set-StrictMode -Version Latest
 $script:VALID_IDES = @('vscode', 'intellij', 'opencode', 'cursor')
 $script:VALID_ROLES = @('frontend', 'backend-node', 'devops', 'python')
 $script:VALID_PROVIDERS = @('openai', 'azure-openai', 'anthropic', 'github-copilot')
-$script:VALID_COMMANDS = @('setup', 'init', 'init-knowledge', 'sync', 'update', 'status', 'doctor', 'help')
+$script:VALID_COMMANDS = @('setup', 'init', 'init-knowledge', 'sync', 'update', 'status', 'doctor', 'uninstall', 'help')
 
 # ── Config Persistence ───────────────────────────────────────────────────────
 
@@ -152,7 +152,7 @@ function Get-ProjectConfig {
     if (-not (Test-Path $configPath)) { return $null }
     $raw = Get-Content $configPath -Raw | ConvertFrom-Json
     $config = @{}
-    $raw.PSObject.Properties | ForEach-Object { $config[$_.Name] = $_.Value }
+    foreach ($prop in $raw.PSObject.Properties) { $config[$prop.Name] = $prop.Value }
     return $config
 }
 
@@ -1923,4 +1923,156 @@ function New-SetupSummary {
   Team Skills: $SkillsCopied installed
 ============================================
 "@
+}
+
+# -- Uninstall -----------------------------------------------------------------
+
+function Get-UninstallTargets {
+    <#
+    .SYNOPSIS
+        Collects all files/dirs that team-ai-kit created in a project.
+    .DESCRIPTION
+        Returns an array of hashtables with Type (file|dir|hook) and Path.
+    #>
+    param(
+        [Parameter(Mandatory)]
+        [string]$ProjectRoot
+    )
+
+    $targets = [System.Collections.ArrayList]::new()
+
+    # 1. Project config
+    $configPath = Join-Path $ProjectRoot '.team-ai-kit.json'
+    if (Test-Path $configPath) {
+        [void]$targets.Add(@{ Type = 'file'; Path = $configPath })
+    }
+
+    # 2. Instructions file
+    $projectConfig = $null
+    $projectConfig = Get-ProjectConfig -ProjectRoot $ProjectRoot
+    $ide = $null
+    if ($projectConfig -is [hashtable] -and $projectConfig.ContainsKey('ide')) {
+        $ide = $projectConfig['ide']
+    }
+    if ($ide) {
+        try {
+            $instructionsPath = Get-IdeInstructionsPath -Ide $ide -ProjectRoot $ProjectRoot
+            if ($instructionsPath -and (Test-Path $instructionsPath)) {
+                [void]$targets.Add(@{ Type = 'file'; Path = $instructionsPath })
+            }
+        } catch { }
+    }
+
+    # 3. team-skills directory
+    $globalSkillsDir = Join-Path $ProjectRoot 'team-skills'
+    if (Test-Path $globalSkillsDir) {
+        [void]$targets.Add(@{ Type = 'dir'; Path = $globalSkillsDir })
+    }
+
+    # 4. IDE-specific project skills
+    if ($ide) {
+        try {
+            $projectSkillsDir = Get-IdeProjectSkillsDirectory -Ide $ide -ProjectRoot $ProjectRoot
+            if ($projectSkillsDir -and (Test-Path $projectSkillsDir) -and $projectSkillsDir -ne $globalSkillsDir) {
+                [void]$targets.Add(@{ Type = 'dir'; Path = $projectSkillsDir })
+            }
+        } catch { }
+    }
+
+    # 5. Git hooks
+    $marker = '# [team-ai-kit] engram sync hook'
+    $hooksDir = Join-Path $ProjectRoot '.git\hooks'
+    foreach ($hookName in @('pre-commit', 'post-merge')) {
+        $hookPath = Join-Path $hooksDir $hookName
+        if (Test-Path $hookPath) {
+            $content = Get-Content $hookPath -Raw -ErrorAction SilentlyContinue
+            if ($content -and $content.Contains($marker)) {
+                [void]$targets.Add(@{ Type = 'hook'; Path = $hookPath })
+            }
+        }
+    }
+
+    return @($targets)
+}
+
+function Remove-HookMarkerBlock {
+    <#
+    .SYNOPSIS
+        Removes the team-ai-kit block from a git hook file.
+    #>
+    param(
+        [Parameter(Mandatory)]
+        [string]$HookPath
+    )
+
+    $marker = '# [team-ai-kit] engram sync hook'
+    $lines = Get-Content $HookPath
+    $cleaned = @()
+    $inBlock = $false
+
+    foreach ($line in $lines) {
+        if ($line.Contains($marker)) {
+            $inBlock = $true
+            continue
+        }
+        if ($inBlock) {
+            if ($line -eq 'fi') {
+                $inBlock = $false
+                continue
+            }
+            continue
+        }
+        $cleaned += $line
+    }
+
+    # Strip empty lines
+    $cleaned = @($cleaned | Where-Object { $_.Trim() -ne '' })
+
+    if ($cleaned.Count -eq 0 -or ($cleaned.Count -eq 1 -and $cleaned[0] -eq '#!/bin/sh')) {
+        Remove-Item $HookPath -Force
+    } else {
+        $content = ($cleaned -join "`n") + "`n"
+        $lfContent = $content -replace "`r`n", "`n"
+        [System.IO.File]::WriteAllText($HookPath, $lfContent, [System.Text.Encoding]::ASCII)
+    }
+}
+
+function Invoke-Uninstall {
+    <#
+    .SYNOPSIS
+        Removes all team-ai-kit artifacts from a project.
+    #>
+    param(
+        [Parameter(Mandatory)]
+        [string]$ProjectRoot
+    )
+
+    $removed = 0
+    $targets = Get-UninstallTargets -ProjectRoot $ProjectRoot
+
+    foreach ($target in $targets) {
+        switch ($target.Type) {
+            'hook' {
+                Remove-HookMarkerBlock -HookPath $target.Path
+                $removed++
+            }
+            'dir' {
+                Remove-Item $target.Path -Recurse -Force
+                $removed++
+            }
+            'file' {
+                Remove-Item $target.Path -Force
+                $removed++
+            }
+        }
+    }
+
+    # Remove global manifest
+    $manifestPath = Get-SkillManifestPath
+    if (Test-Path $manifestPath) {
+        Remove-Item $manifestPath -Force
+        $removed++
+    }
+
+    return @{ removed = $removed }
 }

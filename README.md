@@ -177,7 +177,25 @@ team-ai-kit update         # Pull del team repo + actualizar skills (global + pr
 team-ai-kit sync           # Sincronizar memorias engram manualmente (export + import)
 team-ai-kit status         # Ver config, skills globales y de proyecto
 team-ai-kit doctor         # Verificar que todo este bien
+team-ai-kit uninstall      # Remover team-ai-kit del proyecto actual
 ```
+
+### Uninstall
+
+Remueve todos los artefactos de team-ai-kit del proyecto actual:
+
+- `.team-ai-kit.json` (config del proyecto)
+- Archivo de instrucciones generado (`.github/copilot-instructions.md`, `.cursor/rules/team-ai-kit.md`, `AGENTS.md`)
+- Directorio `team-skills/` con las skills instaladas
+- Bloques de git hooks inyectados (pre-commit, post-merge)
+- Manifest global de skills
+
+```bash
+team-ai-kit uninstall         # Pide confirmacion antes de borrar
+team-ai-kit uninstall --force # Sin confirmacion (para CI/scripts)
+```
+
+> **Nota**: `.engram/` no se borra automaticamente. Si ya no necesitas memory sync, borralo manualmente.
 
 ### Flujo completo
 

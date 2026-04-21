@@ -15,6 +15,7 @@
       update         - Pull latest team content and merge without overwriting
       status         - Show current configuration and installed skills
       doctor         - Verify prerequisites and installation health
+      uninstall      - Remove team-ai-kit from the current project
       help           - Show this help message
 .EXAMPLE
     team-ai-kit setup
@@ -118,6 +119,7 @@ function Show-Help {
     Write-Host '    update   Pull latest team content + merge without overwriting'
     Write-Host '    status   Show current config and installed skills'
     Write-Host '    doctor   Verify prerequisites and installation health'
+    Write-Host '    uninstall       Remove team-ai-kit from the current project'
     Write-Host '    help     Show this help message'
     Write-Host ''
     Write-Host '  Setup options:' -ForegroundColor Yellow
@@ -140,6 +142,8 @@ function Show-Help {
     Write-Host '    team-ai-kit init'
     Write-Host '    team-ai-kit init -Role backend-node'
     Write-Host '    team-ai-kit init -Role frontend -Force'
+    Write-Host '    team-ai-kit uninstall'
+    Write-Host '    team-ai-kit uninstall -Force'
     Write-Host '    team-ai-kit update'
     Write-Host '    team-ai-kit status'
     Write-Host ''
@@ -1105,6 +1109,73 @@ function Invoke-DoctorCommand {
     Write-Host ''
 }
 
+# -- Uninstall -----------------------------------------------------------------
+function Invoke-UninstallCommand {
+    Show-Banner
+    $projectRoot = (Get-Location).Path
+
+    if (-not (Test-ProjectInitialized -ProjectRoot $projectRoot)) {
+        Write-Err 'No team-ai-kit project found in this directory.'
+        Write-Host '  Run this command from a project that was initialized with "team-ai-kit init".'
+        exit 1
+    }
+
+    Write-Host '  Scanning for team-ai-kit artifacts...' -ForegroundColor White
+    Write-Host ''
+
+    $targets = Get-UninstallTargets -ProjectRoot $projectRoot
+
+    if (-not $targets -or $targets.Count -eq 0) {
+        Write-Host '  No artifacts found to remove.' -ForegroundColor DarkGray
+        Write-Host ''
+        return
+    }
+
+    # Show what will be removed
+    Write-Host '  The following will be removed:' -ForegroundColor Yellow
+    foreach ($target in $targets) {
+        $rel = $target.Path.Replace($projectRoot + [IO.Path]::DirectorySeparatorChar, '')
+        switch ($target.Type) {
+            'hook' {
+                Write-Host "    ~ $rel (team-ai-kit block)" -ForegroundColor Red
+            }
+            'dir' {
+                Write-Host "    - $rel/" -ForegroundColor Red
+            }
+            default {
+                Write-Host "    - $rel" -ForegroundColor Red
+            }
+        }
+    }
+
+    # Also mention manifest
+    $manifestPath = Get-SkillManifestPath
+    if (Test-Path $manifestPath) {
+        Write-Host "    - $(Split-Path $manifestPath -Leaf) (global manifest)" -ForegroundColor Red
+    }
+
+    Write-Host ''
+
+    # Ask for confirmation unless --force
+    if (-not $Force) {
+        $confirm = Read-Host '  Are you sure? This cannot be undone. [y/N]'
+        if ($confirm -ne 'y' -and $confirm -ne 'Y') {
+            Write-Host '  Uninstall cancelled.' -ForegroundColor DarkGray
+            Write-Host ''
+            return
+        }
+    }
+
+    Write-Host ''
+    $result = Invoke-Uninstall -ProjectRoot $projectRoot
+    $removed = $result.removed
+
+    Write-Ok "Uninstalled team-ai-kit from this project ($removed items removed)."
+    Write-Host ''
+    Write-Host '  Tip: You may also want to remove .engram/ if you no longer need memory sync.' -ForegroundColor DarkGray
+    Write-Host ''
+}
+
 # -- Route subcommand ----------------------------------------------------------
 switch ($Command.ToLower()) {
     'setup'          { Invoke-SetupCommand }
@@ -1114,6 +1185,7 @@ switch ($Command.ToLower()) {
     'update' { Invoke-UpdateCommand }
     'status' { Invoke-StatusCommand }
     'doctor' { Invoke-DoctorCommand }
+    'uninstall'      { Invoke-UninstallCommand }
     'help'   { Show-Help }
     default  {
         Write-Host "  Unknown command: $Command" -ForegroundColor Red

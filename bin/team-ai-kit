@@ -94,6 +94,7 @@ show_help() {
     echo "    update   Pull latest team content + merge without overwriting"
     echo "    status   Show current config and installed skills"
     echo "    doctor   Verify prerequisites and installation health"
+    echo "    uninstall       Remove team-ai-kit from the current project"
     echo "    help     Show this help message"
     echo ""
     echo -e "  ${C_YELLOW}Setup options:${C_RESET}"
@@ -116,6 +117,8 @@ show_help() {
     echo "    team-ai-kit init"
     echo "    team-ai-kit init --role backend-node"
     echo "    team-ai-kit init --role frontend --force"
+    echo "    team-ai-kit uninstall"
+    echo "    team-ai-kit uninstall --force"
     echo "    team-ai-kit update"
     echo "    team-ai-kit status"
     echo ""
@@ -1094,6 +1097,79 @@ cmd_doctor() {
     echo ""
 }
 
+# -- Uninstall -----------------------------------------------------------------
+cmd_uninstall() {
+    show_banner
+    local project_root
+    project_root=$(pwd)
+
+    if ! test_project_initialized "$project_root"; then
+        err "No team-ai-kit project found in this directory."
+        echo "  Run this command from a project that was initialized with 'team-ai-kit init'."
+        exit 1
+    fi
+
+    echo -e "  ${C_WHITE}Scanning for team-ai-kit artifacts...${C_RESET}"
+    echo ""
+
+    local targets
+    targets=$(collect_uninstall_targets "$project_root")
+
+    if [[ -z "$targets" ]]; then
+        echo -e "  ${C_DIM}No artifacts found to remove.${C_RESET}"
+        echo ""
+        return
+    fi
+
+    # Show what will be removed
+    echo -e "  ${C_YELLOW}The following will be removed:${C_RESET}"
+    while IFS= read -r target; do
+        [[ -z "$target" ]] && continue
+        if [[ "$target" == hook:* ]]; then
+            local hook_path="${target#hook:}"
+            local rel_hook="${hook_path#$project_root/}"
+            echo -e "    ${C_RED}~ $rel_hook${C_RESET} (team-ai-kit block)"
+        elif [[ -d "$target" ]]; then
+            local rel="${target#$project_root/}"
+            echo -e "    ${C_RED}- $rel/${C_RESET}"
+        else
+            local rel="${target#$project_root/}"
+            echo -e "    ${C_RED}- $rel${C_RESET}"
+        fi
+    done <<< "$targets"
+
+    # Also mention manifest
+    local manifest_path
+    manifest_path=$(get_skill_manifest_path)
+    if [[ -f "$manifest_path" ]]; then
+        echo -e "    ${C_RED}- $(basename "$manifest_path")${C_RESET} (global manifest)"
+    fi
+
+    echo ""
+
+    # Ask for confirmation unless --force
+    if [[ "$OPT_FORCE" != "true" ]]; then
+        echo -ne "  ${C_YELLOW}Are you sure? This cannot be undone. [y/N]: ${C_RESET}"
+        read -r confirm
+        if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+            echo -e "  ${C_DIM}Uninstall cancelled.${C_RESET}"
+            echo ""
+            return
+        fi
+    fi
+
+    echo ""
+    local result
+    result=$(uninstall_project "$project_root")
+    local removed
+    removed=$(echo "$result" | jq -r '.removed')
+
+    echo -e "  ${C_GREEN}✔ Uninstalled team-ai-kit from this project ($removed items removed).${C_RESET}"
+    echo ""
+    echo -e "  ${C_DIM}Tip: You may also want to remove .engram/ if you no longer need memory sync.${C_RESET}"
+    echo ""
+}
+
 # -- Parse args ----------------------------------------------------------------
 COMMAND="${1:-help}"
 shift || true
@@ -1158,6 +1234,7 @@ case "$(_lowercase "$COMMAND")" in
     update) cmd_update ;;
     status) cmd_status ;;
     doctor) cmd_doctor ;;
+    uninstall)       cmd_uninstall ;;
     help)   show_help ;;
     *)
         err "Unknown command: $COMMAND"
