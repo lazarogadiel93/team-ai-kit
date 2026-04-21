@@ -1281,6 +1281,8 @@ update_instructions_engram_protocol() {
             updated=$(cat "$tmpfile")
             rm -f "$tmpfile"
             trap - EXIT
+            # Collapse 3+ consecutive blank lines to 2 (parity with PS1)
+            updated=$(echo "$updated" | awk 'BEGIN{blank=0} /^[[:space:]]*$/{blank++; if(blank<=2) print; next} {blank=0; print}')
             if [[ "$updated" == "$existing" ]]; then
                 echo "unchanged"
             else

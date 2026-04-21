@@ -139,7 +139,7 @@ rm -rf "$CURSOR_TEST_DIR" "$CURSOR_HOME"
 # -- Test 9: Init with vscode skips engram protocol (fix #2, #5) ---
 echo "--- Test 9: vscode init skips engram protocol ---"
 mkdir -p "$TEST_DIR/.git"  # ensure it looks like a git repo
-output=$(bash "$KIT_ROOT/bin/team-ai-kit" init --target-dir "$TEST_DIR" 2>&1) || true
+output=$(cd "$TEST_DIR" && bash "$KIT_ROOT/bin/team-ai-kit" init 2>&1) || true
 instructions_path="$TEST_DIR/.github/copilot-instructions.md"
 if [ -f "$instructions_path" ]; then
     if grep -qF "team-ai-kit:engram-protocol" "$instructions_path"; then
@@ -159,7 +159,7 @@ mkdir -p "$IJ_HOME" "$IJ_TEST_DIR/.git"
 # Setup with intellij first
 HOME="$IJ_HOME" bash "$KIT_ROOT/bin/team-ai-kit" setup --ide intellij --role backend-node --target-dir "$IJ_TEST_DIR" --skip-prerequisites --skip-gentle-ai 2>&1 >/dev/null || true
 # Now init
-HOME="$IJ_HOME" bash "$KIT_ROOT/bin/team-ai-kit" init --target-dir "$IJ_TEST_DIR" 2>&1 >/dev/null || true
+(cd "$IJ_TEST_DIR" && HOME="$IJ_HOME" bash "$KIT_ROOT/bin/team-ai-kit" init 2>&1) >/dev/null || true
 ij_instructions="$IJ_TEST_DIR/.github/copilot-instructions.md"
 if [ -f "$ij_instructions" ]; then
     if grep -qF "team-ai-kit:engram-protocol" "$ij_instructions"; then
@@ -175,7 +175,7 @@ rm -rf "$IJ_TEST_DIR" "$IJ_HOME"
 # -- Test 11: Re-init guard uses team-repo, not IDE (fix #3) ---
 echo "--- Test 11: re-init with --role reruns without prompt ---"
 # Already initialized from test 2. Passing --role should re-init without interactive prompt.
-output=$(bash "$KIT_ROOT/bin/team-ai-kit" init --target-dir "$TEST_DIR" --role backend-node 2>&1) || true
+output=$(cd "$TEST_DIR" && bash "$KIT_ROOT/bin/team-ai-kit" init --force --role backend-node 2>&1) || true
 if echo "$output" | grep -q "Re-initializing"; then
     pass "re-init with --role triggers force re-init"
 elif echo "$output" | grep -q "Created:"; then

@@ -8,6 +8,7 @@ KIT_ROOT="$(dirname "$SCRIPT_DIR")"
 # Source the functions under test
 # shellcheck source=../lib/functions.sh
 source "$KIT_ROOT/lib/functions.sh"
+set +e  # Undo set -e inherited from functions.sh -- tests must not abort on failure
 
 PASS=0
 FAIL=0
