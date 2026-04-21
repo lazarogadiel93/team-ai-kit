@@ -512,7 +512,7 @@ function Invoke-InitCommand {
         if ($Force) {
             Write-Warn "Already initialized (Role=$($existingConfig.role)). Re-initializing (--Force)."
         }
-        elseif (-not $Role -and -not $Ide) {
+        elseif (-not $Role -and -not $TeamRepo) {
             # Interactive mode: show config and ask
             Write-Warn 'This project is already initialized:'
             Write-Host "    Role:        $($existingConfig.role)" -ForegroundColor DarkGray
