@@ -368,7 +368,7 @@ Explicacion y ejemplos.
 |-----|-----------|-----|-------|
 | **VS Code + Copilot** | Nativo | Via gentle-ai | Full support |
 | **IntelliJ + Copilot** | No | Via template MCP | Config MCP manual |
-| **Cursor** | No | Via template MCP | Config MCP manual |
+| **Cursor** | Nativo | Via gentle-ai | Full support |
 | **OpenCode (CLI)** | Nativo | Via gentle-ai | Full support |
 
 ---
@@ -376,7 +376,7 @@ Explicacion y ejemplos.
 ## Tests
 
 ```powershell
-# Windows: Pester (222 tests)
+# Windows: Pester (208 tests)
 Invoke-Pester tests/ -Output Detailed
 
 # macOS/Linux: E2E bash (9 tests)
@@ -413,9 +413,9 @@ team-ai-kit/
 │   ├── shared/                    5 skills compartidos
 │   └── roles/                     2 skills por rol
 ├── packs/                         Reglas por rol
-├── templates/                     IntelliJ y Cursor (MCP config)
+├── templates/                     IntelliJ (MCP config)
 ├── tests/
-│   ├── functions.Tests.ps1        203 unit tests (Pester)
+│   ├── functions.Tests.ps1        208 unit tests (Pester)
 │   ├── skills.Tests.ps1           19 validation tests (Pester)
 │   └── e2e-bash.sh                9 E2E tests (bash)
 ├── docs/

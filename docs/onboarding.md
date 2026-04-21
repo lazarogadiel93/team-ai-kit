@@ -74,11 +74,11 @@ team-ai-kit setup
 ./setup.sh
 ```
 
-Te hace **2 preguntas** (VS Code / IntelliJ / Cursor) o **3** (OpenCode):
+Te hace **2 preguntas** (VS Code / IntelliJ / Cursor / OpenCode) o **3** (OpenCode):
 
 1. **IDE** -- VS Code + Copilot, IntelliJ + Copilot, Cursor, u OpenCode
 2. **Rol** -- Frontend, Backend Node, DevOps, Python
-3. **Provider** -- Solo si elegiste OpenCode (Copilot IDEs y Cursor auto-detectan `github-copilot`)
+3. **Provider** -- Solo si elegiste OpenCode (los demas IDEs auto-detectan el provider)
 
 Despues, automaticamente:
 
@@ -115,7 +115,7 @@ team-ai-kit init
 
 Esto genera:
 - `.team-ai-kit.json` -- config del proyecto (rol, IDE, timestamps)
-- `.github/copilot-instructions.md` (VS Code/IntelliJ) o `.cursor/rules/team-ai-kit.md` (Cursor) o `AGENTS.md` (OpenCode) -- reglas para el AI, incluyendo el **Memory Protocol** de engram
+- `.github/copilot-instructions.md` (VS Code/IntelliJ) o `.cursor/rules/team-ai-kit.md` (Cursor) o `AGENTS.md` (OpenCode) -- reglas para el AI con las convenciones del equipo. El Memory Protocol de engram se incluye solo para IntelliJ (los demas IDEs lo reciben via gentle-ai)
 - `.engram/` -- directorio nativo de engram sync para compartir conocimiento del proyecto con el equipo (via git hooks)
 
 ### Override de rol por proyecto
@@ -342,10 +342,10 @@ Verificar que la carpeta exista (ver Paso 3 arriba). Si no, correr:
 team-ai-kit update
 ```
 
-### IntelliJ / Cursor no detecta MCP servers
+### IntelliJ no detecta MCP servers
 
 1. Verificar que el Copilot plugin esta actualizado
-2. La config MCP se muestra durante el setup -- copiarla a la config de MCP de IntelliJ/Cursor
+2. La config MCP se muestra durante el setup -- copiarla a la config de MCP de IntelliJ
 3. Verificar engram: `engram --version`
 
 ### Scoop no actualiza a la ultima version
