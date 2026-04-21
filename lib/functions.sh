@@ -158,6 +158,73 @@ save_project_config() {
     echo "$config_path"
 }
 
+ensure_gitattributes() {
+    # Creates or updates .gitattributes with rules to collapse .engram/ diffs in PRs.
+    # Uses linguist-generated to hide diffs on GitHub and -diff to hide locally.
+    # Idempotent: skips if marker already present.
+    # Usage: ensure_gitattributes "/path/to/project"
+    # Outputs JSON: {"created":bool, "updated":bool, "path":"..."}
+    local project_root="$1"
+    local ga_path="$project_root/.gitattributes"
+    local marker='# [team-ai-kit] engram diff rules'
+    local block
+    block=$(printf '%s\n%s\n%s' \
+        "$marker" \
+        '.engram/** linguist-generated=true' \
+        '.engram/** -diff')
+
+    if [[ -f "$ga_path" ]]; then
+        if grep -qF "$marker" "$ga_path" 2>/dev/null; then
+            jq -n --arg path "$ga_path" '{created:false, updated:false, path:$path}'
+            return
+        fi
+        # Append with a blank line separator
+        printf '\n%s\n' "$block" >> "$ga_path"
+        jq -n --arg path "$ga_path" '{created:false, updated:true, path:$path}'
+    else
+        printf '%s\n' "$block" > "$ga_path"
+        jq -n --arg path "$ga_path" '{created:true, updated:false, path:$path}'
+    fi
+}
+
+remove_gitattributes_block() {
+    # Removes team-ai-kit lines from .gitattributes during uninstall.
+    # Deletes the file if only our lines remain.
+    # Usage: remove_gitattributes_block "/path/to/project"
+    local project_root="$1"
+    local ga_path="$project_root/.gitattributes"
+    local marker='# [team-ai-kit] engram diff rules'
+
+    [[ -f "$ga_path" ]] || return 0
+    grep -qF "$marker" "$ga_path" 2>/dev/null || return 0
+
+    local cleaned=""
+    local skip_next=false
+    while IFS= read -r line; do
+        if [[ "$line" == *"$marker"* ]]; then
+            skip_next=true
+            continue
+        fi
+        if [[ "$skip_next" == true ]]; then
+            # Skip the two rule lines that follow the marker
+            if [[ "$line" == .engram/* ]]; then
+                continue
+            fi
+            skip_next=false
+        fi
+        cleaned+="$line"$'\n'
+    done < "$ga_path"
+
+    # Remove trailing blank lines
+    cleaned=$(printf '%s' "$cleaned" | sed -e :a -e '/^[[:space:]]*$/{ $d; N; ba; }')
+
+    if [[ -z "$cleaned" || "$cleaned" =~ ^[[:space:]]*$ ]]; then
+        rm -f "$ga_path"
+    else
+        printf '%s\n' "$cleaned" > "$ga_path"
+    fi
+}
+
 initialize_engram_sync() {
     # Runs initial engram sync to export project memories to .engram/.
     # Uses native 'engram sync --project <name>' for team knowledge sharing via git.
@@ -1486,6 +1553,13 @@ collect_uninstall_targets() {
         fi
     done
 
+    # 6. .gitattributes (only if it contains our marker)
+    local ga_marker='# [team-ai-kit] engram diff rules'
+    local ga_path="$project_root/.gitattributes"
+    if [[ -f "$ga_path" ]] && grep -qF "$ga_marker" "$ga_path" 2>/dev/null; then
+        targets+=("gitattributes:$ga_path")
+    fi
+
     printf '%s\n' "${targets[@]}"
 }
 
@@ -1543,6 +1617,10 @@ uninstall_project() {
         if [[ "$target" == hook:* ]]; then
             local hook_path="${target#hook:}"
             remove_hook_marker_block "$hook_path"
+            removed=$((removed + 1))
+        elif [[ "$target" == gitattributes:* ]]; then
+            local ga_path="${target#gitattributes:}"
+            remove_gitattributes_block "$(dirname "$ga_path")"
             removed=$((removed + 1))
         elif [[ -d "$target" ]]; then
             rm -rf "$target"

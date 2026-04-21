@@ -2072,3 +2072,116 @@ Describe 'Test-ValidCommand includes uninstall' {
         Test-ValidCommand -Command 'uninstall' | Should -BeTrue
     }
 }
+
+# -- GitAttributes (.engram/ diff rules) ----------------------------------------
+
+Describe 'Ensure-GitAttributes' {
+    BeforeEach {
+        $script:gaTestDir = Join-Path $TestDrive "ga-test-$(Get-Random)"
+        New-Item -ItemType Directory -Path $script:gaTestDir -Force | Out-Null
+    }
+    AfterEach {
+        if (Test-Path $script:gaTestDir) { Remove-Item $script:gaTestDir -Recurse -Force }
+    }
+
+    It 'creates .gitattributes when file does not exist' {
+        $result = Ensure-GitAttributes -ProjectRoot $script:gaTestDir
+        $result.created | Should -BeTrue
+        $result.updated | Should -BeFalse
+        $gaPath = Join-Path $script:gaTestDir '.gitattributes'
+        Test-Path $gaPath | Should -BeTrue
+        $content = Get-Content $gaPath -Raw
+        $content | Should -Match 'team-ai-kit\] engram diff rules'
+        $content | Should -BeLike '*.engram/** linguist-generated=true*'
+        $content | Should -BeLike '*.engram/** -diff*'
+    }
+
+    It 'appends rules to existing .gitattributes without our marker' {
+        $gaPath = Join-Path $script:gaTestDir '.gitattributes'
+        "*.pdf binary`n" | Set-Content $gaPath -NoNewline
+        $result = Ensure-GitAttributes -ProjectRoot $script:gaTestDir
+        $result.created | Should -BeFalse
+        $result.updated | Should -BeTrue
+        $content = Get-Content $gaPath -Raw
+        $content | Should -BeLike '*.pdf binary*'
+        $content | Should -Match 'team-ai-kit\] engram diff rules'
+    }
+
+    It 'is idempotent -- no-op when marker already present' {
+        $gaPath = Join-Path $script:gaTestDir '.gitattributes'
+        $existing = "# [team-ai-kit] engram diff rules`n.engram/** linguist-generated=true`n.engram/** -diff`n"
+        Set-Content $gaPath -Value $existing -NoNewline
+        $result = Ensure-GitAttributes -ProjectRoot $script:gaTestDir
+        $result.created | Should -BeFalse
+        $result.updated | Should -BeFalse
+    }
+}
+
+Describe 'Remove-GitAttributesBlock' {
+    BeforeEach {
+        $script:gaTestDir = Join-Path $TestDrive "ga-rm-test-$(Get-Random)"
+        New-Item -ItemType Directory -Path $script:gaTestDir -Force | Out-Null
+    }
+    AfterEach {
+        if (Test-Path $script:gaTestDir) { Remove-Item $script:gaTestDir -Recurse -Force }
+    }
+
+    It 'removes team-ai-kit lines and keeps other rules' {
+        $gaPath = Join-Path $script:gaTestDir '.gitattributes'
+        $content = "*.pdf binary`n`n# [team-ai-kit] engram diff rules`n.engram/** linguist-generated=true`n.engram/** -diff`n"
+        Set-Content $gaPath -Value $content -NoNewline
+        Remove-GitAttributesBlock -ProjectRoot $script:gaTestDir
+        Test-Path $gaPath | Should -BeTrue
+        $remaining = Get-Content $gaPath -Raw
+        $remaining | Should -BeLike '*.pdf binary*'
+        $remaining | Should -Not -BeLike '*team-ai-kit*'
+    }
+
+    It 'deletes file when only our lines remain' {
+        $gaPath = Join-Path $script:gaTestDir '.gitattributes'
+        $content = "# [team-ai-kit] engram diff rules`n.engram/** linguist-generated=true`n.engram/** -diff`n"
+        Set-Content $gaPath -Value $content -NoNewline
+        Remove-GitAttributesBlock -ProjectRoot $script:gaTestDir
+        Test-Path $gaPath | Should -BeFalse
+    }
+
+    It 'is no-op when file does not exist' {
+        { Remove-GitAttributesBlock -ProjectRoot $script:gaTestDir } | Should -Not -Throw
+    }
+
+    It 'is no-op when file has no marker' {
+        $gaPath = Join-Path $script:gaTestDir '.gitattributes'
+        '*.pdf binary' | Set-Content $gaPath
+        Remove-GitAttributesBlock -ProjectRoot $script:gaTestDir
+        Test-Path $gaPath | Should -BeTrue
+        (Get-Content $gaPath -Raw) | Should -BeLike '*.pdf binary*'
+    }
+}
+
+Describe 'Get-UninstallTargets includes gitattributes' {
+    BeforeEach {
+        $script:gaUninstDir = Join-Path $TestDrive "ga-uninst-$(Get-Random)"
+        New-Item -ItemType Directory -Path $script:gaUninstDir -Force | Out-Null
+        # Create minimal project config
+        '{"role":"frontend","ide":"opencode"}' | Set-Content (Join-Path $script:gaUninstDir '.team-ai-kit.json')
+    }
+    AfterEach {
+        if (Test-Path $script:gaUninstDir) { Remove-Item $script:gaUninstDir -Recurse -Force }
+    }
+
+    It 'includes gitattributes target when marker is present' {
+        $gaPath = Join-Path $script:gaUninstDir '.gitattributes'
+        "# [team-ai-kit] engram diff rules`n.engram/** linguist-generated=true`n.engram/** -diff`n" | Set-Content $gaPath -NoNewline
+        $targets = Get-UninstallTargets -ProjectRoot $script:gaUninstDir
+        $gaTarget = $targets | Where-Object { $_.Type -eq 'gitattributes' }
+        $gaTarget | Should -Not -BeNullOrEmpty
+    }
+
+    It 'does not include gitattributes target when no marker' {
+        $gaPath = Join-Path $script:gaUninstDir '.gitattributes'
+        '*.pdf binary' | Set-Content $gaPath
+        $targets = Get-UninstallTargets -ProjectRoot $script:gaUninstDir
+        $gaTarget = $targets | Where-Object { $_.Type -eq 'gitattributes' }
+        $gaTarget | Should -BeNullOrEmpty
+    }
+}

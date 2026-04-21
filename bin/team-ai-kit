@@ -600,6 +600,7 @@ cmd_init() {
     if [[ "$OPT_DRY_RUN" == "true" ]]; then
         dry "Would run engram sync for project: $project_name"
         dry "Would install git hooks to: .git/hooks/"
+        dry "Would create/update .gitattributes with engram diff rules"
     else
         # 4a. Run initial engram sync
         local engram_json engram_synced
@@ -629,6 +630,20 @@ cmd_init() {
             warn "Not a git repo -- hooks skipped"
         elif [[ -n "$hooks_skipped_list" && "$hooks_skipped_list" != "" ]]; then
             step "Git hooks already present: $hooks_skipped_list"
+        fi
+
+        # 4c. Setup .gitattributes for clean PR diffs
+        local ga_json ga_created ga_updated
+        ga_json=$(ensure_gitattributes "$project_root")
+        ga_created=$(echo "$ga_json" | jq -r '.created')
+        ga_updated=$(echo "$ga_json" | jq -r '.updated')
+
+        if [[ "$ga_created" == "true" ]]; then
+            ok ".gitattributes created -- .engram/ diffs collapsed in PRs"
+        elif [[ "$ga_updated" == "true" ]]; then
+            ok ".gitattributes updated -- .engram/ diffs collapsed in PRs"
+        else
+            step ".gitattributes already configured"
         fi
     fi
 
@@ -932,6 +947,24 @@ cmd_update() {
         fi
     fi
 
+    # Step 4b: Ensure .gitattributes has engram diff rules
+    if [[ "$OPT_DRY_RUN" == "true" ]]; then
+        dry "Would ensure .gitattributes has engram diff rules"
+    else
+        local ga_json ga_created ga_updated
+        ga_json=$(ensure_gitattributes "$project_root")
+        ga_created=$(echo "$ga_json" | jq -r '.created')
+        ga_updated=$(echo "$ga_json" | jq -r '.updated')
+
+        if [[ "$ga_created" == "true" ]]; then
+            ok ".gitattributes created -- .engram/ diffs collapsed in PRs"
+        elif [[ "$ga_updated" == "true" ]]; then
+            ok ".gitattributes updated -- .engram/ diffs collapsed in PRs"
+        else
+            step ".gitattributes already configured"
+        fi
+    fi
+
     # Step 5: Update config timestamp
     if [[ "$OPT_DRY_RUN" == "true" ]]; then
         echo ""
@@ -1182,6 +1215,8 @@ cmd_uninstall() {
             local hook_path="${target#hook:}"
             local rel_hook="${hook_path#$project_root/}"
             echo -e "    ${C_RED}~ $rel_hook${C_RESET} (team-ai-kit block)"
+        elif [[ "$target" == gitattributes:* ]]; then
+            echo -e "    ${C_RED}~ .gitattributes${C_RESET} (team-ai-kit lines)"
         elif [[ -d "$target" ]]; then
             local rel="${target#$project_root/}"
             echo -e "    ${C_RED}- $rel/${C_RESET}"

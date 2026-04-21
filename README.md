@@ -188,6 +188,7 @@ Remueve todos los artefactos de team-ai-kit del proyecto actual:
 - Archivo de instrucciones generado (`.github/copilot-instructions.md`, `.cursor/rules/team-ai-kit.md`, `AGENTS.md`)
 - Directorio `team-skills/` con las skills instaladas
 - Bloques de git hooks inyectados (pre-commit, post-merge)
+- Reglas de `.gitattributes` para colapsar diffs de `.engram/` en PRs
 - Manifest global de skills
 
 ```bash
@@ -347,7 +348,7 @@ El comando `update` mantiene el protocolo actualizado automaticamente.
 +-------------------------------------------+
 |  PROJECT config (committed to each repo)  |
 |  .team-ai-kit.json + instructions +       |
-|  .engram/ + git hooks                     |
+|  .engram/ + git hooks + .gitattributes    |
 +-------------------------------------------+
 ```
 

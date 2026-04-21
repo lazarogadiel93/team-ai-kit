@@ -292,6 +292,70 @@ rm -f "$tmpfile"
 echo ""
 
 # =============================================================================
+# ensure_gitattributes / remove_gitattributes_block
+# =============================================================================
+echo "--- ensure_gitattributes ---"
+
+# Test: creates .gitattributes when it doesn't exist
+ga_tmpdir=$(mktemp -d)
+ga_json=$(ensure_gitattributes "$ga_tmpdir")
+ga_created=$(echo "$ga_json" | jq -r '.created')
+assert_eq "creates .gitattributes when absent" "true" "$ga_created"
+assert_contains "file has marker" "$(cat "$ga_tmpdir/.gitattributes")" "# [team-ai-kit] engram diff rules"
+assert_contains "file has linguist-generated" "$(cat "$ga_tmpdir/.gitattributes")" "linguist-generated=true"
+assert_contains "file has -diff" "$(cat "$ga_tmpdir/.gitattributes")" "-diff"
+rm -rf "$ga_tmpdir"
+
+# Test: appends to existing .gitattributes
+ga_tmpdir=$(mktemp -d)
+echo "*.pdf binary" > "$ga_tmpdir/.gitattributes"
+ga_json=$(ensure_gitattributes "$ga_tmpdir")
+ga_updated=$(echo "$ga_json" | jq -r '.updated')
+assert_eq "appends to existing .gitattributes" "true" "$ga_updated"
+assert_contains "preserves existing content" "$(cat "$ga_tmpdir/.gitattributes")" "*.pdf binary"
+assert_contains "adds marker" "$(cat "$ga_tmpdir/.gitattributes")" "# [team-ai-kit] engram diff rules"
+rm -rf "$ga_tmpdir"
+
+# Test: idempotent -- no-op when marker present
+ga_tmpdir=$(mktemp -d)
+printf '# [team-ai-kit] engram diff rules\n.engram/** linguist-generated=true\n.engram/** -diff\n' > "$ga_tmpdir/.gitattributes"
+ga_json=$(ensure_gitattributes "$ga_tmpdir")
+ga_created=$(echo "$ga_json" | jq -r '.created')
+ga_updated=$(echo "$ga_json" | jq -r '.updated')
+assert_eq "idempotent: created=false" "false" "$ga_created"
+assert_eq "idempotent: updated=false" "false" "$ga_updated"
+rm -rf "$ga_tmpdir"
+
+echo "--- remove_gitattributes_block ---"
+
+# Test: removes our lines, keeps others
+ga_tmpdir=$(mktemp -d)
+printf '*.pdf binary\n\n# [team-ai-kit] engram diff rules\n.engram/** linguist-generated=true\n.engram/** -diff\n' > "$ga_tmpdir/.gitattributes"
+remove_gitattributes_block "$ga_tmpdir"
+assert_contains "keeps other rules" "$(cat "$ga_tmpdir/.gitattributes")" "*.pdf binary"
+assert_not_contains "removes marker" "$(cat "$ga_tmpdir/.gitattributes")" "team-ai-kit"
+rm -rf "$ga_tmpdir"
+
+# Test: deletes file when only our lines remain
+ga_tmpdir=$(mktemp -d)
+printf '# [team-ai-kit] engram diff rules\n.engram/** linguist-generated=true\n.engram/** -diff\n' > "$ga_tmpdir/.gitattributes"
+remove_gitattributes_block "$ga_tmpdir"
+if [[ ! -f "$ga_tmpdir/.gitattributes" ]]; then
+    pass "deletes file when only our lines"
+else
+    fail "should delete file when only our lines" "file still exists"
+fi
+rm -rf "$ga_tmpdir"
+
+# Test: no-op when no file
+ga_tmpdir=$(mktemp -d)
+remove_gitattributes_block "$ga_tmpdir"
+pass "no-op when .gitattributes absent"
+rm -rf "$ga_tmpdir"
+
+echo ""
+
+# =============================================================================
 # Summary
 # =============================================================================
 echo "================================"
