@@ -1079,7 +1079,7 @@ function Invoke-DoctorCommand {
         }
     }
 
-    # Project-level skills
+    # Project-level skills & team repo (only inside an initialized project)
     $projectRoot = (Get-Location).Path
     if ($config.ide -and (Test-ProjectInitialized -ProjectRoot $projectRoot)) {
         $pc = Get-ProjectConfig -ProjectRoot $projectRoot
@@ -1094,18 +1094,14 @@ function Invoke-DoctorCommand {
         else {
             Write-Step 'Project skills: not installed (run "team-ai-kit init" with a team repo)'
         }
-    }
 
-    # Team repo (only shown inside an initialized project)
-    $projectRoot2 = (Get-Location).Path
-    if (Test-ProjectInitialized -ProjectRoot $projectRoot2) {
-        $pc2 = Get-ProjectConfig -ProjectRoot $projectRoot2
-        $effectiveRepo = if ($pc2.teamRepo) { $pc2.teamRepo } elseif ($config.teamRepo) { $config.teamRepo } else { '' }
+        # Team repo
+        $effectiveRepo = if ($pc.teamRepo) { $pc.teamRepo } elseif ($config.teamRepo) { $config.teamRepo } else { '' }
         if ($effectiveRepo) {
             Write-Ok "Team repo: $effectiveRepo"
         }
         else {
-            Write-Step 'Team repo: not configured (use "team-ai-kit init -TeamRepo <url>")'
+            Write-Warn 'Team repo: not configured (use "team-ai-kit init -TeamRepo <url>")'
         }
     }
 
