@@ -832,61 +832,50 @@ test_skill_modified_by_user() {
 # -- Skills Merge (3-layer: defaults + team + user) ----------------------------
 
 install_single_skill_with_tracking() {
-    # Installs one skill, returns action via stdout: installed|updated|skipped
-    # Updates manifest_json via nameref (bash 4.3+) or temp file approach
+    # Installs one skill. Returns "action\nmanifest_json" via stdout.
+    # Caller is responsible for writing manifest to disk once at the end.
+    # Usage: install_single_skill_with_tracking source dest key source_label manifest_json timestamp
     local source_path="$1" dest_path="$2" manifest_key="$3"
-    local source="$4" manifest_file="$5" timestamp="$6"
+    local source="$4" manifest_json="$5" timestamp="$6"
 
     local dest_dir
     dest_dir=$(dirname "$dest_path")
     [[ -d "$dest_dir" ]] || mkdir -p "$dest_dir"
 
     local source_hash
-    source_hash=$(get_file_content_hash "$source_path") || { echo "skipped"; return; }
+    source_hash=$(get_file_content_hash "$source_path") || { printf 'skipped\n%s' "$manifest_json"; return; }
+
+    _update_manifest_entry() {
+        echo "$manifest_json" | jq --arg key "$manifest_key" \
+             --arg hash "$source_hash" \
+             --arg src "$source" \
+             --arg ts "$timestamp" \
+             '.files[$key] = {hash: $hash, source: $src, installedAt: $ts}'
+    }
 
     if [[ ! -f "$dest_path" ]]; then
-        # File does not exist -> install
         cp "$source_path" "$dest_path"
-        # Update manifest file in-place
-        local tmp
-        tmp=$(jq --arg key "$manifest_key" \
-                 --arg hash "$source_hash" \
-                 --arg src "$source" \
-                 --arg ts "$timestamp" \
-                 '.files[$key] = {hash: $hash, source: $src, installedAt: $ts}' \
-                 "$manifest_file")
-        echo "$tmp" > "$manifest_file"
-        echo "installed"
+        printf 'installed\n%s' "$(_update_manifest_entry)"
         return
     fi
 
     # File exists -- check if user modified it
-    local manifest_json
-    manifest_json=$(cat "$manifest_file")
     if test_skill_modified_by_user "$dest_path" "$manifest_key" "$manifest_json"; then
-        echo "skipped"
+        printf 'skipped\n%s' "$manifest_json"
         return
     fi
 
     # Not modified -- check if source has changes
     local current_hash
-    current_hash=$(get_file_content_hash "$dest_path") || { echo "skipped"; return; }
+    current_hash=$(get_file_content_hash "$dest_path") || { printf 'skipped\n%s' "$manifest_json"; return; }
     if [[ "$current_hash" == "$source_hash" ]]; then
-        echo "skipped"
+        printf 'skipped\n%s' "$manifest_json"
         return
     fi
 
     # Source changed, user hasn't modified -> update
     cp "$source_path" "$dest_path"
-    local tmp
-    tmp=$(jq --arg key "$manifest_key" \
-             --arg hash "$source_hash" \
-             --arg src "$source" \
-             --arg ts "$timestamp" \
-             '.files[$key] = {hash: $hash, source: $src, installedAt: $ts}' \
-             "$manifest_file")
-    echo "$tmp" > "$manifest_file"
-    echo "updated"
+    printf 'updated\n%s' "$(_update_manifest_entry)"
 }
 
 # shellcheck disable=SC2178,SC2128
@@ -903,9 +892,10 @@ install_skills_with_merge() {
     manifest_dir=$(dirname "$manifest_path")
     [[ -d "$manifest_dir" ]] || mkdir -p "$manifest_dir"
 
-    # Initialize manifest file if it doesn't exist
-    if [[ ! -f "$manifest_path" ]]; then
-        echo '{"files":{}}' > "$manifest_path"
+    # Load manifest once into memory
+    local manifest_json='{"files":{}}'
+    if [[ -f "$manifest_path" ]]; then
+        manifest_json=$(cat "$manifest_path")
     fi
 
     local timestamp
@@ -921,10 +911,14 @@ install_skills_with_merge() {
         local manifest_key="team-skills/$relative_path"
         local dest_path="$target_dir/$manifest_key"
 
-        local action
-        action=$(install_single_skill_with_tracking \
+        local result
+        result=$(install_single_skill_with_tracking \
             "$skill_path" "$dest_path" "$manifest_key" \
-            "default" "$manifest_path" "$timestamp")
+            "default" "$manifest_json" "$timestamp")
+
+        local action
+        action=$(head -1 <<< "$result")
+        manifest_json=$(tail -n +2 <<< "$result")
 
         case "$action" in
             installed) installed=$((installed + 1)) ;;
@@ -946,10 +940,14 @@ install_skills_with_merge() {
                 local manifest_key="team-skills/$relative_path"
                 local dest_path="$target_dir/$manifest_key"
 
-                local action
-                action=$(install_single_skill_with_tracking \
+                local result
+                result=$(install_single_skill_with_tracking \
                     "$skill_path" "$dest_path" "$manifest_key" \
-                    "team" "$manifest_path" "$timestamp")
+                    "team" "$manifest_json" "$timestamp")
+
+                local action
+                action=$(head -1 <<< "$result")
+                manifest_json=$(tail -n +2 <<< "$result")
 
                 case "$action" in
                     installed) installed=$((installed + 1)) ;;
@@ -959,6 +957,9 @@ install_skills_with_merge() {
             done < <(get_team_repo_skill_paths "$role" "$team_repo_url")
         fi
     fi
+
+    # Write manifest once at end
+    echo "$manifest_json" | jq '.' > "$manifest_path"
 
     echo "{\"installed\":$installed,\"updated\":$updated,\"skipped\":$skipped}"
 }
