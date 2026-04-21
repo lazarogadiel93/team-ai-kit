@@ -357,7 +357,7 @@ function Invoke-SetupCommand {
         Write-Step 'Skipping gentle-ai install (SkipGentleAi flag)'
     }
     else {
-        # IDE without gentle-ai adapter -- manual MCP setup
+        # IDE without gentle-ai adapter -- manual MCP setup (currently only IntelliJ)
         $ideNames = @{ 'intellij' = 'IntelliJ + Copilot' }
         $ideName = if ($ideNames.ContainsKey($Ide.ToLower())) { $ideNames[$Ide.ToLower()] } else { $Ide }
         Write-Step "$ideName`: no gentle-ai adapter available"
@@ -433,15 +433,7 @@ function Invoke-SetupCommand {
     $totalSkipped = $mergeResults.skipped.Count
     Write-Ok "$totalInstalled installed, $totalUpdated updated, $totalSkipped unchanged"
 
-    # 5c. Generate project-level instructions (to be committed to repos)
-    $packRulesPath = Get-PackRulesPath -KitRoot $kitRoot -Role $Role
-    $packRulesContent = ''
-    if ($packRulesPath) {
-        $packRulesContent = Get-Content -Path $packRulesPath -Raw
-    }
-    $skipProtocol = Test-GentleAiSupportsIde -Ide $Ide
-    $instructions = New-CopilotInstructions -Role $Role -PackRulesContent $packRulesContent -SkipEngramProtocol:$skipProtocol
-    Write-Ok "Project instructions generated for role: $Role"
+    # 5c. Project-level instructions are generated during "init", not setup
     Write-Step 'Run "team-ai-kit init" in each project to apply instructions'
 
     # -- Save config -----------------------------------------------------------
@@ -561,10 +553,8 @@ function Invoke-InitCommand {
     # Resolve team repo URL: CLI param > project config > global config
     $effectiveTeamRepo = if ($TeamRepo) { $TeamRepo }
         elseif ($existingConfig -and $existingConfig.teamRepo) { $existingConfig.teamRepo }
-        else {
-            $gc = Get-TeamAiKitConfig
-            if ($gc.teamRepo) { $gc.teamRepo } else { '' }
-        }
+        elseif ($globalConfig.teamRepo) { $globalConfig.teamRepo }
+        else { '' }
 
     # Clone/pull team repo if configured
     $teamRulesContent = ''
