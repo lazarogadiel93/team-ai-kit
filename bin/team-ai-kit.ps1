@@ -59,7 +59,7 @@ param(
     [ValidateSet('vscode', 'intellij', 'opencode', 'cursor')]
     [string]$Ide,
 
-    [ValidateSet('frontend', 'backend-node', 'devops', 'python')]
+    [ValidateSet('frontend', 'backend-node', 'backend-java', 'backend-dotnet', 'devops', 'python', 'mobile', 'data')]
     [string]$Role,
 
     [ValidateSet('openai', 'azure-openai', 'anthropic', 'github-copilot')]
@@ -127,7 +127,7 @@ function Show-Help {
     Write-Host ''
     Write-Host '  Setup options:' -ForegroundColor Yellow
     Write-Host '    -Ide <vscode|intellij|opencode|cursor>'
-    Write-Host '    -Role <frontend|backend-node|devops|python>'
+    Write-Host '    -Role <frontend|backend-node|backend-java|backend-dotnet|devops|python|mobile|data>'
     Write-Host '    -Provider <openai|azure-openai|anthropic|github-copilot>'
     Write-Host '    -TeamRepo <url>          Team content repo URL'
     Write-Host '    -TargetDir <path>        Custom output directory'
@@ -283,21 +283,29 @@ function Invoke-SetupCommand {
     Write-Host '  [3/5] Role Selection' -ForegroundColor White
 
     if (-not $Role) {
-        Write-Host '    1) Frontend (React / Next.js)'
-        Write-Host '    2) Backend (Node.js / Express)'
-        Write-Host '    3) DevOps (CI/CD / Docker / Infra)'
-        Write-Host '    4) Python (FastAPI / Django)'
+        Write-Host '    1) Frontend (React / Next.js / Angular / Vue)'
+        Write-Host '    2) Backend - Node.js (Express / Fastify)'
+        Write-Host '    3) Backend - Java (Spring Boot / JPA)'
+        Write-Host '    4) Backend - .NET (ASP.NET Core / EF Core)'
+        Write-Host '    5) DevOps (CI/CD / Docker / Infra)'
+        Write-Host '    6) Python (FastAPI / Django)'
+        Write-Host '    7) Mobile (React Native / Expo)'
+        Write-Host '    8) Data (pandas / scikit-learn / ML)'
         Write-Host ''
 
         do {
-            $roleChoice = Read-Host '  Your role (1-4)'
-        } while ($roleChoice -notin @('1', '2', '3', '4'))
+            $roleChoice = Read-Host '  Your role (1-8)'
+        } while ($roleChoice -notin @('1', '2', '3', '4', '5', '6', '7', '8'))
 
         $script:Role = switch ($roleChoice) {
             '1' { 'frontend' }
             '2' { 'backend-node' }
-            '3' { 'devops' }
-            '4' { 'python' }
+            '3' { 'backend-java' }
+            '4' { 'backend-dotnet' }
+            '5' { 'devops' }
+            '6' { 'python' }
+            '7' { 'mobile' }
+            '8' { 'data' }
         }
     }
 

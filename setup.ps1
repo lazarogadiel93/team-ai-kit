@@ -19,7 +19,7 @@ param(
     [ValidateSet('vscode', 'intellij', 'opencode', 'cursor')]
     [string]$Ide,
 
-    [ValidateSet('frontend', 'backend-node', 'devops', 'python')]
+    [ValidateSet('frontend', 'backend-node', 'backend-java', 'backend-dotnet', 'devops', 'python', 'mobile', 'data')]
     [string]$Role,
 
     [ValidateSet('openai', 'azure-openai', 'anthropic', 'github-copilot')]

@@ -9,7 +9,7 @@ set -euo pipefail
 # -- Constants -----------------------------------------------------------------
 
 VALID_IDES=("vscode" "intellij" "opencode" "cursor")
-VALID_ROLES=("frontend" "backend-node" "devops" "python")
+VALID_ROLES=("frontend" "backend-node" "backend-java" "backend-dotnet" "devops" "python" "mobile" "data")
 VALID_PROVIDERS=("openai" "azure-openai" "anthropic" "github-copilot")
 VALID_COMMANDS=("setup" "init" "init-knowledge" "sync" "update" "status" "doctor" "help")
 

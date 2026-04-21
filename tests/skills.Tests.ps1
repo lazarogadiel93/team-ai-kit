@@ -14,7 +14,7 @@ BeforeAll {
 
     $script:allSkillFiles = @(Get-ChildItem -Path (Join-Path $script:kitRoot 'skills') -Filter '*.md' -Recurse)
     $script:sharedSkillFiles = @(Get-ChildItem -Path $script:sharedDir -Filter '*.md' -Recurse)
-    $script:roleNames = @('frontend', 'backend-node', 'devops', 'python')
+    $script:roleNames = @('frontend', 'backend-node', 'backend-java', 'backend-dotnet', 'devops', 'python', 'mobile', 'data')
 
     function Get-Frontmatter {
         <#
@@ -79,8 +79,8 @@ Describe 'Skill file inventory' {
         }
     }
 
-    It 'has 13 total skill files (5 shared + 8 role)' {
-        $script:allSkillFiles.Count | Should -Be 13
+    It 'has 21 total skill files (5 shared + 16 role)' {
+        $script:allSkillFiles.Count | Should -Be 21
     }
 }
 

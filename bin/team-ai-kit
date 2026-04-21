@@ -16,7 +16,7 @@
 #
 # Setup options:
 #   --ide <vscode|intellij|opencode|cursor>
-#   --role <frontend|backend-node|devops|python>
+#   --role <frontend|backend-node|backend-java|backend-dotnet|devops|python|mobile|data>
 #   --provider <openai|azure-openai|anthropic|github-copilot>
 #   --team-repo <url>         Team content repo URL
 #   --target-dir <path>       Custom output directory
@@ -102,7 +102,7 @@ show_help() {
     echo ""
     echo -e "  ${C_YELLOW}Setup options:${C_RESET}"
     echo "    --ide <vscode|intellij|opencode|cursor>"
-    echo "    --role <frontend|backend-node|devops|python>"
+    echo "    --role <frontend|backend-node|backend-java|backend-dotnet|devops|python|mobile|data>"
     echo "    --provider <openai|azure-openai|anthropic|github-copilot>"
     echo "    --team-repo <url>          Team content repo URL"
     echo "    --target-dir <path>        Custom output directory"
@@ -245,19 +245,27 @@ cmd_setup() {
     echo -e "  ${C_WHITE}[3/5] Role Selection${C_RESET}"
 
     if [[ -z "$OPT_ROLE" ]]; then
-        echo "    1) Frontend (React / Next.js)"
-        echo "    2) Backend (Node.js / Express)"
-        echo "    3) DevOps (CI/CD / Docker / Infra)"
-        echo "    4) Python (FastAPI / Django)"
+        echo "    1) Frontend (React / Next.js / Angular / Vue)"
+        echo "    2) Backend - Node.js (Express / Fastify)"
+        echo "    3) Backend - Java (Spring Boot / JPA)"
+        echo "    4) Backend - .NET (ASP.NET Core / EF Core)"
+        echo "    5) DevOps (CI/CD / Docker / Infra)"
+        echo "    6) Python (FastAPI / Django)"
+        echo "    7) Mobile (React Native / Expo)"
+        echo "    8) Data (pandas / scikit-learn / ML)"
         echo ""
         while true; do
-            read -rp "  Your role (1-4): " role_choice
+            read -rp "  Your role (1-8): " role_choice
             case "$role_choice" in
                 1) OPT_ROLE="frontend"; break ;;
                 2) OPT_ROLE="backend-node"; break ;;
-                3) OPT_ROLE="devops"; break ;;
-                4) OPT_ROLE="python"; break ;;
-                *) echo "  Invalid choice. Enter 1-4." ;;
+                3) OPT_ROLE="backend-java"; break ;;
+                4) OPT_ROLE="backend-dotnet"; break ;;
+                5) OPT_ROLE="devops"; break ;;
+                6) OPT_ROLE="python"; break ;;
+                7) OPT_ROLE="mobile"; break ;;
+                8) OPT_ROLE="data"; break ;;
+                *) echo "  Invalid choice. Enter 1-8." ;;
             esac
         done
     fi

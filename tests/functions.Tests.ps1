@@ -185,8 +185,32 @@ Describe 'Get-RoleSkillPaths' {
         $skills.Count | Should -Be 2  # api-design + testing
     }
 
-    It 'returns empty array for nonexistent role' {
+    It 'returns backend-java skills' {
+        $skills = Get-RoleSkillPaths -KitRoot $script:kitRoot -Role 'backend-java'
+        $skills | Should -Not -BeNullOrEmpty
+        $skills.Count | Should -Be 2  # api-design + testing
+    }
+
+    It 'returns backend-dotnet skills' {
+        $skills = Get-RoleSkillPaths -KitRoot $script:kitRoot -Role 'backend-dotnet'
+        $skills | Should -Not -BeNullOrEmpty
+        $skills.Count | Should -Be 2  # api-design + testing
+    }
+
+    It 'returns mobile skills' {
         $skills = Get-RoleSkillPaths -KitRoot $script:kitRoot -Role 'mobile'
+        $skills | Should -Not -BeNullOrEmpty
+        $skills.Count | Should -Be 2  # architecture + testing
+    }
+
+    It 'returns data skills' {
+        $skills = Get-RoleSkillPaths -KitRoot $script:kitRoot -Role 'data'
+        $skills | Should -Not -BeNullOrEmpty
+        $skills.Count | Should -Be 2  # pipelines + testing
+    }
+
+    It 'returns empty array for nonexistent role' {
+        $skills = Get-RoleSkillPaths -KitRoot $script:kitRoot -Role 'nonexistent'
         $skills | Should -BeNullOrEmpty
     }
 }
@@ -211,11 +235,31 @@ Describe 'Get-AllSkillPathsForRole' {
         $all = Get-AllSkillPathsForRole -KitRoot $script:kitRoot -Role 'python'
         $all.Count | Should -Be 7  # 5 shared + 2 python
     }
+
+    It 'combines shared + role skills for backend-java' {
+        $all = Get-AllSkillPathsForRole -KitRoot $script:kitRoot -Role 'backend-java'
+        $all.Count | Should -Be 7  # 5 shared + 2 backend-java
+    }
+
+    It 'combines shared + role skills for backend-dotnet' {
+        $all = Get-AllSkillPathsForRole -KitRoot $script:kitRoot -Role 'backend-dotnet'
+        $all.Count | Should -Be 7  # 5 shared + 2 backend-dotnet
+    }
+
+    It 'combines shared + role skills for mobile' {
+        $all = Get-AllSkillPathsForRole -KitRoot $script:kitRoot -Role 'mobile'
+        $all.Count | Should -Be 7  # 5 shared + 2 mobile
+    }
+
+    It 'combines shared + role skills for data' {
+        $all = Get-AllSkillPathsForRole -KitRoot $script:kitRoot -Role 'data'
+        $all.Count | Should -Be 7  # 5 shared + 2 data
+    }
 }
 
 Describe 'Get-PackRulesPath' {
     It 'returns path for existing role packs' {
-        foreach ($role in @('frontend', 'backend-node', 'devops', 'python')) {
+        foreach ($role in @('frontend', 'backend-node', 'backend-java', 'backend-dotnet', 'devops', 'python', 'mobile', 'data')) {
             $path = Get-PackRulesPath -KitRoot $script:kitRoot -Role $role
             $path | Should -Not -BeNullOrEmpty
             Test-Path $path | Should -BeTrue
@@ -223,7 +267,7 @@ Describe 'Get-PackRulesPath' {
     }
 
     It 'returns $null for nonexistent role' {
-        $path = Get-PackRulesPath -KitRoot $script:kitRoot -Role 'mobile'
+        $path = Get-PackRulesPath -KitRoot $script:kitRoot -Role 'nonexistent'
         $path | Should -BeNullOrEmpty
     }
 }
