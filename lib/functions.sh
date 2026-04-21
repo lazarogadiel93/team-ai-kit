@@ -359,6 +359,7 @@ get_gentle_ai_agent_id() {
     case "$ide" in
         vscode)   echo "vscode-copilot" ;;
         opencode) echo "opencode" ;;
+        cursor)   echo "cursor" ;;
         *)        return 1 ;;
     esac
 }
@@ -1063,10 +1064,12 @@ new_cursor_mcp_config() {
 # -- Instructions Generation ---------------------------------------------------
 
 new_copilot_instructions() {
-    # Usage: new_copilot_instructions role [pack_rules_content] [team_rules_content]
+    # Usage: new_copilot_instructions role [pack_rules_content] [team_rules_content] [skip_engram_protocol]
+    # skip_engram_protocol: "true" to skip engram protocol (gentle-ai handles it)
     local role="$1"
     local pack_rules_content="${2:-}"
     local team_rules_content="${3:-}"
+    local skip_engram_protocol="${4:-false}"
 
     cat <<EOF
 # Team AI Kit -- Copilot Instructions
@@ -1079,11 +1082,13 @@ new_copilot_instructions() {
 ## Team Conventions
 
 - Follow the team's established patterns and conventions
-- Use engram to save decisions, discoveries, and bug fixes
-- Search engram before starting work to check for prior knowledge
 - Always explain WHY, not just WHAT, when making decisions
 
 EOF
+
+    if [[ "$skip_engram_protocol" != "true" ]]; then
+        get_engram_protocol_content
+    fi
 
     if [[ -n "$pack_rules_content" ]]; then
         printf '%s\n' "$pack_rules_content"
@@ -1241,10 +1246,12 @@ ENGRAM_PROTOCOL_EOF
 }
 
 update_instructions_engram_protocol() {
-    # Usage: update_instructions_engram_protocol file_path
+    # Usage: update_instructions_engram_protocol file_path [skip_engram_protocol]
     # Updates only the engram-protocol section in an existing instructions file.
+    # If skip_engram_protocol is "true", removes existing markers instead of updating.
     # Outputs: "changed" or "unchanged"
     local file_path="$1"
+    local skip_engram_protocol="${2:-false}"
 
     [[ -f "$file_path" ]] || { echo "unchanged"; return; }
 
@@ -1253,6 +1260,41 @@ update_instructions_engram_protocol() {
 
     local start_marker='<!-- team-ai-kit:engram-protocol -->'
     local end_marker='<!-- /team-ai-kit:engram-protocol -->'
+
+    if [[ "$skip_engram_protocol" == "true" ]]; then
+        # Remove existing protocol section if present
+        if echo "$existing" | grep -qF "$start_marker"; then
+            local tmpfile
+            tmpfile=$(mktemp)
+            trap "rm -f '$tmpfile'" EXIT
+            local in_section=false
+            while IFS= read -r line || [[ -n "$line" ]]; do
+                if [[ "$line" == *"$start_marker"* ]]; then
+                    in_section=true
+                elif [[ "$line" == *"$end_marker"* ]]; then
+                    in_section=false
+                elif [[ "$in_section" == false ]]; then
+                    printf '%s\n' "$line" >> "$tmpfile"
+                fi
+            done <<< "$existing"
+            local updated
+            updated=$(cat "$tmpfile")
+            rm -f "$tmpfile"
+            trap - EXIT
+            # Collapse 3+ consecutive blank lines to 2 (parity with PS1)
+            updated=$(echo "$updated" | awk 'BEGIN{blank=0} /^[[:space:]]*$/{blank++; if(blank<=2) print; next} {blank=0; print}')
+            if [[ "$updated" == "$existing" ]]; then
+                echo "unchanged"
+            else
+                printf '%s\n' "$updated" > "$file_path"
+                echo "changed"
+            fi
+        else
+            echo "unchanged"
+        fi
+        return
+    fi
+
     local new_section
     new_section=$(get_engram_protocol_content)
     # Trim leading/trailing whitespace

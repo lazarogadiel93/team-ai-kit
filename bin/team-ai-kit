@@ -417,7 +417,7 @@ cmd_setup() {
         echo -e "    ${C_WHITE}1. Go to your project and run: team-ai-kit init${C_RESET}"
         echo -e "    ${C_DIM}   (configures instructions, team skills, engram sync, and git hooks)${C_RESET}"
         echo -e "    ${C_WHITE}2. Open your IDE and start working!${C_RESET}"
-    elif [[ "$OPT_IDE" == "intellij" || "$OPT_IDE" == "cursor" ]]; then
+    elif ! test_gentle_ai_supports_ide "$OPT_IDE"; then
         echo -e "    ${C_WHITE}1. Add the MCP config shown above to your IDE settings${C_RESET}"
         echo -e "    ${C_WHITE}2. Go to your project and run: team-ai-kit init${C_RESET}"
         echo -e "    ${C_DIM}   (configures instructions, team skills, engram sync, and git hooks)${C_RESET}"
@@ -464,7 +464,7 @@ cmd_init() {
 
         if [[ "$OPT_FORCE" == "true" ]]; then
             warn "Already initialized (Role=$existing_role). Re-initializing (--force)."
-        elif [[ -z "$OPT_ROLE" && -z "$OPT_IDE" ]]; then
+        elif [[ -z "$OPT_ROLE" && -z "$OPT_TEAM_REPO" ]]; then
             # Interactive mode: show config and ask
             warn "This project is already initialized:"
             echo -e "    ${C_DIM}Role:        $existing_role${C_RESET}"
@@ -543,8 +543,13 @@ cmd_init() {
         fi
     fi
 
+    local skip_engram_protocol="false"
+    if test_gentle_ai_supports_ide "$effective_ide"; then
+        skip_engram_protocol="true"
+    fi
+
     local instructions
-    instructions=$(new_copilot_instructions "$effective_role" "$pack_rules_content" "$team_rules_content")
+    instructions=$(new_copilot_instructions "$effective_role" "$pack_rules_content" "$team_rules_content" "$skip_engram_protocol")
     printf '%s\n' "$instructions" > "$instructions_path"
     local rel_instructions_path="${instructions_path#$project_root/}"
     ok "Created: $rel_instructions_path"
@@ -856,14 +861,23 @@ cmd_update() {
     fi
 
     # Step 4: Auto-update Engram Memory Protocol in instructions
+    # Skip for IDEs where gentle-ai handles the protocol globally
     if [[ "$has_project_config" == "true" ]]; then
         local instructions_path
         instructions_path=$(get_ide_instructions_path "$config_ide" "$project_root")
         if [[ -f "$instructions_path" ]]; then
+            local skip_engram_protocol="false"
+            if test_gentle_ai_supports_ide "$config_ide"; then
+                skip_engram_protocol="true"
+            fi
             local protocol_result
-            protocol_result=$(update_instructions_engram_protocol "$instructions_path")
+            protocol_result=$(update_instructions_engram_protocol "$instructions_path" "$skip_engram_protocol")
             if [[ "$protocol_result" == "changed" ]]; then
-                ok "Engram Memory Protocol updated in project instructions"
+                if [[ "$skip_engram_protocol" == "true" ]]; then
+                    ok "Engram Memory Protocol removed from project instructions (gentle-ai handles it)"
+                else
+                    ok "Engram Memory Protocol updated in project instructions"
+                fi
             else
                 step "Engram Memory Protocol unchanged in project instructions"
             fi
