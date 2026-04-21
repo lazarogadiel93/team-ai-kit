@@ -77,14 +77,6 @@ function Save-TeamAiKitConfig {
     return $configPath
 }
 
-function Test-FirstRun {
-    <#
-    .SYNOPSIS
-        Returns $true if team-ai-kit has never been configured (no config.json).
-    #>
-    return -not (Test-Path (Get-TeamAiKitConfigPath))
-}
-
 function Test-ValidCommand {
     <#
     .SYNOPSIS
@@ -787,69 +779,6 @@ function Get-ToolVersionStatus {
     }
 }
 
-function Invoke-GentleAiInstall {
-    <#
-    .SYNOPSIS
-        Runs gentle-ai install with the correct flags for the given agent.
-    .DESCRIPTION
-        Executes `gentle-ai install --agent <id> --preset <preset> --persona <persona>`.
-        Returns $true on success, $false on failure.
-    #>
-    param(
-        [Parameter(Mandatory)]
-        [string]$AgentId,
-        [string]$Preset = 'ecosystem-only',
-        [string]$Persona = 'gentleman'
-    )
-
-    if (-not (Test-GentleAiInstalled)) {
-        throw 'gentle-ai is not installed. Run setup prerequisites first.'
-    }
-
-    $gentleBin = Get-GentleAiBinaryPath
-    if (-not $gentleBin) {
-        throw 'gentle-ai binary not found in PATH or known locations.'
-    }
-
-    $installArgs = @('install', '--agent', $AgentId, '--preset', $Preset, '--persona', $Persona)
-    try {
-        & $gentleBin @installArgs
-        return $LASTEXITCODE -eq 0
-    }
-    catch {
-        return $false
-    }
-}
-
-# ── Validation ────────────────────────────────────────────────────────────────
-
-function Test-ValidIde {
-    <#
-    .SYNOPSIS
-        Validates that the given IDE identifier is supported.
-    #>
-    param([string]$Ide)
-    return $script:VALID_IDES -contains $Ide.ToLower()
-}
-
-function Test-ValidRole {
-    <#
-    .SYNOPSIS
-        Validates that the given role identifier is supported.
-    #>
-    param([string]$Role)
-    return $script:VALID_ROLES -contains $Role.ToLower()
-}
-
-function Test-ValidProvider {
-    <#
-    .SYNOPSIS
-        Validates that the given provider identifier is supported.
-    #>
-    param([string]$Provider)
-    return $script:VALID_PROVIDERS -contains $Provider.ToLower()
-}
-
 # ── Skills Management ─────────────────────────────────────────────────────────
 
 function Get-SharedSkillPaths {
@@ -1013,45 +942,6 @@ function Get-IdeInstructionsPath {
     }
 }
 
-# ── Skills Installation ───────────────────────────────────────────────────────
-
-function Install-TeamSkills {
-    <#
-    .SYNOPSIS
-        Copies shared + role-specific skills to the IDE's skill directory.
-    .OUTPUTS
-        Array of copied file paths (destination).
-    #>
-    param(
-        [Parameter(Mandatory)]
-        [string]$KitRoot,
-        [Parameter(Mandatory)]
-        [string]$Role,
-        [Parameter(Mandatory)]
-        [string]$TargetDir
-    )
-
-    $skills = Get-AllSkillPathsForRole -KitRoot $KitRoot -Role $Role
-    $copied = @()
-
-    foreach ($skillPath in $skills) {
-        # Preserve relative structure: skills/shared/arch/SKILL.md → team-skills/shared/arch/SKILL.md
-        $skillsBase = Join-Path $KitRoot 'skills'
-        $relativePath = $skillPath.Replace($skillsBase, '').TrimStart('\', '/')
-        $destPath = Join-Path $TargetDir "team-skills\$relativePath"
-        $destDir = Split-Path $destPath -Parent
-
-        if (-not (Test-Path $destDir)) {
-            New-Item -ItemType Directory -Path $destDir -Force | Out-Null
-        }
-
-        Copy-Item -Path $skillPath -Destination $destPath -Force
-        $copied += $destPath
-    }
-
-    return $copied
-}
-
 # ── Team Repo Management ─────────────────────────────────────────────────────
 
 function Get-TeamRepoLocalPath {
@@ -1081,15 +971,6 @@ function Get-FileContentHash-String {
     $sha = [System.Security.Cryptography.SHA256]::Create()
     $hashBytes = $sha.ComputeHash($bytes)
     return ($hashBytes | ForEach-Object { $_.ToString('x2') }) -join ''
-}
-
-function Test-TeamRepoConfigured {
-    <#
-    .SYNOPSIS
-        Returns $true if a team repo URL is set in the config.
-    #>
-    $config = Get-TeamAiKitConfig
-    return -not [string]::IsNullOrWhiteSpace($config.teamRepo)
 }
 
 function Test-TeamRepoCloned {
@@ -1576,30 +1457,6 @@ function New-IntelliJMcpConfig {
     )
     # IntelliJ uses the same MCP JSON format
     return New-VsCodeMcpConfig -EngramBinaryPath $EngramBinaryPath
-}
-
-function New-CursorMcpConfig {
-    <#
-    .SYNOPSIS
-        Generates the MCP config JSON for Cursor (.cursor/mcp.json).
-        Cursor requires mcpServers as the top-level key (not servers).
-    #>
-    param(
-        [Parameter(Mandatory)]
-        [string]$EngramBinaryPath
-    )
-    $config = @{
-        mcpServers = @{
-            engram = @{
-                command = $EngramBinaryPath
-                args    = @('mcp', '--tools=agent')
-            }
-            context7 = @{
-                url = 'https://mcp.context7.com/mcp'
-            }
-        }
-    }
-    return $config | ConvertTo-Json -Depth 5
 }
 
 # ── Instructions Generation ───────────────────────────────────────────────────
