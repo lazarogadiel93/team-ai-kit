@@ -889,6 +889,7 @@ install_single_skill_with_tracking() {
     echo "updated"
 }
 
+# shellcheck disable=SC2178,SC2128
 install_skills_with_merge() {
     # Usage: install_skills_with_merge kit_root role target_dir [include_team_repo] [team_repo_url]
     # Outputs: JSON with installed/updated/skipped counts
@@ -910,7 +911,6 @@ install_skills_with_merge() {
     local timestamp
     timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-    # shellcheck disable=SC2178,SC2128  # local integers, not the arrays from install_git_hooks
     local installed=0 updated=0 skipped=0
     local skills_base="$kit_root/skills"
 
@@ -963,6 +963,7 @@ install_skills_with_merge() {
     echo "{\"installed\":$installed,\"updated\":$updated,\"skipped\":$skipped}"
 }
 
+# shellcheck disable=SC2178,SC2128
 install_project_skills() {
     # Installs team-knowledge repo skills into project-level directory.
     # Tracks last-installed hashes via a local manifest so user modifications
@@ -971,7 +972,6 @@ install_project_skills() {
     # Outputs: JSON with installed/updated/skipped counts
     local role="$1" team_repo_url="$2" target_dir="$3"
 
-    # shellcheck disable=SC2178,SC2128  # local integers, not the arrays from install_git_hooks
     local installed=0 updated=0 skipped=0
 
     local team_repo_path
