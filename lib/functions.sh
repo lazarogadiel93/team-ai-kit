@@ -910,6 +910,7 @@ install_skills_with_merge() {
     local timestamp
     timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
+    # shellcheck disable=SC2178,SC2128  # local integers, not the arrays from install_git_hooks
     local installed=0 updated=0 skipped=0
     local skills_base="$kit_root/skills"
 
@@ -970,6 +971,7 @@ install_project_skills() {
     # Outputs: JSON with installed/updated/skipped counts
     local role="$1" team_repo_url="$2" target_dir="$3"
 
+    # shellcheck disable=SC2178,SC2128  # local integers, not the arrays from install_git_hooks
     local installed=0 updated=0 skipped=0
 
     local team_repo_path
@@ -1272,6 +1274,7 @@ update_instructions_engram_protocol() {
         if echo "$existing" | grep -qF "$start_marker"; then
             local tmpfile
             tmpfile=$(mktemp)
+            # shellcheck disable=SC2064  # intentional: expand $tmpfile now, not at signal time
             trap "rm -f '$tmpfile'" EXIT
             local in_section=false
             while IFS= read -r line || [[ -n "$line" ]]; do
@@ -1311,6 +1314,7 @@ update_instructions_engram_protocol() {
         # Replace between markers using temp file to avoid escape issues
         local tmpfile
         tmpfile=$(mktemp)
+        # shellcheck disable=SC2064  # intentional: expand $tmpfile now, not at signal time
         trap "rm -f '$tmpfile'" EXIT
         local in_section=false
         while IFS= read -r line || [[ -n "$line" ]]; do
