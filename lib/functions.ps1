@@ -174,6 +174,92 @@ function Save-ProjectConfig {
     return $configPath
 }
 
+function Ensure-GitAttributes {
+    <#
+    .SYNOPSIS
+        Creates or updates .gitattributes with rules to collapse .engram/ diffs in PRs.
+    .DESCRIPTION
+        Adds linguist-generated and -diff rules for .engram/ so PR diffs stay clean.
+        Idempotent: skips if marker already present.
+    #>
+    param(
+        [Parameter(Mandatory)]
+        [string]$ProjectRoot
+    )
+
+    $gaPath = Join-Path $ProjectRoot '.gitattributes'
+    $marker = '# [team-ai-kit] engram diff rules'
+    $block = @(
+        $marker
+        '.engram/** linguist-generated=true'
+        '.engram/** -diff'
+    ) -join "`n"
+
+    if (Test-Path $gaPath) {
+        $existing = Get-Content $gaPath -Raw -ErrorAction SilentlyContinue
+        if ($existing -and $existing.Contains($marker)) {
+            return @{ created = $false; updated = $false; path = $gaPath }
+        }
+        # Append with blank line separator
+        $newContent = $existing.TrimEnd() + "`n`n" + $block + "`n"
+        $lfContent = $newContent -replace "`r`n", "`n"
+        [System.IO.File]::WriteAllText($gaPath, $lfContent, [System.Text.UTF8Encoding]::new($false))
+        return @{ created = $false; updated = $true; path = $gaPath }
+    }
+    else {
+        $lfContent = ($block + "`n") -replace "`r`n", "`n"
+        [System.IO.File]::WriteAllText($gaPath, $lfContent, [System.Text.UTF8Encoding]::new($false))
+        return @{ created = $true; updated = $false; path = $gaPath }
+    }
+}
+
+function Remove-GitAttributesBlock {
+    <#
+    .SYNOPSIS
+        Removes team-ai-kit lines from .gitattributes during uninstall.
+    .DESCRIPTION
+        Deletes the file if only our lines remain.
+    #>
+    param(
+        [Parameter(Mandatory)]
+        [string]$ProjectRoot
+    )
+
+    $gaPath = Join-Path $ProjectRoot '.gitattributes'
+    if (-not (Test-Path $gaPath)) { return }
+
+    $content = Get-Content $gaPath -Raw -ErrorAction SilentlyContinue
+    $marker = '# [team-ai-kit] engram diff rules'
+    if (-not $content -or -not $content.Contains($marker)) { return }
+
+    $lines = Get-Content $gaPath
+    $cleaned = @()
+    $skipNext = $false
+
+    foreach ($line in $lines) {
+        if ($line.Contains($marker)) {
+            $skipNext = $true
+            continue
+        }
+        if ($skipNext -and $line -match '^\.engram/') {
+            continue
+        }
+        $skipNext = $false
+        $cleaned += $line
+    }
+
+    $cleaned = @($cleaned | Where-Object { $_.Trim() -ne '' })
+
+    if ($cleaned.Count -eq 0) {
+        Remove-Item $gaPath -Force
+    }
+    else {
+        $newContent = ($cleaned -join "`n") + "`n"
+        $lfContent = $newContent -replace "`r`n", "`n"
+        [System.IO.File]::WriteAllText($gaPath, $lfContent, [System.Text.UTF8Encoding]::new($false))
+    }
+}
+
 function Initialize-EngramSync {
     <#
     .SYNOPSIS
@@ -1992,6 +2078,16 @@ function Get-UninstallTargets {
         }
     }
 
+    # 6. .gitattributes (only if it contains our marker)
+    $gaMarker = '# [team-ai-kit] engram diff rules'
+    $gaPath = Join-Path $ProjectRoot '.gitattributes'
+    if (Test-Path $gaPath) {
+        $gaContent = Get-Content $gaPath -Raw -ErrorAction SilentlyContinue
+        if ($gaContent -and $gaContent.Contains($gaMarker)) {
+            [void]$targets.Add(@{ Type = 'gitattributes'; Path = $gaPath })
+        }
+    }
+
     return @($targets)
 }
 
@@ -2054,6 +2150,10 @@ function Invoke-Uninstall {
         switch ($target.Type) {
             'hook' {
                 Remove-HookMarkerBlock -HookPath $target.Path
+                $removed++
+            }
+            'gitattributes' {
+                Remove-GitAttributesBlock -ProjectRoot $ProjectRoot
                 $removed++
             }
             'dir' {

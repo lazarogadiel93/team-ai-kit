@@ -628,6 +628,7 @@ function Invoke-InitCommand {
     if ($DryRun) {
         Write-Dry "Would run engram sync for project: $projectName"
         Write-Dry 'Would install git hooks to: .git/hooks/'
+        Write-Dry 'Would create/update .gitattributes with engram diff rules'
     }
     else {
         # 4a. Run initial engram sync
@@ -655,6 +656,19 @@ function Invoke-InitCommand {
         }
         elseif ($hookResult.skipped.Count -gt 0) {
             Write-Step "Git hooks already present: $($hookResult.skipped -join ', ')"
+        }
+
+        # 4c. Setup .gitattributes for clean PR diffs
+        $gaResult = Ensure-GitAttributes -ProjectRoot $projectRoot
+
+        if ($gaResult.created) {
+            Write-Ok '.gitattributes created -- .engram/ diffs collapsed in PRs'
+        }
+        elseif ($gaResult.updated) {
+            Write-Ok '.gitattributes updated -- .engram/ diffs collapsed in PRs'
+        }
+        else {
+            Write-Step '.gitattributes already configured'
         }
     }
 
@@ -953,6 +967,24 @@ function Invoke-UpdateCommand {
         }
     }
 
+    # Step 4b: Ensure .gitattributes has engram diff rules
+    if ($DryRun) {
+        Write-Dry 'Would ensure .gitattributes has engram diff rules'
+    }
+    else {
+        $gaResult = Ensure-GitAttributes -ProjectRoot $projectRoot
+
+        if ($gaResult.created) {
+            Write-Ok '.gitattributes created -- .engram/ diffs collapsed in PRs'
+        }
+        elseif ($gaResult.updated) {
+            Write-Ok '.gitattributes updated -- .engram/ diffs collapsed in PRs'
+        }
+        else {
+            Write-Step '.gitattributes already configured'
+        }
+    }
+
     # Step 5: Update config timestamp and version
     if ($DryRun) {
         Write-Host ''
@@ -1205,6 +1237,9 @@ function Invoke-UninstallCommand {
         switch ($target.Type) {
             'hook' {
                 Write-Host "    ~ $rel (team-ai-kit block)" -ForegroundColor Red
+            }
+            'gitattributes' {
+                Write-Host '    ~ .gitattributes (team-ai-kit lines)' -ForegroundColor Red
             }
             'dir' {
                 Write-Host "    - $rel/" -ForegroundColor Red
