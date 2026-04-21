@@ -124,6 +124,8 @@ git pull
 .\setup.ps1
 ```
 
+> **Nota**: `setup.ps1` es un wrapper de bootstrap que solo ejecuta `team-ai-kit setup`. Para los demas comandos (`init`, `update`, `doctor`, etc.) usar `team-ai-kit <comando>` directamente.
+
 El setup detecta automaticamente que Scoop no esta disponible y descarga `gentle-ai` y `engram` directo desde GitHub Releases. Los binarios se instalan en `%LOCALAPPDATA%\team-ai-kit\bin` y se agregan al PATH.
 
 ### macOS / Linux
@@ -172,13 +174,14 @@ team-ai-kit setup          # Primera configuracion (skills base a global)
 team-ai-kit init           # Inicializar proyecto (team skills + instructions + hooks)
 team-ai-kit init-knowledge # Crear estructura de un Team Knowledge Repo
 team-ai-kit update         # Pull del team repo + actualizar skills (global + proyecto)
+team-ai-kit sync           # Sincronizar memorias engram manualmente (export + import)
 team-ai-kit status         # Ver config, skills globales y de proyecto
 team-ai-kit doctor         # Verificar que todo este bien
 ```
 
 ### Flujo completo
 
-```bash
+```powershell
 # 1. Setup global (una sola vez)
 team-ai-kit setup
 
@@ -188,11 +191,11 @@ team-ai-kit init
 
 # 3. Si el proyecto usa otro rol
 cd mi-api-backend
-team-ai-kit init --role backend-node   # override sin cambiar el global
+team-ai-kit init -Role backend-node   # override sin cambiar el global
 
 # 4. Si el proyecto usa un team repo distinto al global
 cd mi-otro-proyecto
-team-ai-kit init --team-repo https://github.com/otro-equipo/knowledge
+team-ai-kit init -TeamRepo https://github.com/otro-equipo/knowledge
 ```
 
 ### Setup no interactivo
@@ -268,7 +271,7 @@ team-ai-kit setup -Ide vscode -Role frontend -TeamRepo https://dev.azure.com/equ
 
 # O per-project (si trabajas en equipos distintos)
 cd mi-proyecto
-team-ai-kit init --team-repo https://github.com/otro-equipo/knowledge
+team-ai-kit init -TeamRepo https://github.com/otro-equipo/knowledge
 
 # Actualizar cuando el equipo publique cambios (skills + reglas en instructions)
 team-ai-kit update
@@ -376,7 +379,7 @@ Explicacion y ejemplos.
 ## Tests
 
 ```powershell
-# Windows: Pester (208 tests)
+# Windows: Pester (unit tests)
 Invoke-Pester tests/ -Output Detailed
 
 # macOS/Linux: E2E bash (9 tests)
@@ -415,9 +418,9 @@ team-ai-kit/
 ├── packs/                         Reglas por rol
 ├── templates/                     IntelliJ (MCP config)
 ├── tests/
-│   ├── functions.Tests.ps1        208 unit tests (Pester)
-│   ├── skills.Tests.ps1           19 validation tests (Pester)
-│   └── e2e-bash.sh                9 E2E tests (bash)
+│   ├── functions.Tests.ps1        Unit tests (Pester)
+│   ├── skills.Tests.ps1           Skill validation tests (Pester)
+│   └── e2e-bash.sh                E2E tests (bash)
 ├── docs/
 │   ├── examples-by-role.md        Ejemplos detallados por rol
 │   ├── team-knowledge-repo.md     Guia del Team Knowledge Repo
