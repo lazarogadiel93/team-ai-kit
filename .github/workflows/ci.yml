@@ -41,6 +41,18 @@ jobs:
           name: pester-test-results
           path: testResults.xml
 
+  shellcheck:
+    name: Shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install shellcheck
+        run: sudo apt-get install -y shellcheck
+
+      - name: Run shellcheck on scripts
+        run: shellcheck --severity=warning -s bash bin/team-ai-kit lib/functions.sh
+
   bash-e2e:
     name: Bash E2E Tests (Ubuntu)
     runs-on: ubuntu-latest

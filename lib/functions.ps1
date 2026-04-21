@@ -17,6 +17,21 @@ $script:VALID_COMMANDS = @('setup', 'init', 'init-knowledge', 'sync', 'update', 
 
 # ── Config Persistence ───────────────────────────────────────────────────────
 
+function Get-UserHome {
+    <#
+    .SYNOPSIS
+        Returns the user home directory with fallback for non-standard environments.
+    .DESCRIPTION
+        Tries $env:USERPROFILE (Windows default), then $env:HOME (CI/containers),
+        then [Environment]::GetFolderPath('UserProfile'). Throws if all fail.
+    #>
+    if ($env:USERPROFILE) { return $env:USERPROFILE }
+    if ($env:HOME) { return $env:HOME }
+    $fp = [Environment]::GetFolderPath('UserProfile')
+    if ($fp) { return $fp }
+    throw 'Cannot determine user home directory. Set USERPROFILE or HOME environment variable.'
+}
+
 function ConvertTo-SafeProjectName {
     <#
     .SYNOPSIS
@@ -33,7 +48,7 @@ function Get-TeamAiKitConfigDir {
     .SYNOPSIS
         Returns the path to the team-ai-kit config directory (~/.team-ai-kit).
     #>
-    return Join-Path $env:USERPROFILE '.team-ai-kit'
+    return Join-Path (Get-UserHome) '.team-ai-kit'
 }
 
 function Get-TeamAiKitConfigPath {
@@ -418,13 +433,27 @@ function Test-GentleAiSupportsIde {
 
 # ── Direct Download Support ───────────────────────────────────────────────────
 
+function Get-LocalAppData {
+    <#
+    .SYNOPSIS
+        Returns the local app data directory with fallback for non-standard environments.
+    .DESCRIPTION
+        Tries $env:LOCALAPPDATA (Windows default), then falls back to
+        Join-Path (Get-UserHome) 'AppData\Local'. Throws if all fail.
+    #>
+    if ($env:LOCALAPPDATA) { return $env:LOCALAPPDATA }
+    $fallback = Join-Path (Get-UserHome) 'AppData\Local'
+    if ($fallback) { return $fallback }
+    throw 'Cannot determine local app data directory. Set LOCALAPPDATA environment variable.'
+}
+
 function Get-DirectDownloadBinDir {
     <#
     .SYNOPSIS
         Returns the path where directly-downloaded binaries are stored.
         Windows: $env:LOCALAPPDATA\team-ai-kit\bin
     #>
-    return Join-Path $env:LOCALAPPDATA 'team-ai-kit\bin'
+    return Join-Path (Get-LocalAppData) 'team-ai-kit\bin'
 }
 
 function Get-PlatformArchitecture {
@@ -630,7 +659,7 @@ function Test-GentleAiInstalled {
     catch {}
 
     # Check Scoop shim
-    $scoopPath = Join-Path $env:USERPROFILE 'scoop\shims\gentle-ai.exe'
+    $scoopPath = Join-Path (Get-UserHome) 'scoop\shims\gentle-ai.exe'
     if (Test-Path $scoopPath) { return $true }
 
     # Check direct download location
@@ -651,7 +680,7 @@ function Get-GentleAiBinaryPath {
     }
     catch {}
 
-    $scoopPath = Join-Path $env:USERPROFILE 'scoop\shims\gentle-ai.exe'
+    $scoopPath = Join-Path (Get-UserHome) 'scoop\shims\gentle-ai.exe'
     if (Test-Path $scoopPath) { return $scoopPath }
 
     $directPath = Join-Path (Get-DirectDownloadBinDir) 'gentle-ai.exe'
@@ -673,11 +702,11 @@ function Test-EngramInstalled {
     catch {}
 
     # Check known install location (Scoop)
-    $scoopPath = Join-Path $env:USERPROFILE 'scoop\shims\engram.exe'
+    $scoopPath = Join-Path (Get-UserHome) 'scoop\shims\engram.exe'
     if (Test-Path $scoopPath) { return $true }
 
     # Check AppData (gentle-ai installs here)
-    $appDataPath = Join-Path $env:LOCALAPPDATA 'engram\bin\engram.exe'
+    $appDataPath = Join-Path (Get-LocalAppData) 'engram\bin\engram.exe'
     if (Test-Path $appDataPath) { return $true }
 
     # Check direct download location
@@ -698,10 +727,10 @@ function Get-EngramBinaryPath {
     }
     catch {}
 
-    $scoopPath = Join-Path $env:USERPROFILE 'scoop\shims\engram.exe'
+    $scoopPath = Join-Path (Get-UserHome) 'scoop\shims\engram.exe'
     if (Test-Path $scoopPath) { return $scoopPath }
 
-    $appDataPath = Join-Path $env:LOCALAPPDATA 'engram\bin\engram.exe'
+    $appDataPath = Join-Path (Get-LocalAppData) 'engram\bin\engram.exe'
     if (Test-Path $appDataPath) { return $appDataPath }
 
     $directPath = Join-Path (Get-DirectDownloadBinDir) 'engram.exe'
@@ -872,19 +901,19 @@ function Get-IdeSkillsDirectory {
     switch ($Ide.ToLower()) {
         'vscode' {
             # VS Code Copilot: gentle-ai installs skills here
-            return Join-Path $env:USERPROFILE '.copilot\skills'
+            return Join-Path (Get-UserHome) '.copilot\skills'
         }
         'intellij' {
             # IntelliJ: no gentle-ai adapter, use shared copilot path
-            return Join-Path $env:USERPROFILE '.copilot\skills'
+            return Join-Path (Get-UserHome) '.copilot\skills'
         }
         'opencode' {
             # OpenCode: gentle-ai installs skills here
-            return Join-Path $env:USERPROFILE '.config\opencode\skills'
+            return Join-Path (Get-UserHome) '.config\opencode\skills'
         }
         'cursor' {
             # Cursor: user-level skills directory
-            return Join-Path $env:USERPROFILE '.cursor\skills'
+            return Join-Path (Get-UserHome) '.cursor\skills'
         }
         default {
             throw "Unsupported IDE: $Ide"

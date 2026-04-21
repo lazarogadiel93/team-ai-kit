@@ -13,6 +13,43 @@ BeforeAll {
     $script:kitRoot = (Resolve-Path "$PSScriptRoot\..").Path
 }
 
+# -- User Home Resolution ------------------------------------------------------
+
+Describe 'Get-UserHome' {
+    It 'returns a non-empty path' {
+        Get-UserHome | Should -Not -BeNullOrEmpty
+    }
+
+    It 'returns an existing directory' {
+        Get-UserHome | Should -Exist
+    }
+
+    It 'returns USERPROFILE when set' {
+        # On normal Windows, USERPROFILE is always set
+        $result = Get-UserHome
+        $result | Should -Be $env:USERPROFILE
+    }
+
+    It 'falls back to HOME when USERPROFILE is null' {
+        $originalUP = $env:USERPROFILE
+        $originalHOME = $env:HOME
+        try {
+            $env:USERPROFILE = $null
+            $env:HOME = 'C:\test-fallback-home'
+            $result = Get-UserHome
+            $result | Should -Be 'C:\test-fallback-home'
+        }
+        finally {
+            $env:USERPROFILE = $originalUP
+            $env:HOME = $originalHOME
+        }
+    }
+
+    # Throw path is untestable: [Environment]::GetFolderPath cannot be mocked in Pester without a framework
+    It 'throws when no home variable is available' -Skip {
+    }
+}
+
 # -- Project Name Sanitization -------------------------------------------------
 
 Describe 'ConvertTo-SafeProjectName' {
