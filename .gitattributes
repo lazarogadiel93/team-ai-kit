@@ -1,0 +1,19 @@
+# Auto-detect text files and normalize line endings to LF in the repo
+* text=auto eol=lf
+
+# Shell scripts — MUST be LF (bash breaks on CRLF)
+*.sh text eol=lf
+bin/team-ai-kit text eol=lf
+
+# PowerShell — LF in repo, OS converts on checkout
+*.ps1 text eol=lf
+
+# Templates
+*.template text eol=lf
+
+# Markdown & docs
+*.md text eol=lf
+*.html text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
