@@ -17,6 +17,17 @@ $script:VALID_COMMANDS = @('setup', 'init', 'init-knowledge', 'sync', 'update', 
 
 # ── Config Persistence ───────────────────────────────────────────────────────
 
+function ConvertTo-SafeProjectName {
+    <#
+    .SYNOPSIS
+        Strips unsafe characters from project name to prevent shell injection in git hooks.
+    .DESCRIPTION
+        Allows only: a-z A-Z 0-9 . _ -
+    #>
+    param([string]$Name)
+    return ($Name -replace '[^a-zA-Z0-9._-]', '')
+}
+
 function Get-TeamAiKitConfigDir {
     <#
     .SYNOPSIS

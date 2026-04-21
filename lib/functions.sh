@@ -17,6 +17,12 @@ VALID_COMMANDS=("setup" "init" "init-knowledge" "sync" "update" "status" "doctor
 
 _lowercase() { echo "$1" | tr '[:upper:]' '[:lower:]'; }
 
+_sanitize_project_name() {
+    # Strips unsafe characters from project name to prevent shell injection in git hooks.
+    # Allows only: a-z A-Z 0-9 . _ -
+    echo "$1" | tr -cd 'a-zA-Z0-9._-'
+}
+
 _array_contains() {
     local needle="$1"; shift
     local item
