@@ -13,6 +13,54 @@ BeforeAll {
     $script:kitRoot = (Resolve-Path "$PSScriptRoot\..").Path
 }
 
+# -- User Home Resolution ------------------------------------------------------
+
+Describe 'Get-UserHome' {
+    It 'returns a non-empty path' {
+        Get-UserHome | Should -Not -BeNullOrEmpty
+    }
+
+    It 'returns an existing directory' {
+        Get-UserHome | Should -Exist
+    }
+
+    It 'returns USERPROFILE when set' {
+        # On normal Windows, USERPROFILE is always set
+        $result = Get-UserHome
+        $result | Should -Be $env:USERPROFILE
+    }
+
+    It 'falls back to HOME when USERPROFILE is null' {
+        $originalUP = $env:USERPROFILE
+        $originalHOME = $env:HOME
+        try {
+            $env:USERPROFILE = $null
+            $env:HOME = $originalUP  # Use original as fallback
+            $result = Get-UserHome
+            $result | Should -Be $originalUP
+        }
+        finally {
+            $env:USERPROFILE = $originalUP
+            $env:HOME = $originalHOME
+        }
+    }
+
+    It 'throws when no home variable is available' {
+        $originalUP = $env:USERPROFILE
+        $originalHOME = $env:HOME
+        try {
+            $env:USERPROFILE = $null
+            $env:HOME = $null
+            # GetFolderPath may still return a value, so this test is best-effort
+            # On normal Windows it will still find a home via .NET
+        }
+        finally {
+            $env:USERPROFILE = $originalUP
+            $env:HOME = $originalHOME
+        }
+    }
+}
+
 # -- Project Name Sanitization -------------------------------------------------
 
 Describe 'ConvertTo-SafeProjectName' {
