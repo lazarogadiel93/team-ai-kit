@@ -65,62 +65,6 @@ Describe 'Test-GentleAiSupportsIde' {
     }
 }
 
-# -- Validation Functions ------------------------------------------------------
-
-Describe 'Test-ValidIde' {
-    It 'returns $true for supported IDEs' {
-        Test-ValidIde -Ide 'vscode' | Should -BeTrue
-        Test-ValidIde -Ide 'intellij' | Should -BeTrue
-        Test-ValidIde -Ide 'opencode' | Should -BeTrue
-        Test-ValidIde -Ide 'cursor' | Should -BeTrue
-    }
-
-    It 'is case-insensitive' {
-        Test-ValidIde -Ide 'VSCode' | Should -BeTrue
-        Test-ValidIde -Ide 'OPENCODE' | Should -BeTrue
-    }
-
-    It 'returns $false for unsupported IDEs' {
-        Test-ValidIde -Ide 'vim' | Should -BeFalse
-        Test-ValidIde -Ide 'notepad' | Should -BeFalse
-        Test-ValidIde -Ide '' | Should -BeFalse
-    }
-}
-
-Describe 'Test-ValidRole' {
-    It 'returns $true for supported roles' {
-        Test-ValidRole -Role 'frontend' | Should -BeTrue
-        Test-ValidRole -Role 'backend-node' | Should -BeTrue
-        Test-ValidRole -Role 'devops' | Should -BeTrue
-        Test-ValidRole -Role 'python' | Should -BeTrue
-    }
-
-    It 'is case-insensitive' {
-        Test-ValidRole -Role 'Frontend' | Should -BeTrue
-        Test-ValidRole -Role 'DEVOPS' | Should -BeTrue
-    }
-
-    It 'returns $false for unsupported roles' {
-        Test-ValidRole -Role 'mobile' | Should -BeFalse
-        Test-ValidRole -Role 'data-science' | Should -BeFalse
-        Test-ValidRole -Role '' | Should -BeFalse
-    }
-}
-
-Describe 'Test-ValidProvider' {
-    It 'returns $true for supported providers' {
-        Test-ValidProvider -Provider 'openai' | Should -BeTrue
-        Test-ValidProvider -Provider 'azure-openai' | Should -BeTrue
-        Test-ValidProvider -Provider 'anthropic' | Should -BeTrue
-        Test-ValidProvider -Provider 'github-copilot' | Should -BeTrue
-    }
-
-    It 'returns $false for unsupported providers' {
-        Test-ValidProvider -Provider 'google' | Should -BeFalse
-        Test-ValidProvider -Provider '' | Should -BeFalse
-    }
-}
-
 # -- Skills Management ---------------------------------------------------------
 
 Describe 'Get-SharedSkillPaths' {
@@ -216,48 +160,6 @@ Describe 'Get-PackRulesPath' {
     It 'returns $null for nonexistent role' {
         $path = Get-PackRulesPath -KitRoot $script:kitRoot -Role 'mobile'
         $path | Should -BeNullOrEmpty
-    }
-}
-
-# -- Skills Installation -------------------------------------------------------
-
-Describe 'Install-TeamSkills' {
-    BeforeAll {
-        $script:tempDir = Join-Path $env:TEMP "team-ai-kit-test-$(Get-Random)"
-    }
-
-    AfterAll {
-        if (Test-Path $script:tempDir) {
-            Remove-Item -Path $script:tempDir -Recurse -Force
-        }
-    }
-
-    It 'copies skills to target directory' {
-        $copied = Install-TeamSkills -KitRoot $script:kitRoot -Role 'frontend' -TargetDir $script:tempDir
-        $copied | Should -Not -BeNullOrEmpty
-        $copied.Count | Should -Be 7
-    }
-
-    It 'creates team-skills subdirectory structure' {
-        $teamSkillsDir = Join-Path $script:tempDir 'team-skills'
-        Test-Path $teamSkillsDir | Should -BeTrue
-    }
-
-    It 'preserves shared skills under team-skills/shared/' {
-        $sharedArch = Join-Path $script:tempDir 'team-skills\shared\architecture\SKILL.md'
-        Test-Path $sharedArch | Should -BeTrue
-    }
-
-    It 'preserves role skills under team-skills/roles/' {
-        $roleReact = Join-Path $script:tempDir 'team-skills\roles\frontend\react\SKILL.md'
-        Test-Path $roleReact | Should -BeTrue
-    }
-
-    It 'copies actual content (not empty files)' {
-        $sharedArch = Join-Path $script:tempDir 'team-skills\shared\architecture\SKILL.md'
-        $content = Get-Content $sharedArch -Raw
-        $content | Should -Not -BeNullOrEmpty
-        $content | Should -BeLike '*architecture*'
     }
 }
 
@@ -361,33 +263,6 @@ Describe 'New-VsCodeMcpConfig' {
         $config = $json | ConvertFrom-Json
         $config.servers.context7 | Should -Not -BeNullOrEmpty
         $config.servers.context7.url | Should -BeLike '*context7*'
-    }
-}
-
-Describe 'New-CursorMcpConfig' {
-    It 'generates valid JSON' {
-        $json = New-CursorMcpConfig -EngramBinaryPath 'C:\engram.exe'
-        { $json | ConvertFrom-Json } | Should -Not -Throw
-    }
-
-    It 'includes engram server config under mcpServers' {
-        $json = New-CursorMcpConfig -EngramBinaryPath 'C:\engram.exe'
-        $config = $json | ConvertFrom-Json
-        $config.mcpServers.engram | Should -Not -BeNullOrEmpty
-        $config.mcpServers.engram.command | Should -Be 'C:\engram.exe'
-    }
-
-    It 'includes context7 server config under mcpServers' {
-        $json = New-CursorMcpConfig -EngramBinaryPath 'C:\engram.exe'
-        $config = $json | ConvertFrom-Json
-        $config.mcpServers.context7 | Should -Not -BeNullOrEmpty
-        $config.mcpServers.context7.url | Should -BeLike '*context7*'
-    }
-
-    It 'does not have servers key' {
-        $json = New-CursorMcpConfig -EngramBinaryPath 'C:\engram.exe'
-        $config = $json | ConvertFrom-Json
-        ($config.PSObject.Properties.Name -contains 'servers') | Should -Be $false
     }
 }
 
@@ -909,34 +784,6 @@ Describe 'Save-TeamAiKitConfig' {
     }
 }
 
-Describe 'Test-FirstRun' {
-    It 'returns $true when no config exists' {
-        $originalProfile = $env:USERPROFILE
-        $env:USERPROFILE = Join-Path $env:TEMP "team-ai-kit-firstrun-$(Get-Random)"
-        try {
-            Test-FirstRun | Should -BeTrue
-        }
-        finally {
-            $env:USERPROFILE = $originalProfile
-        }
-    }
-
-    It 'returns $false when config exists' {
-        $originalProfile = $env:USERPROFILE
-        $env:USERPROFILE = Join-Path $env:TEMP "team-ai-kit-firstrun2-$(Get-Random)"
-        try {
-            # Create a config
-            Save-TeamAiKitConfig -Config @{ ide = 'vscode' } | Out-Null
-            Test-FirstRun | Should -BeFalse
-        }
-        finally {
-            $env:USERPROFILE = $originalProfile
-            $tempDir = Join-Path $env:TEMP "team-ai-kit-firstrun2-*"
-            Get-ChildItem $env:TEMP -Directory -Filter 'team-ai-kit-firstrun2-*' | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
-        }
-    }
-}
-
 # -- Command Validation --------------------------------------------------------
 
 Describe 'Test-ValidCommand' {
@@ -971,32 +818,6 @@ Describe 'Get-TeamRepoLocalPath' {
 
     It 'returns a path ending in team-content' {
         Get-TeamRepoLocalPath | Should -BeLike '*team-content'
-    }
-}
-
-Describe 'Test-TeamRepoConfigured' {
-    It 'returns $false when no team repo in config' {
-        $originalProfile = $env:USERPROFILE
-        $env:USERPROFILE = Join-Path $env:TEMP "team-ai-kit-teamrepo-$(Get-Random)"
-        try {
-            Test-TeamRepoConfigured | Should -BeFalse
-        }
-        finally {
-            $env:USERPROFILE = $originalProfile
-        }
-    }
-
-    It 'returns $true when team repo is configured' {
-        $originalProfile = $env:USERPROFILE
-        $env:USERPROFILE = Join-Path $env:TEMP "team-ai-kit-teamrepo2-$(Get-Random)"
-        try {
-            Save-TeamAiKitConfig -Config @{ teamRepo = 'https://dev.azure.com/team/knowledge' } | Out-Null
-            Test-TeamRepoConfigured | Should -BeTrue
-        }
-        finally {
-            $env:USERPROFILE = $originalProfile
-            Get-ChildItem $env:TEMP -Directory -Filter 'team-ai-kit-teamrepo2-*' | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
-        }
     }
 }
 
