@@ -1096,12 +1096,17 @@ function Invoke-DoctorCommand {
         }
     }
 
-    # Team repo
-    if ($config.teamRepo) {
-        Write-Ok "Team repo: $($config.teamRepo)"
-    }
-    else {
-        Write-Warn 'Team repo: not configured'
+    # Team repo (only shown inside an initialized project)
+    $projectRoot2 = (Get-Location).Path
+    if (Test-ProjectInitialized -ProjectRoot $projectRoot2) {
+        $pc2 = Get-ProjectConfig -ProjectRoot $projectRoot2
+        $effectiveRepo = if ($pc2.teamRepo) { $pc2.teamRepo } elseif ($config.teamRepo) { $config.teamRepo } else { '' }
+        if ($effectiveRepo) {
+            Write-Ok "Team repo: $effectiveRepo"
+        }
+        else {
+            Write-Step 'Team repo: not configured (use "team-ai-kit init -TeamRepo <url>")'
+        }
     }
 
     Write-Host ''
