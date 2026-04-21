@@ -195,6 +195,16 @@ team-ai-kit uninstall         # Pide confirmacion antes de borrar
 team-ai-kit uninstall --force # Sin confirmacion (para CI/scripts)
 ```
 
+### Dry Run
+
+Usa `--dry-run` (bash) o `-DryRun` (PowerShell) para ver que haria cada comando **sin modificar nada**:
+
+```bash
+team-ai-kit init --dry-run       # Muestra que archivos crearia
+team-ai-kit update --dry-run     # Muestra que skills/rules actualizaria
+team-ai-kit uninstall --dry-run  # Muestra que archivos borraria
+```
+
 > **Nota**: `.engram/` no se borra automaticamente. Si ya no necesitas memory sync, borralo manualmente.
 
 ### Flujo completo

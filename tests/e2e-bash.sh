@@ -219,6 +219,55 @@ else
 fi
 rm -rf "$UNINST_DIR"
 
+# -- Test 14: init --dry-run does not create files ---
+echo "--- Test 14: init --dry-run ---"
+DRYRUN_DIR="/tmp/team-ai-kit-dryrun-$$"
+DRYRUN_HOME="/tmp/team-ai-kit-dryrun-home-$$"
+mkdir -p "$DRYRUN_HOME" "$DRYRUN_DIR/.git"
+# Setup first
+HOME="$DRYRUN_HOME" bash "$KIT_ROOT/bin/team-ai-kit" setup --ide vscode --role frontend --target-dir "$DRYRUN_DIR" --skip-prerequisites --skip-gentle-ai 2>&1 >/dev/null || true
+# Init with --dry-run
+output=$(cd "$DRYRUN_DIR" && HOME="$DRYRUN_HOME" bash "$KIT_ROOT/bin/team-ai-kit" init --dry-run 2>&1) || true
+if echo "$output" | grep -q "\[DRY-RUN\]"; then
+    pass "init --dry-run shows DRY-RUN output"
+else
+    fail "init --dry-run should show DRY-RUN prefix"
+    echo "$output" | tail -10
+fi
+if [ ! -f "$DRYRUN_DIR/.team-ai-kit.json" ]; then
+    pass "init --dry-run did not create .team-ai-kit.json"
+else
+    fail "init --dry-run should not create .team-ai-kit.json"
+fi
+if [ ! -f "$DRYRUN_DIR/.github/copilot-instructions.md" ]; then
+    pass "init --dry-run did not create instructions file"
+else
+    fail "init --dry-run should not create instructions file"
+fi
+
+# -- Test 15: uninstall --dry-run does not remove files ---
+echo "--- Test 15: uninstall --dry-run ---"
+# Actually init first (without dry-run)
+(cd "$DRYRUN_DIR" && HOME="$DRYRUN_HOME" bash "$KIT_ROOT/bin/team-ai-kit" init 2>&1) >/dev/null || true
+# Verify it was initialized
+if [ -f "$DRYRUN_DIR/.team-ai-kit.json" ]; then
+    output=$(cd "$DRYRUN_DIR" && HOME="$DRYRUN_HOME" bash "$KIT_ROOT/bin/team-ai-kit" uninstall --dry-run 2>&1) || true
+    if echo "$output" | grep -q "\[DRY-RUN\]"; then
+        pass "uninstall --dry-run shows DRY-RUN output"
+    else
+        fail "uninstall --dry-run should show DRY-RUN prefix"
+        echo "$output" | tail -10
+    fi
+    if [ -f "$DRYRUN_DIR/.team-ai-kit.json" ]; then
+        pass "uninstall --dry-run preserved .team-ai-kit.json"
+    else
+        fail "uninstall --dry-run should not remove .team-ai-kit.json"
+    fi
+else
+    fail "dry-run uninstall test: project not initialized"
+fi
+rm -rf "$DRYRUN_DIR" "$DRYRUN_HOME"
+
 # -- Summary ---
 echo ""
 echo "================================"
