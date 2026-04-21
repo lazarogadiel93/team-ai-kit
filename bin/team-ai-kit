@@ -81,6 +81,9 @@ show_banner() {
     echo ""
 }
 
+# -- Dry-run helper ------------------------------------------------------------
+dry() { echo -e "  ${C_CYAN}[DRY-RUN]${C_RESET} $1"; }
+
 # -- Help ----------------------------------------------------------------------
 show_help() {
     show_banner
@@ -109,6 +112,7 @@ show_help() {
     echo -e "  ${C_YELLOW}Init options:${C_RESET}"
     echo "    --role <role>              Override global role for this project"
     echo "    --force                    Re-initialize without asking"
+    echo "    --dry-run                  Preview changes without writing to disk"
     echo ""
     echo -e "  ${C_YELLOW}Examples:${C_RESET}"
     echo "    team-ai-kit setup"
@@ -551,28 +555,38 @@ cmd_init() {
         skip_engram_protocol="true"
     fi
 
-    local instructions
-    instructions=$(new_copilot_instructions "$effective_role" "$pack_rules_content" "$team_rules_content" "$skip_engram_protocol")
-    printf '%s\n' "$instructions" > "$instructions_path"
     local rel_instructions_path="${instructions_path#$project_root/}"
-    ok "Created: $rel_instructions_path"
+
+    if [[ "$OPT_DRY_RUN" == "true" ]]; then
+        dry "Would create: $rel_instructions_path"
+    else
+        local instructions
+        instructions=$(new_copilot_instructions "$effective_role" "$pack_rules_content" "$team_rules_content" "$skip_engram_protocol")
+        printf '%s\n' "$instructions" > "$instructions_path"
+        ok "Created: $rel_instructions_path"
+    fi
 
     # 3b. Install team-repo skills to project-level directory
     if [[ -n "$effective_team_repo" ]] && test_team_repo_cloned "$effective_team_repo"; then
         local project_skills_dir
         project_skills_dir=$(get_ide_project_skills_directory "$effective_ide" "$project_root")
         local rel_skills_dir="${project_skills_dir#$project_root/}"
-        step "Installing team skills to project: $rel_skills_dir"
 
-        local ps_json ps_installed ps_updated
-        ps_json=$(install_project_skills "$effective_role" "$effective_team_repo" "$project_skills_dir")
-        ps_installed=$(echo "$ps_json" | jq -r '.installed')
-        ps_updated=$(echo "$ps_json" | jq -r '.updated')
-        local ps_total=$((ps_installed + ps_updated))
-        if [[ "$ps_total" -gt 0 ]]; then
-            ok "$ps_installed installed, $ps_updated updated team skills"
+        if [[ "$OPT_DRY_RUN" == "true" ]]; then
+            dry "Would install team skills to: $rel_skills_dir"
         else
-            step "No team skills to install (repo has no skills for this role)"
+            step "Installing team skills to project: $rel_skills_dir"
+
+            local ps_json ps_installed ps_updated
+            ps_json=$(install_project_skills "$effective_role" "$effective_team_repo" "$project_skills_dir")
+            ps_installed=$(echo "$ps_json" | jq -r '.installed')
+            ps_updated=$(echo "$ps_json" | jq -r '.updated')
+            local ps_total=$((ps_installed + ps_updated))
+            if [[ "$ps_total" -gt 0 ]]; then
+                ok "$ps_installed installed, $ps_updated updated team skills"
+            else
+                step "No team skills to install (repo has no skills for this role)"
+            fi
         fi
     fi
 
@@ -583,71 +597,86 @@ cmd_init() {
     local project_name
     project_name=$(_sanitize_project_name "$(basename "$project_root")")
 
-    # 4a. Run initial engram sync
-    local engram_json engram_synced
-    engram_json=$(initialize_engram_sync "$project_root" "$project_name")
-    engram_synced=$(echo "$engram_json" | jq -r '.synced')
-
-    if [[ "$engram_synced" == "true" ]]; then
-        ok "engram sync completed -- .engram/ ready for team sharing"
-    elif test_engram_installed; then
-        ok "engram sync attempted -- no memories for this project yet"
+    if [[ "$OPT_DRY_RUN" == "true" ]]; then
+        dry "Would run engram sync for project: $project_name"
+        dry "Would install git hooks to: .git/hooks/"
     else
-        ok ".engram/ will be created on first sync"
-        warn "engram not installed -- sync will work after installing engram"
-    fi
+        # 4a. Run initial engram sync
+        local engram_json engram_synced
+        engram_json=$(initialize_engram_sync "$project_root" "$project_name")
+        engram_synced=$(echo "$engram_json" | jq -r '.synced')
 
-    # 4b. Install git hooks
-    local hooks_json hooks_installed_list hooks_installed_count hooks_skipped_list
-    hooks_json=$(install_git_hooks "$project_root" "$project_name")
-    hooks_installed_list=$(echo "$hooks_json" | jq -r '.installed | join(", ")')
-    hooks_installed_count=$(echo "$hooks_json" | jq '.installed | length')
-    hooks_skipped_list=$(echo "$hooks_json" | jq -r '.skipped | join(", ")')
+        if [[ "$engram_synced" == "true" ]]; then
+            ok "engram sync completed -- .engram/ ready for team sharing"
+        elif test_engram_installed; then
+            ok "engram sync attempted -- no memories for this project yet"
+        else
+            ok ".engram/ will be created on first sync"
+            warn "engram not installed -- sync will work after installing engram"
+        fi
 
-    if [[ "$hooks_installed_count" -gt 0 ]]; then
-        ok "Git hooks installed: $hooks_installed_list"
-    fi
-    if echo "$hooks_json" | jq -e '.skipped | index("not-a-git-repo")' >/dev/null 2>&1; then
-        warn "Not a git repo -- hooks skipped"
-    elif [[ -n "$hooks_skipped_list" && "$hooks_skipped_list" != "" ]]; then
-        step "Git hooks already present: $hooks_skipped_list"
+        # 4b. Install git hooks
+        local hooks_json hooks_installed_list hooks_installed_count hooks_skipped_list
+        hooks_json=$(install_git_hooks "$project_root" "$project_name")
+        hooks_installed_list=$(echo "$hooks_json" | jq -r '.installed | join(", ")')
+        hooks_installed_count=$(echo "$hooks_json" | jq '.installed | length')
+        hooks_skipped_list=$(echo "$hooks_json" | jq -r '.skipped | join(", ")')
+
+        if [[ "$hooks_installed_count" -gt 0 ]]; then
+            ok "Git hooks installed: $hooks_installed_list"
+        fi
+        if echo "$hooks_json" | jq -e '.skipped | index("not-a-git-repo")' >/dev/null 2>&1; then
+            warn "Not a git repo -- hooks skipped"
+        elif [[ -n "$hooks_skipped_list" && "$hooks_skipped_list" != "" ]]; then
+            step "Git hooks already present: $hooks_skipped_list"
+        fi
     fi
 
     # -- Save project config ---------------------------------------------------
-    local now
-    now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-    local project_config
-    project_config=$(jq -n \
-        --arg role "$effective_role" \
-        --arg ide "$effective_ide" \
-        --arg team_repo "$effective_team_repo" \
-        --arg initialized_at "$now" \
-        --arg last_sync "$now" \
-        --arg version "$KIT_VERSION" \
-        '{role:$role, ide:$ide, teamRepo:$team_repo, initializedAt:$initialized_at, lastSync:$last_sync, version:$version}')
-    save_project_config "$project_root" "$project_config" >/dev/null
-    ok "Project config saved: .team-ai-kit.json"
+    if [[ "$OPT_DRY_RUN" == "true" ]]; then
+        dry "Would save project config: .team-ai-kit.json"
+    else
+        local now
+        now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+        local project_config
+        project_config=$(jq -n \
+            --arg role "$effective_role" \
+            --arg ide "$effective_ide" \
+            --arg team_repo "$effective_team_repo" \
+            --arg initialized_at "$now" \
+            --arg last_sync "$now" \
+            --arg version "$KIT_VERSION" \
+            '{role:$role, ide:$ide, teamRepo:$team_repo, initializedAt:$initialized_at, lastSync:$last_sync, version:$version}')
+        save_project_config "$project_root" "$project_config" >/dev/null
+        ok "Project config saved: .team-ai-kit.json"
+    fi
 
     # -- Summary ---------------------------------------------------------------
-    echo ""
-    echo -e "${C_GREEN}$(new_init_summary "$effective_ide" "$effective_role" "$rel_instructions_path" "$engram_synced" "$hooks_installed_count")${C_RESET}"
-
-    echo ""
-    echo -e "  ${C_YELLOW}Next steps:${C_RESET}"
-    echo -e "    ${C_WHITE}1. Commit .team-ai-kit.json and $rel_instructions_path to your repo${C_RESET}"
-    if [[ -n "$effective_team_repo" ]]; then
-        local rel_skills_dir
-        rel_skills_dir="$(get_ide_project_skills_directory "$effective_ide" "$project_root")"
-        rel_skills_dir="${rel_skills_dir#$project_root/}"
-        echo -e "    ${C_WHITE}2. Commit $rel_skills_dir/ (team skills for this project)${C_RESET}"
-        echo -e "    ${C_WHITE}3. Commit .engram/ to share knowledge with your team${C_RESET}"
-        echo -e "    ${C_WHITE}4. Start working -- git hooks will sync engram automatically!${C_RESET}"
+    if [[ "$OPT_DRY_RUN" == "true" ]]; then
+        echo ""
+        echo -e "  ${C_CYAN}[DRY-RUN] No changes were made. The above shows what would happen.${C_RESET}"
+        echo ""
     else
-        echo -e "    ${C_WHITE}2. Commit .engram/ to share knowledge with your team${C_RESET}"
-        echo -e "    ${C_WHITE}3. Start working -- git hooks will sync engram automatically!${C_RESET}"
+        echo ""
+        echo -e "${C_GREEN}$(new_init_summary "$effective_ide" "$effective_role" "$rel_instructions_path" "$engram_synced" "$hooks_installed_count")${C_RESET}"
+
+        echo ""
+        echo -e "  ${C_YELLOW}Next steps:${C_RESET}"
+        echo -e "    ${C_WHITE}1. Commit .team-ai-kit.json and $rel_instructions_path to your repo${C_RESET}"
+        if [[ -n "$effective_team_repo" ]]; then
+            local rel_skills_dir
+            rel_skills_dir="$(get_ide_project_skills_directory "$effective_ide" "$project_root")"
+            rel_skills_dir="${rel_skills_dir#$project_root/}"
+            echo -e "    ${C_WHITE}2. Commit $rel_skills_dir/ (team skills for this project)${C_RESET}"
+            echo -e "    ${C_WHITE}3. Commit .engram/ to share knowledge with your team${C_RESET}"
+            echo -e "    ${C_WHITE}4. Start working -- git hooks will sync engram automatically!${C_RESET}"
+        else
+            echo -e "    ${C_WHITE}2. Commit .engram/ to share knowledge with your team${C_RESET}"
+            echo -e "    ${C_WHITE}3. Start working -- git hooks will sync engram automatically!${C_RESET}"
+        fi
+        echo -e "    ${C_DIM}   (manual sync: team-ai-kit sync)${C_RESET}"
+        echo ""
     fi
-    echo -e "    ${C_DIM}   (manual sync: team-ai-kit sync)${C_RESET}"
-    echo ""
 }
 
 # -- Init Knowledge (scaffold team knowledge repo) ----------------------------
@@ -807,19 +836,23 @@ cmd_update() {
         target_skills_dir=$(get_ide_skills_directory "$config_ide")
     fi
 
-    step "Merging kit base skills to global: $target_skills_dir"
+    if [[ "$OPT_DRY_RUN" == "true" ]]; then
+        dry "Would merge kit base skills to: $target_skills_dir"
+    else
+        step "Merging kit base skills to global: $target_skills_dir"
 
-    local merge_json
-    merge_json=$(install_skills_with_merge "$KIT_ROOT" "$config_role" "$target_skills_dir" "false" "")
-    local m_installed m_updated m_skipped
-    m_installed=$(echo "$merge_json" | jq -r '.installed')
-    m_updated=$(echo "$merge_json" | jq -r '.updated')
-    m_skipped=$(echo "$merge_json" | jq -r '.skipped')
+        local merge_json
+        merge_json=$(install_skills_with_merge "$KIT_ROOT" "$config_role" "$target_skills_dir" "false" "")
+        local m_installed m_updated m_skipped
+        m_installed=$(echo "$merge_json" | jq -r '.installed')
+        m_updated=$(echo "$merge_json" | jq -r '.updated')
+        m_skipped=$(echo "$merge_json" | jq -r '.skipped')
 
-    echo ""
-    ok "Installed: $m_installed new skills"
-    [[ "$m_updated" -gt 0 ]] && ok "Updated:   $m_updated skills (source changed, yours untouched)"
-    [[ "$m_skipped" -gt 0 ]] && step "Unchanged: $m_skipped skills (already up to date or user-modified)"
+        echo ""
+        ok "Installed: $m_installed new skills"
+        [[ "$m_updated" -gt 0 ]] && ok "Updated:   $m_updated skills (source changed, yours untouched)"
+        [[ "$m_skipped" -gt 0 ]] && step "Unchanged: $m_skipped skills (already up to date or user-modified)"
+    fi
 
     # Step 2b: Install team-repo skills to project-level directory
     if [[ "$has_team_repo" == "true" && "$has_project_config" == "true" ]]; then
@@ -829,19 +862,23 @@ cmd_update() {
         effective_role_proj=$(get_project_config_value "$project_root" "role" 2>/dev/null) || true
         [[ -z "$effective_role_proj" ]] && effective_role_proj="$config_role"
         project_skills_dir=$(get_ide_project_skills_directory "$effective_ide" "$project_root")
-
-        echo ""
         local rel_dir="${project_skills_dir#$project_root/}"
-        step "Merging team skills to project: $rel_dir"
 
-        local ps_json ps_installed ps_updated ps_skipped
-        ps_json=$(install_project_skills "$effective_role_proj" "$effective_team_repo" "$project_skills_dir")
-        ps_installed=$(echo "$ps_json" | jq -r '.installed')
-        ps_updated=$(echo "$ps_json" | jq -r '.updated')
-        ps_skipped=$(echo "$ps_json" | jq -r '.skipped')
-        [[ "$ps_installed" -gt 0 ]] && ok "Installed: $ps_installed new team skills"
-        [[ "$ps_updated" -gt 0 ]] && ok "Updated:   $ps_updated team skills"
-        [[ "$ps_skipped" -gt 0 ]] && step "Unchanged: $ps_skipped team skills"
+        if [[ "$OPT_DRY_RUN" == "true" ]]; then
+            dry "Would merge team skills to: $rel_dir"
+        else
+            echo ""
+            step "Merging team skills to project: $rel_dir"
+
+            local ps_json ps_installed ps_updated ps_skipped
+            ps_json=$(install_project_skills "$effective_role_proj" "$effective_team_repo" "$project_skills_dir")
+            ps_installed=$(echo "$ps_json" | jq -r '.installed')
+            ps_updated=$(echo "$ps_json" | jq -r '.updated')
+            ps_skipped=$(echo "$ps_json" | jq -r '.skipped')
+            [[ "$ps_installed" -gt 0 ]] && ok "Installed: $ps_installed new team skills"
+            [[ "$ps_updated" -gt 0 ]] && ok "Updated:   $ps_updated team skills"
+            [[ "$ps_skipped" -gt 0 ]] && step "Unchanged: $ps_skipped team skills"
+        fi
     fi
 
     # Step 3: Auto-update team rules in instructions if project is initialized
@@ -852,12 +889,16 @@ cmd_update() {
             local instructions_path
             instructions_path=$(get_ide_instructions_path "$config_ide" "$project_root")
             if [[ -f "$instructions_path" ]]; then
-                local rules_result
-                rules_result=$(update_instructions_team_rules "$instructions_path" "$team_rules_content")
-                if [[ "$rules_result" == "changed" ]]; then
-                    ok "Team rules updated in project instructions"
+                if [[ "$OPT_DRY_RUN" == "true" ]]; then
+                    dry "Would update team rules in: ${instructions_path#$project_root/}"
                 else
-                    step "Team rules unchanged in project instructions"
+                    local rules_result
+                    rules_result=$(update_instructions_team_rules "$instructions_path" "$team_rules_content")
+                    if [[ "$rules_result" == "changed" ]]; then
+                        ok "Team rules updated in project instructions"
+                    else
+                        step "Team rules unchanged in project instructions"
+                    fi
                 fi
             fi
         fi
@@ -869,33 +910,45 @@ cmd_update() {
         local instructions_path
         instructions_path=$(get_ide_instructions_path "$config_ide" "$project_root")
         if [[ -f "$instructions_path" ]]; then
-            local skip_engram_protocol="false"
-            if test_gentle_ai_supports_ide "$config_ide"; then
-                skip_engram_protocol="true"
-            fi
-            local protocol_result
-            protocol_result=$(update_instructions_engram_protocol "$instructions_path" "$skip_engram_protocol")
-            if [[ "$protocol_result" == "changed" ]]; then
-                if [[ "$skip_engram_protocol" == "true" ]]; then
-                    ok "Engram Memory Protocol removed from project instructions (gentle-ai handles it)"
-                else
-                    ok "Engram Memory Protocol updated in project instructions"
-                fi
+            if [[ "$OPT_DRY_RUN" == "true" ]]; then
+                dry "Would update engram protocol in: ${instructions_path#$project_root/}"
             else
-                step "Engram Memory Protocol unchanged in project instructions"
+                local skip_engram_protocol="false"
+                if test_gentle_ai_supports_ide "$config_ide"; then
+                    skip_engram_protocol="true"
+                fi
+                local protocol_result
+                protocol_result=$(update_instructions_engram_protocol "$instructions_path" "$skip_engram_protocol")
+                if [[ "$protocol_result" == "changed" ]]; then
+                    if [[ "$skip_engram_protocol" == "true" ]]; then
+                        ok "Engram Memory Protocol removed from project instructions (gentle-ai handles it)"
+                    else
+                        ok "Engram Memory Protocol updated in project instructions"
+                    fi
+                else
+                    step "Engram Memory Protocol unchanged in project instructions"
+                fi
             fi
         fi
     fi
 
     # Step 5: Update config timestamp
-    local now
-    now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-    local updated_config
-    updated_config=$(get_config | jq --arg ts "$now" --arg ver "$KIT_VERSION" '.lastUpdate = $ts | .version = $ver')
-    save_config "$updated_config" >/dev/null
-    echo ""
-    ok "Update complete"
-    echo ""
+    if [[ "$OPT_DRY_RUN" == "true" ]]; then
+        echo ""
+        dry "Would update global config timestamp"
+        echo ""
+        echo -e "  ${C_CYAN}[DRY-RUN] No changes were made. The above shows what would happen.${C_RESET}"
+        echo ""
+    else
+        local now
+        now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+        local updated_config
+        updated_config=$(get_config | jq --arg ts "$now" --arg ver "$KIT_VERSION" '.lastUpdate = $ts | .version = $ver')
+        save_config "$updated_config" >/dev/null
+        echo ""
+        ok "Update complete"
+        echo ""
+    fi
 }
 
 # -- Status --------------------------------------------------------------------
@@ -1147,6 +1200,12 @@ cmd_uninstall() {
 
     echo ""
 
+    if [[ "$OPT_DRY_RUN" == "true" ]]; then
+        echo -e "  ${C_CYAN}[DRY-RUN] No changes were made. The above shows what would be removed.${C_RESET}"
+        echo ""
+        return
+    fi
+
     # Ask for confirmation unless --force
     if [[ "$OPT_FORCE" != "true" ]]; then
         echo -ne "  ${C_YELLOW}Are you sure? This cannot be undone. [y/N]: ${C_RESET}"
@@ -1182,6 +1241,7 @@ OPT_TARGET_DIR=""
 SKIP_PREREQUISITES="false"
 SKIP_GENTLE_AI="false"
 OPT_FORCE="false"
+OPT_DRY_RUN="false"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -1203,6 +1263,7 @@ while [[ $# -gt 0 ]]; do
         --skip-prerequisites) SKIP_PREREQUISITES="true"; shift ;;
         --skip-gentle-ai)    SKIP_GENTLE_AI="true"; shift ;;
         --force)             OPT_FORCE="true"; shift ;;
+        --dry-run)           OPT_DRY_RUN="true"; shift ;;
         *)
             err "Unknown option: $1"
             echo '  Run "team-ai-kit help" for usage.'

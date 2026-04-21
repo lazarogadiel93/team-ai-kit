@@ -75,7 +75,9 @@ param(
 
     [switch]$Update,
 
-    [switch]$Force
+    [switch]$Force,
+
+    [switch]$DryRun
 )
 
 Set-StrictMode -Version Latest
@@ -95,6 +97,7 @@ function Write-Step { param([string]$Msg) Write-Host "  > $Msg" -ForegroundColor
 function Write-Ok   { param([string]$Msg) Write-Host "  + $Msg" -ForegroundColor Green }
 function Write-Warn { param([string]$Msg) Write-Host "  ! $Msg" -ForegroundColor Yellow }
 function Write-Err  { param([string]$Msg) Write-Host "  x $Msg" -ForegroundColor Red }
+function Write-Dry  { param([string]$Msg) Write-Host "  [DRY-RUN] $Msg" -ForegroundColor Cyan }
 
 # -- Banner --------------------------------------------------------------------
 function Show-Banner {
@@ -134,6 +137,7 @@ function Show-Help {
     Write-Host '  Init options:' -ForegroundColor Yellow
     Write-Host '    -Role <role>             Override global role for this project'
     Write-Host '    -Force                   Re-initialize without asking'
+    Write-Host '    -DryRun                  Preview changes without writing to disk'
     Write-Host ''
     Write-Host '  Examples:' -ForegroundColor Yellow
     Write-Host '    team-ai-kit setup'
@@ -581,23 +585,36 @@ function Invoke-InitCommand {
     }
 
     $skipProtocol = Test-GentleAiSupportsIde -Ide $effectiveIde
-    $instructions = New-CopilotInstructions -Role $effectiveRole -PackRulesContent $packRulesContent -TeamRulesContent $teamRulesContent -SkipEngramProtocol:$skipProtocol
-    [System.IO.File]::WriteAllText($instructionsPath, $instructions, [System.Text.Encoding]::UTF8)
     $relInstructionsPath = $instructionsPath.Replace($projectRoot, '').TrimStart('\', '/')
-    Write-Ok "Created: $relInstructionsPath"
+
+    if ($DryRun) {
+        Write-Dry "Would create: $relInstructionsPath"
+    }
+    else {
+        $instructions = New-CopilotInstructions -Role $effectiveRole -PackRulesContent $packRulesContent -TeamRulesContent $teamRulesContent -SkipEngramProtocol:$skipProtocol
+        [System.IO.File]::WriteAllText($instructionsPath, $instructions, [System.Text.Encoding]::UTF8)
+        Write-Ok "Created: $relInstructionsPath"
+    }
 
     # 3b. Install team-repo skills to project-level directory
     if ($effectiveTeamRepo -and (Test-TeamRepoCloned -RepoUrl $effectiveTeamRepo)) {
         $projectSkillsDir = Get-IdeProjectSkillsDirectory -Ide $effectiveIde -ProjectRoot $projectRoot
-        Write-Step "Installing team skills to project: $($projectSkillsDir.Replace($projectRoot, '').TrimStart('\', '/'))"
+        $relSkillsDir = $projectSkillsDir.Replace($projectRoot, '').TrimStart('\', '/')
 
-        $projectSkillResults = Install-ProjectSkills -Role $effectiveRole -TeamRepoUrl $effectiveTeamRepo -TargetDir $projectSkillsDir
-        $pTotal = $projectSkillResults.installed + $projectSkillResults.updated
-        if ($pTotal -gt 0) {
-            Write-Ok "$($projectSkillResults.installed) installed, $($projectSkillResults.updated) updated team skills"
+        if ($DryRun) {
+            Write-Dry "Would install team skills to: $relSkillsDir"
         }
         else {
-            Write-Step 'No team skills to install (repo has no skills for this role)'
+            Write-Step "Installing team skills to project: $relSkillsDir"
+
+            $projectSkillResults = Install-ProjectSkills -Role $effectiveRole -TeamRepoUrl $effectiveTeamRepo -TargetDir $projectSkillsDir
+            $pTotal = $projectSkillResults.installed + $projectSkillResults.updated
+            if ($pTotal -gt 0) {
+                Write-Ok "$($projectSkillResults.installed) installed, $($projectSkillResults.updated) updated team skills"
+            }
+            else {
+                Write-Step 'No team skills to install (repo has no skills for this role)'
+            }
         }
     }
 
@@ -608,66 +625,84 @@ function Invoke-InitCommand {
     # Derive project name from directory
     $projectName = Split-Path $projectRoot -Leaf
 
-    # 4a. Run initial engram sync
-    $engramResult = Initialize-EngramSync -ProjectRoot $projectRoot -ProjectName $projectName
-
-    if ($engramResult.synced) {
-        Write-Ok 'engram sync completed -- .engram/ ready for team sharing'
-    }
-    elseif (Test-EngramInstalled) {
-        Write-Ok 'engram sync attempted -- no memories for this project yet'
+    if ($DryRun) {
+        Write-Dry "Would run engram sync for project: $projectName"
+        Write-Dry 'Would install git hooks to: .git/hooks/'
     }
     else {
-        Write-Ok '.engram/ will be created on first sync'
-        Write-Warn 'engram not installed -- sync will work after installing engram'
-    }
+        # 4a. Run initial engram sync
+        $engramResult = Initialize-EngramSync -ProjectRoot $projectRoot -ProjectName $projectName
 
-    # 4b. Install git hooks
-    $hookResult = Install-GitHooks -ProjectRoot $projectRoot -ProjectName $projectName
+        if ($engramResult.synced) {
+            Write-Ok 'engram sync completed -- .engram/ ready for team sharing'
+        }
+        elseif (Test-EngramInstalled) {
+            Write-Ok 'engram sync attempted -- no memories for this project yet'
+        }
+        else {
+            Write-Ok '.engram/ will be created on first sync'
+            Write-Warn 'engram not installed -- sync will work after installing engram'
+        }
 
-    if ($hookResult.installed.Count -gt 0) {
-        Write-Ok "Git hooks installed: $($hookResult.installed -join ', ')"
-    }
-    if ($hookResult.skipped -contains 'not-a-git-repo') {
-        Write-Warn 'Not a git repo -- hooks skipped'
-    }
-    elseif ($hookResult.skipped.Count -gt 0) {
-        Write-Step "Git hooks already present: $($hookResult.skipped -join ', ')"
+        # 4b. Install git hooks
+        $hookResult = Install-GitHooks -ProjectRoot $projectRoot -ProjectName $projectName
+
+        if ($hookResult.installed.Count -gt 0) {
+            Write-Ok "Git hooks installed: $($hookResult.installed -join ', ')"
+        }
+        if ($hookResult.skipped -contains 'not-a-git-repo') {
+            Write-Warn 'Not a git repo -- hooks skipped'
+        }
+        elseif ($hookResult.skipped.Count -gt 0) {
+            Write-Step "Git hooks already present: $($hookResult.skipped -join ', ')"
+        }
     }
 
     # -- Save project config ---------------------------------------------------
-    $now = Get-Date -Format 'o'
-    $projectConfig = @{
-        role          = $effectiveRole
-        ide           = $effectiveIde
-        teamRepo      = $effectiveTeamRepo
-        initializedAt = $now
-        lastSync      = $now
-        version       = $KitVersion
-    }
-    $null = Save-ProjectConfig -ProjectRoot $projectRoot -Config $projectConfig
-    Write-Ok 'Project config saved: .team-ai-kit.json'
-
-    # -- Summary ---------------------------------------------------------------
-    Write-Host ''
-    $summary = New-InitSummary -Ide $effectiveIde -Role $effectiveRole -InstructionsPath $relInstructionsPath -EngramSynced $engramResult.synced -HooksInstalled $hookResult.installed.Count
-    Write-Host $summary -ForegroundColor Green
-
-    Write-Host ''
-    Write-Host '  Next steps:' -ForegroundColor Yellow
-    Write-Host "    1. Commit .team-ai-kit.json and $relInstructionsPath to your repo" -ForegroundColor White
-    if ($effectiveTeamRepo) {
-        $relSkillsDir = (Get-IdeProjectSkillsDirectory -Ide $effectiveIde -ProjectRoot $projectRoot).Replace($projectRoot, '').TrimStart('\', '/')
-        Write-Host "    2. Commit $relSkillsDir/ (team skills for this project)" -ForegroundColor White
-        Write-Host '    3. Commit .engram/ to share knowledge with your team' -ForegroundColor White
-        Write-Host '    4. Start working -- git hooks will sync engram automatically!' -ForegroundColor White
+    if ($DryRun) {
+        Write-Dry 'Would save project config: .team-ai-kit.json'
     }
     else {
-        Write-Host '    2. Commit .engram/ to share knowledge with your team' -ForegroundColor White
-        Write-Host '    3. Start working -- git hooks will sync engram automatically!' -ForegroundColor White
+        $now = Get-Date -Format 'o'
+        $projectConfig = @{
+            role          = $effectiveRole
+            ide           = $effectiveIde
+            teamRepo      = $effectiveTeamRepo
+            initializedAt = $now
+            lastSync      = $now
+            version       = $KitVersion
+        }
+        $null = Save-ProjectConfig -ProjectRoot $projectRoot -Config $projectConfig
+        Write-Ok 'Project config saved: .team-ai-kit.json'
     }
-    Write-Host '       (manual sync: team-ai-kit sync)' -ForegroundColor DarkGray
-    Write-Host ''
+
+    # -- Summary ---------------------------------------------------------------
+    if ($DryRun) {
+        Write-Host ''
+        Write-Host '  [DRY-RUN] No changes were made. The above shows what would happen.' -ForegroundColor Cyan
+        Write-Host ''
+    }
+    else {
+        Write-Host ''
+        $summary = New-InitSummary -Ide $effectiveIde -Role $effectiveRole -InstructionsPath $relInstructionsPath -EngramSynced $engramResult.synced -HooksInstalled $hookResult.installed.Count
+        Write-Host $summary -ForegroundColor Green
+
+        Write-Host ''
+        Write-Host '  Next steps:' -ForegroundColor Yellow
+        Write-Host "    1. Commit .team-ai-kit.json and $relInstructionsPath to your repo" -ForegroundColor White
+        if ($effectiveTeamRepo) {
+            $relSkillsDir = (Get-IdeProjectSkillsDirectory -Ide $effectiveIde -ProjectRoot $projectRoot).Replace($projectRoot, '').TrimStart('\', '/')
+            Write-Host "    2. Commit $relSkillsDir/ (team skills for this project)" -ForegroundColor White
+            Write-Host '    3. Commit .engram/ to share knowledge with your team' -ForegroundColor White
+            Write-Host '    4. Start working -- git hooks will sync engram automatically!' -ForegroundColor White
+        }
+        else {
+            Write-Host '    2. Commit .engram/ to share knowledge with your team' -ForegroundColor White
+            Write-Host '    3. Start working -- git hooks will sync engram automatically!' -ForegroundColor White
+        }
+        Write-Host '       (manual sync: team-ai-kit sync)' -ForegroundColor DarkGray
+        Write-Host ''
+    }
 }
 
 # -- Init Knowledge (scaffold team knowledge repo) ----------------------------
@@ -817,23 +852,28 @@ function Invoke-UpdateCommand {
         $targetSkillsDir = Get-IdeSkillsDirectory -Ide $config.ide
     }
 
-    Write-Step "Merging kit base skills to global: $targetSkillsDir"
-
-    $mergeParams = @{
-        KitRoot   = $kitRoot
-        Role      = $config.role
-        TargetDir = $targetSkillsDir
+    if ($DryRun) {
+        Write-Dry "Would merge kit base skills to: $targetSkillsDir"
     }
+    else {
+        Write-Step "Merging kit base skills to global: $targetSkillsDir"
 
-    $mergeResults = Install-SkillsWithMerge @mergeParams
+        $mergeParams = @{
+            KitRoot   = $kitRoot
+            Role      = $config.role
+            TargetDir = $targetSkillsDir
+        }
 
-    Write-Host ''
-    Write-Ok "Installed: $($mergeResults.installed.Count) new skills"
-    if ($mergeResults.updated.Count -gt 0) {
-        Write-Ok "Updated:   $($mergeResults.updated.Count) skills (source changed, yours untouched)"
-    }
-    if ($mergeResults.skipped.Count -gt 0) {
-        Write-Step "Unchanged: $($mergeResults.skipped.Count) skills (already up to date or user-modified)"
+        $mergeResults = Install-SkillsWithMerge @mergeParams
+
+        Write-Host ''
+        Write-Ok "Installed: $($mergeResults.installed.Count) new skills"
+        if ($mergeResults.updated.Count -gt 0) {
+            Write-Ok "Updated:   $($mergeResults.updated.Count) skills (source changed, yours untouched)"
+        }
+        if ($mergeResults.skipped.Count -gt 0) {
+            Write-Step "Unchanged: $($mergeResults.skipped.Count) skills (already up to date or user-modified)"
+        }
     }
 
     # Step 2b: Install team-repo skills to project-level directory
@@ -841,19 +881,25 @@ function Invoke-UpdateCommand {
         $effectiveIde = if ($projectConfig.ide) { $projectConfig.ide } else { $config.ide }
         $effectiveRole = if ($projectConfig.role) { $projectConfig.role } else { $config.role }
         $projectSkillsDir = Get-IdeProjectSkillsDirectory -Ide $effectiveIde -ProjectRoot $projectRoot
+        $relDir = $projectSkillsDir.Replace($projectRoot, '').TrimStart('\', '/')
 
-        Write-Host ''
-        Write-Step "Merging team skills to project: $($projectSkillsDir.Replace($projectRoot, '').TrimStart('\', '/'))"
+        if ($DryRun) {
+            Write-Dry "Would merge team skills to: $relDir"
+        }
+        else {
+            Write-Host ''
+            Write-Step "Merging team skills to project: $relDir"
 
-        $projectSkillResults = Install-ProjectSkills -Role $effectiveRole -TeamRepoUrl $effectiveTeamRepo -TargetDir $projectSkillsDir
-        if ($projectSkillResults.installed -gt 0) {
-            Write-Ok "Installed: $($projectSkillResults.installed) new team skills"
-        }
-        if ($projectSkillResults.updated -gt 0) {
-            Write-Ok "Updated:   $($projectSkillResults.updated) team skills"
-        }
-        if ($projectSkillResults.skipped -gt 0) {
-            Write-Step "Unchanged: $($projectSkillResults.skipped) team skills"
+            $projectSkillResults = Install-ProjectSkills -Role $effectiveRole -TeamRepoUrl $effectiveTeamRepo -TargetDir $projectSkillsDir
+            if ($projectSkillResults.installed -gt 0) {
+                Write-Ok "Installed: $($projectSkillResults.installed) new team skills"
+            }
+            if ($projectSkillResults.updated -gt 0) {
+                Write-Ok "Updated:   $($projectSkillResults.updated) team skills"
+            }
+            if ($projectSkillResults.skipped -gt 0) {
+                Write-Step "Unchanged: $($projectSkillResults.skipped) team skills"
+            }
         }
     }
 
@@ -863,12 +909,18 @@ function Invoke-UpdateCommand {
         if ($teamRulesContent) {
             $instructionsPath = Get-IdeInstructionsPath -Ide $config.ide -ProjectRoot $projectRoot
             if (Test-Path $instructionsPath) {
-                $rulesChanged = Update-InstructionsTeamRules -FilePath $instructionsPath -TeamRulesContent $teamRulesContent
-                if ($rulesChanged) {
-                    Write-Ok 'Team rules updated in project instructions'
+                if ($DryRun) {
+                    $relPath = $instructionsPath.Replace($projectRoot, '').TrimStart('\', '/')
+                    Write-Dry "Would update team rules in: $relPath"
                 }
                 else {
-                    Write-Step 'Team rules unchanged in project instructions'
+                    $rulesChanged = Update-InstructionsTeamRules -FilePath $instructionsPath -TeamRulesContent $teamRulesContent
+                    if ($rulesChanged) {
+                        Write-Ok 'Team rules updated in project instructions'
+                    }
+                    else {
+                        Write-Step 'Team rules unchanged in project instructions'
+                    }
                 }
             }
         }
@@ -879,29 +931,44 @@ function Invoke-UpdateCommand {
     if ($projectConfig) {
         $instructionsPath = Get-IdeInstructionsPath -Ide $config.ide -ProjectRoot $projectRoot
         if (Test-Path $instructionsPath) {
-            $skipProtocol = Test-GentleAiSupportsIde -Ide $config.ide
-            $protocolChanged = Update-InstructionsEngramProtocol -FilePath $instructionsPath -SkipEngramProtocol:$skipProtocol
-            if ($protocolChanged) {
-                if ($skipProtocol) {
-                    Write-Ok 'Engram Memory Protocol removed from project instructions (gentle-ai handles it)'
-                }
-                else {
-                    Write-Ok 'Engram Memory Protocol updated in project instructions'
-                }
+            if ($DryRun) {
+                $relPath = $instructionsPath.Replace($projectRoot, '').TrimStart('\', '/')
+                Write-Dry "Would update engram protocol in: $relPath"
             }
             else {
-                Write-Step 'Engram Memory Protocol unchanged in project instructions'
+                $skipProtocol = Test-GentleAiSupportsIde -Ide $config.ide
+                $protocolChanged = Update-InstructionsEngramProtocol -FilePath $instructionsPath -SkipEngramProtocol:$skipProtocol
+                if ($protocolChanged) {
+                    if ($skipProtocol) {
+                        Write-Ok 'Engram Memory Protocol removed from project instructions (gentle-ai handles it)'
+                    }
+                    else {
+                        Write-Ok 'Engram Memory Protocol updated in project instructions'
+                    }
+                }
+                else {
+                    Write-Step 'Engram Memory Protocol unchanged in project instructions'
+                }
             }
         }
     }
 
     # Step 5: Update config timestamp and version
-    $config.lastUpdate = Get-Date -Format 'o'
-    $config.version = $KitVersion
-    Save-TeamAiKitConfig -Config $config | Out-Null
-    Write-Host ''
-    Write-Ok 'Update complete'
-    Write-Host ''
+    if ($DryRun) {
+        Write-Host ''
+        Write-Dry 'Would update global config timestamp'
+        Write-Host ''
+        Write-Host '  [DRY-RUN] No changes were made. The above shows what would happen.' -ForegroundColor Cyan
+        Write-Host ''
+    }
+    else {
+        $config.lastUpdate = Get-Date -Format 'o'
+        $config.version = $KitVersion
+        Save-TeamAiKitConfig -Config $config | Out-Null
+        Write-Host ''
+        Write-Ok 'Update complete'
+        Write-Host ''
+    }
 }
 
 # -- Status --------------------------------------------------------------------
@@ -1155,6 +1222,12 @@ function Invoke-UninstallCommand {
     }
 
     Write-Host ''
+
+    if ($DryRun) {
+        Write-Host '  [DRY-RUN] No changes were made. The above shows what would be removed.' -ForegroundColor Cyan
+        Write-Host ''
+        return
+    }
 
     # Ask for confirmation unless --force
     if (-not $Force) {
