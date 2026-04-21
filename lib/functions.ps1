@@ -3,7 +3,7 @@
 .SYNOPSIS
     Team AI Kit -- Reusable functions for setup and configuration.
 .DESCRIPTION
-    Pure/testable functions used by setup.ps1. No interactive prompts here.
+    Pure/testable functions used by bin/team-ai-kit.ps1. No interactive prompts here.
 #>
 
 Set-StrictMode -Version Latest
