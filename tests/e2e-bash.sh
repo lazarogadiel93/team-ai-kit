@@ -49,10 +49,10 @@ fi
 echo "--- Test 3: skills installed ---"
 if [ -d "$TEST_DIR/team-skills" ]; then
     skill_count=$(find "$TEST_DIR/team-skills" -name '*.md' -type f 2>/dev/null | wc -l | tr -d ' ')
-    if [ "$skill_count" = "7" ]; then
-        pass "7 skills installed"
+    if [ "$skill_count" = "9" ]; then
+        pass "9 skills installed"
     else
-        fail "expected 7 skills, got $skill_count"
+        fail "expected 9 skills, got $skill_count"
         find "$TEST_DIR/team-skills" -name '*.md' -type f 2>/dev/null
     fi
 else
@@ -80,8 +80,8 @@ echo "--- Test 5: manifest ---"
 if [ -f "$HOME/.team-ai-kit/manifest.json" ]; then
     pass "manifest.json exists"
     mcount=$(jq '.files | length' "$HOME/.team-ai-kit/manifest.json" 2>/dev/null) || mcount="error"
-    if [ "$mcount" = "7" ]; then
-        pass "manifest tracks 7 files"
+    if [ "$mcount" = "9" ]; then
+        pass "manifest tracks 9 files"
     else
         fail "manifest tracks $mcount files"
         jq '.files | keys' "$HOME/.team-ai-kit/manifest.json" 2>/dev/null || true

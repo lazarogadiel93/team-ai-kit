@@ -71,16 +71,16 @@ Describe 'Skill file inventory' {
         }
     }
 
-    It 'has 2 skills per role' {
+    It 'has at least 2 skills per role' {
         foreach ($role in $script:roleNames) {
             $roleDir = Join-Path $script:rolesDir $role
             $files = @(Get-ChildItem -Path $roleDir -Filter '*.md' -Recurse -ErrorAction SilentlyContinue)
-            $files.Count | Should -Be 2 -Because "role '$role' should have exactly 2 skills"
+            $files.Count | Should -BeGreaterOrEqual 2 -Because "role '$role' should have at least 2 skills"
         }
     }
 
-    It 'has 21 total skill files (5 shared + 16 role)' {
-        $script:allSkillFiles.Count | Should -Be 21
+    It 'has 23 total skill files (5 shared + 18 role)' {
+        $script:allSkillFiles.Count | Should -Be 23
     }
 }
 

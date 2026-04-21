@@ -164,7 +164,7 @@ Describe 'Get-RoleSkillPaths' {
     It 'returns frontend skills' {
         $skills = Get-RoleSkillPaths -KitRoot $script:kitRoot -Role 'frontend'
         $skills | Should -Not -BeNullOrEmpty
-        $skills.Count | Should -Be 2  # react + nextjs
+        $skills.Count | Should -Be 4  # react + nextjs + angular + vue
     }
 
     It 'returns backend-node skills' {
@@ -218,7 +218,7 @@ Describe 'Get-RoleSkillPaths' {
 Describe 'Get-AllSkillPathsForRole' {
     It 'combines shared + role skills for frontend' {
         $all = Get-AllSkillPathsForRole -KitRoot $script:kitRoot -Role 'frontend'
-        $all.Count | Should -Be 7  # 5 shared + 2 frontend
+        $all.Count | Should -Be 9  # 5 shared + 4 frontend
     }
 
     It 'combines shared + role skills for backend-node' {
@@ -1849,7 +1849,7 @@ Describe 'Install-SkillsWithMerge' {
         $env:USERPROFILE = $script:mergeTestProfile
         try {
             $results = Install-SkillsWithMerge -KitRoot $script:kitRoot -Role 'frontend' -TargetDir $script:mergeTestDir
-            $results.installed.Count | Should -Be 7  # 5 shared + 2 frontend
+            $results.installed.Count | Should -Be 9  # 5 shared + 4 frontend
             $results.updated.Count | Should -Be 0
             $results.skipped.Count | Should -Be 0
         }
@@ -1863,7 +1863,7 @@ Describe 'Install-SkillsWithMerge' {
         $env:USERPROFILE = $script:mergeTestProfile
         try {
             $manifest = Get-SkillManifest
-            $manifest.files.Count | Should -Be 7
+            $manifest.files.Count | Should -Be 9
             # All should be source=default
             $manifest.files.Values | ForEach-Object { $_.source | Should -Be 'default' }
         }
@@ -1879,7 +1879,7 @@ Describe 'Install-SkillsWithMerge' {
             $results = Install-SkillsWithMerge -KitRoot $script:kitRoot -Role 'frontend' -TargetDir $script:mergeTestDir
             $results.installed.Count | Should -Be 0
             $results.updated.Count | Should -Be 0
-            $results.skipped.Count | Should -Be 7
+            $results.skipped.Count | Should -Be 9
         }
         finally {
             $env:USERPROFILE = $originalProfile
@@ -1895,7 +1895,7 @@ Describe 'Install-SkillsWithMerge' {
             Set-Content -Path $archSkill -Value '# User customized this skill'
 
             $results = Install-SkillsWithMerge -KitRoot $script:kitRoot -Role 'frontend' -TargetDir $script:mergeTestDir
-            $results.skipped.Count | Should -Be 7  # all skipped, including modified one
+            $results.skipped.Count | Should -Be 9  # all skipped, including modified one
 
             # Verify content was NOT overwritten
             $content = Get-Content $archSkill -Raw
