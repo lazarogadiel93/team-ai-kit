@@ -84,7 +84,7 @@ test('submits login form with valid credentials', async () => {
 ### 2. Mocking Native Modules in jest.setup.ts
 
 Native modules crash under Jest because there is no bridge. Mock them in a central
-setup file referenced by `setupFilesAfterFramework` in your Jest config.
+setup file referenced by `setupFiles` in your Jest config.
 
 ```ts
 // ❌ BAD — mocking inline in every test file; incomplete mocks cause leaks
@@ -140,7 +140,7 @@ jest.mock('expo-location', () => ({
 // jest.config.ts (or package.json "jest" key)
 {
   "preset": "jest-expo", // or "react-native"
-  "setupFilesAfterSetup": ["./jest.setup.ts"],
+  "setupFiles": ["./jest.setup.ts"],
   "transformIgnorePatterns": [
     "node_modules/(?!((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|react-navigation|@react-navigation/.*)/)"
   ]

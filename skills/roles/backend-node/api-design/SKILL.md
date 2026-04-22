@@ -1,7 +1,7 @@
 ---
 name: backend-node-api
 description: >
-  Node.js REST API design patterns: routes, controllers, middleware, validation, error handling with Express and Fastify.
+  Node.js REST API design patterns: routes, controllers, middleware, validation, error handling with Express.
   Trigger: When creating endpoints, defining routes, implementing middleware, or handling HTTP errors.
 globs:
   - "**/*.controller.ts"

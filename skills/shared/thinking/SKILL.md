@@ -63,9 +63,8 @@ Example: Choosing a message queue
 | Ops complexity     | Medium | Medium   | High    | Low     |
 | Team familiarity   | High   | Low      | Medium  | High    |
 | Cost at our scale  | Medium | Self-host| Self-host| Pay/use|
-| ---------------------------------------- | ------- |
-| Winner for THIS context:                 | SQS     |
 
+Winner for THIS context: SQS
 WHY: Our throughput is moderate, team knows AWS well,
 and we don't want to operate infrastructure.
 Kafka would be overengineering at our current scale.
@@ -80,9 +79,9 @@ Example: Monolith vs Microservices
 | Deployment speed   | Medium | Fast ✅      | Complex ❌    |
 | Independent scaling| Low    | No ❌        | Yes ✅        |
 | Debugging ease     | High   | Easy ✅      | Distributed ❌|
-| ----------------------------------------- | ------------- |
-| Winner: Monolith — team is too small for microservices.
-| Revisit when team reaches 15+ developers.
+
+Winner: Monolith — team is too small for microservices.
+Revisit when team reaches 15+ developers.
 ```
 
 ### Pattern 3: Prioritize Simplicity

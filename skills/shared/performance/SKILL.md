@@ -105,7 +105,7 @@ Level 4: Database query cache (usually last resort)
 ```
 
 ```python
-# ✅ GOOD — cache expensive computation with TTL
+# ✅ GOOD — cache expensive computation (note: lru_cache has no TTL — use cachetools.TTLCache if expiry is needed)
 from functools import lru_cache
 import time
 
@@ -176,8 +176,8 @@ def get_user(user_id: str):
         pool.putconn(conn)
 ```
 
-```java
-// ✅ GOOD — HikariCP connection pool (Spring Boot default)
+```yaml
+# ✅ GOOD — HikariCP connection pool (Spring Boot application.yml)
 spring:
   datasource:
     hikari:

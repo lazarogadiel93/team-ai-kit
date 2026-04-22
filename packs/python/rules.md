@@ -1,32 +1,32 @@
 # Pack: Python
 
-> Reglas y convenciones para desarrolladores Python del equipo.
+> Rules and conventions for Python developers on the team.
 
 ---
 
 ## Architecture Rules
 
-- Organización por dominio: cada módulo es un paquete con `__init__.py` explícito
-- Separación de responsabilidades: routers/views → services → repositories
-- Dependency injection via constructores o FastAPI Depends()
-- Configuración centralizada con pydantic-settings o python-decouple
-- Evitar imports circulares: diseñar la jerarquía de dependencias desde el inicio
-- Type hints obligatorios en funciones públicas
+- Domain-based organization: each module is a package with an explicit `__init__.py`
+- Separation of responsibilities: routers/views → services → repositories
+- Dependency injection via constructors or FastAPI Depends()
+- Centralized configuration with pydantic-settings or python-decouple
+- Avoid circular imports: design the dependency hierarchy from the start
+- Type hints required on public functions
 
 ## Code Quality Rules
 
-- Type hints obligatorios en todas las funciones públicas
-- Docstrings en funciones/clases de dominio (una línea basta para funciones simples)
-- Nombres en snake_case, clases en PascalCase
-- Funciones cortas y con responsabilidad única
-- Evitar mutación de parámetros de entrada
-- Nunca ignorar excepciones en silencio (bare `except: pass` prohibido)
-- f-strings para formateo de strings, nunca concatenación con +
+- Type hints required on all public functions
+- Docstrings on domain functions/classes (one line is enough for simple functions)
+- Names in snake_case, classes in PascalCase
+- Short functions with a single responsibility
+- Avoid mutating input parameters
+- Never silently ignore exceptions (bare `except: pass` forbidden)
+- f-strings for string formatting, never concatenation with +
 
 ## Thinking Rules
 
-- Preferir la solución más legible sobre la más "pythónica" si hay trade-off de claridad
-- Evitar abstracciones prematuras: primero funciona, luego abstrae
-- Pensar en el contrato de la función (inputs/outputs) antes de implementar
-- Considerar el contexto de ejecución: sync vs async, CPU-bound vs I/O-bound
-- Validar supuestos de tipos en el borde del sistema, no en cada función interna
+- Prefer the most readable solution over the most "Pythonic" one if there's a clarity trade-off
+- Avoid premature abstractions: make it work first, then abstract
+- Think about the function contract (inputs/outputs) before implementing
+- Consider the execution context: sync vs async, CPU-bound vs I/O-bound
+- Validate type assumptions at the system boundary, not in every internal function
