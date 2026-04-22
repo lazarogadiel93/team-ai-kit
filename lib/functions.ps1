@@ -886,6 +886,16 @@ function Get-LatestGithubVersion {
     else {
         Write-Verbose 'gh CLI not found -- skipping GitHub API version check'
     }
+    # Fallback: GitHub REST API (parity with bash curl fallback)
+    try {
+        $headers = @{}
+        if ($env:GITHUB_TOKEN) { $headers['Authorization'] = "token $env:GITHUB_TOKEN" }
+        $release = Invoke-RestMethod "https://api.github.com/repos/$Owner/$Repo/releases/latest" -Headers $headers -TimeoutSec 5 -ErrorAction Stop
+        if ($release.tag_name -match '(\d+\.\d+\.\d+)') { return $Matches[1] }
+    }
+    catch {
+        Write-Verbose "GitHub API fallback failed for ${Owner}/${Repo}: $_"
+    }
     # Fallback: scoop info
     if (Test-ScoopInstalled) {
         try {
