@@ -280,18 +280,16 @@ remove_gitattributes_block() {
     grep -qF "$marker" "$ga_path" 2>/dev/null || return 0
 
     local cleaned=""
-    local skip_next=false
+    local skip_count=0
     while IFS= read -r line; do
         if [[ "$line" == *"$marker"* ]]; then
-            skip_next=true
+            skip_count=2
             continue
         fi
-        if [[ "$skip_next" == true ]]; then
-            # Skip the two rule lines that follow the marker
-            if [[ "$line" == .engram/* ]]; then
-                continue
-            fi
-            skip_next=false
+        if [[ "$skip_count" -gt 0 ]]; then
+            # Skip the rule lines that follow the marker
+            skip_count=$((skip_count - 1))
+            continue
         fi
         cleaned+="$line"$'\n'
     done < "$ga_path"
@@ -1335,8 +1333,6 @@ update_instructions_engram_protocol() {
         if echo "$existing" | grep -qF "$start_marker"; then
             local tmpfile
             tmpfile=$(mktemp)
-            # shellcheck disable=SC2064  # intentional: expand $tmpfile now, not at signal time
-            trap "rm -f '$tmpfile'" EXIT
             local in_section=false
             while IFS= read -r line || [[ -n "$line" ]]; do
                 if [[ "$line" == *"$start_marker"* ]]; then
@@ -1350,7 +1346,6 @@ update_instructions_engram_protocol() {
             local updated
             updated=$(cat "$tmpfile")
             rm -f "$tmpfile"
-            trap - EXIT
             # Collapse 3+ consecutive blank lines to 2 (parity with PS1)
             updated=$(echo "$updated" | awk 'BEGIN{blank=0} /^[[:space:]]*$/{blank++; if(blank<=2) print; next} {blank=0; print}')
             if [[ "$updated" == "$existing" ]]; then
@@ -1375,8 +1370,6 @@ update_instructions_engram_protocol() {
         # Replace between markers using temp file to avoid escape issues
         local tmpfile
         tmpfile=$(mktemp)
-        # shellcheck disable=SC2064  # intentional: expand $tmpfile now, not at signal time
-        trap "rm -f '$tmpfile'" EXIT
         local in_section=false
         while IFS= read -r line || [[ -n "$line" ]]; do
             if [[ "$line" == *"$start_marker"* ]]; then
@@ -1390,7 +1383,6 @@ update_instructions_engram_protocol() {
         done <<< "$existing"
         updated=$(cat "$tmpfile")
         rm -f "$tmpfile"
-        trap - EXIT
     else
         updated=$(printf '%s\n\n%s\n' "$existing" "$new_section")
     fi
