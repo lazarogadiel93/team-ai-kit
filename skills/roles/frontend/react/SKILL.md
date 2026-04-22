@@ -173,8 +173,11 @@ function UserProfile({ userPromise }: { userPromise: Promise<User> }) {
   return <h1>{user.name}</h1>
 }
 
+// Create the promise OUTSIDE the component (e.g., in a route loader or parent)
+// to avoid re-creating it on every render
+const userPromise = fetchUser()
+
 export function UserPage() {
-  const userPromise = fetchUser() // starts fetching immediately
   return (
     <Suspense fallback={<Skeleton />}>
       <UserProfile userPromise={userPromise} />
@@ -330,27 +333,31 @@ function LoginForm() {
 }
 ```
 
-### Pattern 12: forwardRef for reusable primitives
+### Pattern 12: ref as prop (React 19 — no forwardRef needed)
 
 ```typescript
-// ✅ GOOD — exposes ref for parent to control focus, scroll, etc.
-import { forwardRef, type ComponentPropsWithoutRef } from 'react'
-
-interface InputProps extends ComponentPropsWithoutRef<'input'> {
+// ✅ GOOD — React 19: ref is a regular prop, no forwardRef wrapper needed
+interface InputProps extends React.ComponentPropsWithoutRef<'input'> {
   label: string
   error?: string
+  ref?: React.Ref<HTMLInputElement>
 }
 
-export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, ...rest }, ref) => (
+export function Input({ label, error, ref, ...rest }: InputProps) {
+  return (
     <div>
       <label>{label}</label>
       <input ref={ref} {...rest} />
       {error && <span className="error">{error}</span>}
     </div>
   )
-)
-Input.displayName = 'Input'
+}
+
+// Parent uses it naturally:
+function LoginForm() {
+  const emailRef = useRef<HTMLInputElement>(null)
+  return <Input ref={emailRef} label="Email" />
+}
 ```
 
 ### Pattern 13: useCallback and useMemo — when to use and when NOT to

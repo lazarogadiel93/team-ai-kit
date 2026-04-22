@@ -18,7 +18,7 @@ metadata:
 - Registering services, repositories, or validators in the DI container (`IServiceCollection`).
 - Building or extending the middleware pipeline (`Program.cs` / `Startup.cs`).
 - Implementing input validation with FluentValidation (`AbstractValidator<T>`).
-- Designing error handling that returns RFC 7807 ProblemDetails responses.
+- Designing error handling that returns RFC 9457 ProblemDetails responses.
 - Setting up the repository pattern over Entity Framework Core (`DbContext`, `DbSet<T>`).
 
 ---
@@ -186,7 +186,7 @@ app.MapPost("/api/orders", async (
 
 ### Pattern 3: Centralized Error Handling with Exception Middleware + ProblemDetails
 
-Never let raw exceptions leak to the client. Use `AddProblemDetails()` and `UseExceptionHandler` to produce RFC 7807 responses for every unhandled exception.
+Never let raw exceptions leak to the client. Use `AddProblemDetails()` and `UseExceptionHandler` to produce RFC 9457 responses for every unhandled exception.
 
 ✅ **Program.cs setup:**
 
@@ -245,7 +245,7 @@ app.MapControllers();
 app.Run();
 ```
 
-✅ **Client receives consistent RFC 7807 JSON:**
+✅ **Client receives consistent RFC 9457 JSON:**
 
 ```json
 {
@@ -398,7 +398,7 @@ public async Task<IActionResult> GetById(int id)
 public async Task<IActionResult> GetById(int id)
 {
     // No try/catch needed — the exception middleware
-    // converts unhandled exceptions to ProblemDetails (RFC 7807)
+    // converts unhandled exceptions to ProblemDetails (RFC 9457)
     var order = await _orders.GetByIdAsync(id);
     return Ok(order);
 }
@@ -415,7 +415,7 @@ The centralized exception handler (Pattern 3) maps exceptions to appropriate sta
 | **Controller role**    | HTTP adapter only — parse request, delegate, map response             |
 | **Business logic**     | Lives in service classes registered as `Scoped` in DI                 |
 | **Validation**         | FluentValidation `AbstractValidator<T>`, explicit call, not auto-pipe |
-| **Error responses**    | `AddProblemDetails()` + `UseExceptionHandler` — RFC 7807              |
+| **Error responses**    | `AddProblemDetails()` + `UseExceptionHandler` — RFC 9457              |
 | **Data access**        | `IRepository<T>` over EF Core `DbContext`                             |
 | **DTOs**               | C# `record` types — immutable, value equality, concise                |
 | **DI lifetimes**       | `Scoped` for services/repos, `Transient` for validators              |

@@ -65,10 +65,10 @@ function goToProfile() {
 
 ```tsx
 // ✅ Typed routes — compiler catches invalid paths, full autocomplete
-import { router, type Href } from "expo-router";
+import { router } from "expo-router";
 
 function goToProfile() {
-  router.push("/profile" as Href); // type-checked route
+  router.push("/profile"); // type-checked route (enable typed routes in app.json)
 }
 
 function goToSettings(id: string) {

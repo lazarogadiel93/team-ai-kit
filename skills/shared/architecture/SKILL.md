@@ -58,7 +58,7 @@ Features must NEVER import directly from other features.
 import { DashboardLayout } from "../dashboard/components/DashboardLayout";
 
 // ✅ GOOD — use shared module or communicate via contracts
-import { DashboardLayout } from "@/shared/layouts/DashboardLayout";
+import { DashboardLayout } from "../../shared/layouts/DashboardLayout";
 ```
 
 ```python

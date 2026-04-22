@@ -88,8 +88,8 @@ export default async function ProductsPage() {
   return (
     <div>
       <h1>Products</h1>
-      <SearchBar onSearch={handleSearch} />  {/* Client Component */}
-      <ProductGrid products={products} />     {/* Server Component */}
+      <SearchBar />                            {/* Client Component handles its own state */}
+      <ProductGrid products={products} />      {/* Server Component */}
     </div>
   )
 }
@@ -251,10 +251,11 @@ export const metadata: Metadata = {
   openGraph: { title: 'About Us', description: 'Learn about our company' },
 }
 
-// Dynamic metadata
+// Dynamic metadata (Next.js 15: params is a Promise)
 // app/posts/[slug]/page.tsx
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const post = await getPost(params.slug)
+  const { slug } = await params
+  const post = await getPost(slug)
   return {
     title: post.title,
     description: post.excerpt,

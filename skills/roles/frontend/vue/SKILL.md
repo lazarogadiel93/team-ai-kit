@@ -87,10 +87,10 @@ const props = withDefaults(
   },
 )
 
-// --- Typed emits ---
+// --- Typed emits (Vue 3.3+ named tuple syntax) ---
 const emit = defineEmits<{
-  (e: 'update', value: number): void
-  (e: 'close'): void
+  update: [value: number]
+  close: []
 }>()
 
 function handleClick() {

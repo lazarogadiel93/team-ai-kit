@@ -1,57 +1,57 @@
 # Pack: Backend Node.js
 
-> Reglas y convenciones para desarrolladores backend del equipo.
+> Rules and conventions for backend developers on the team.
 
 ---
 
 ## Architecture Rules
 
-- Separación en capas: routes → controllers → services → repositories
-- Lógica de negocio solo en services, no en controllers ni routes
-- Repositories abstraen el acceso a base de datos (sin SQL crudo en services)
-- Inyección de dependencias sobre imports directos para facilitar testing
-- Error handling centralizado con middleware de errores
-- No mezclar lógica de autenticación con lógica de negocio
-- Módulos agrupados por dominio (user/, product/, order/)
+- Layer separation: routes → controllers → services → repositories
+- Business logic only in services, not in controllers or routes
+- Repositories abstract database access (no raw SQL in services)
+- Dependency injection over direct imports to facilitate testing
+- Centralized error handling with error middleware
+- Do not mix authentication logic with business logic
+- Modules grouped by domain (user/, product/, order/)
 
 ## Code Quality Rules
 
-### TypeScript Estricto (NO NEGOCIABLE)
+### Strict TypeScript (NON-NEGOTIABLE)
 
-- CERO `any` — siempre tipar explícitamente
-- CERO `unknown` como escape — usar genéricos o discriminated unions
-- Todas las funciones con tipos de retorno explícitos
-- Non-null assertion (`!`) prohibido
+- ZERO `any` — always type explicitly
+- ZERO `unknown` as an escape hatch — use generics or discriminated unions
+- All functions with explicit return types
+- Non-null assertion (`!`) forbidden
 
-### Convenciones
+### Conventions
 
-- Nombres descriptivos: `getUserById()`, no `getUser()`
-- Funciones puras en la capa de dominio — máximo ~30 líneas
-- Validación de inputs con Zod en el borde de entrada (controllers, handlers)
-- Imports ordenados: 1) node:*, 2) externos, 3) internos
+- Descriptive names: `getUserById()`, not `getUser()`
+- Pure functions in the domain layer — ~30 lines max
+- Input validation with Zod at the entry boundary (controllers, handlers)
+- Ordered imports: 1) node:*, 2) external, 3) internal
 
-### Seguridad
+### Security
 
-- Nunca loguear datos sensibles (passwords, tokens, PII)
-- Variables de entorno para configuración, nunca hardcodear credenciales
-- Sanitizar inputs antes de queries/operaciones
+- Never log sensitive data (passwords, tokens, PII)
+- Environment variables for configuration, never hardcode credentials
+- Sanitize inputs before queries/operations
 
 ### Error Handling
 
-- Manejo explícito de errores — nunca swallow silencioso
-- Errores de dominio con clases tipadas (`class NotFoundError extends Error`)
-- Try/catch solo en boundaries (controllers, handlers), no en cada función
+- Explicit error handling — never silently swallow errors
+- Domain errors with typed classes (`class NotFoundError extends Error`)
+- Try/catch only at boundaries (controllers, handlers), not in every function
 
 ## Thinking Rules
 
-- Diseñar la API contract antes de la implementación (API-first)
-- Pensar en idempotencia y casos de error antes del happy path
-- No acoplar el transporte (HTTP) con la lógica de dominio
-- Validar inputs en el borde del sistema, no en el interior
-- Pensar en consistencia de datos ante fallos parciales
+- Design the API contract before implementation (API-first)
+- Think about idempotency and error cases before the happy path
+- Do not couple the transport layer (HTTP) with domain logic
+- Validate inputs at the system boundary, not deep inside
+- Think about data consistency under partial failures
 
-## PROHIBIDO
+## PROHIBITED
 
-- No generar archivos de scripts o tooling que NO se pidió
-- No crear archivos fuera del scope de la tarea
-- No `console.log` en producción — usar logger estructurado
+- Do not generate script or tooling files that were NOT requested
+- Do not create files outside the scope of the task
+- No `console.log` in production — use a structured logger

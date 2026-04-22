@@ -1,72 +1,72 @@
-# Pack: Frontend (React / Next.js)
+# Pack: Frontend (React / Next.js / Angular / Vue)
 
-> Reglas y convenciones para desarrolladores frontend del equipo.
+> Rules and conventions for frontend developers on the team.
 
 ---
 
 ## Architecture Rules
 
-- No cross-feature imports: cada feature es un módulo cerrado
-- Cada feature debe ser completamente independiente
-- Separación estricta entre lógica de servidor y cliente (use client mínimo)
-- Evitar lógica de negocio en componentes UI
-- Componentes presentacionales sin efectos secundarios
-- Custom hooks para encapsular lógica reutilizable
-- Barrel exports (index.ts) por feature para controlar la API pública
-- Colocar estado lo más cerca posible de donde se usa
+- No cross-feature imports: each feature is a closed module
+- Each feature must be completely independent
+- Strict separation between server and client logic (minimal use client)
+- Avoid business logic in UI components
+- Presentational components without side effects
+- Custom hooks to encapsulate reusable logic
+- Barrel exports (index.ts) per feature to control the public API
+- Colocate state as close as possible to where it's used
 
 ## Code Quality Rules
 
-### TypeScript Estricto (NO NEGOCIABLE)
+### Strict TypeScript (NON-NEGOTIABLE)
 
-- CERO `any` — siempre tipar explícitamente
-- CERO `unknown` como escape — usar genéricos o discriminated unions
-- Todas las funciones con tipos de retorno explícitos
-- Interfaces para objetos de datos, `type` para uniones/intersecciones
-- Enums: preferir `as const` objects sobre `enum`
-- Non-null assertion (`!`) prohibido — usar optional chaining o type guards
+- ZERO `any` — always type explicitly
+- ZERO `unknown` as an escape hatch — use generics or discriminated unions
+- All functions with explicit return types
+- Interfaces for data objects, `type` for unions/intersections
+- Enums: prefer `as const` objects over `enum`
+- Non-null assertion (`!`) forbidden — use optional chaining or type guards
 
-### Convenciones
+### Conventions
 
-- Nombres descriptivos obligatorios: `getUserById()`, no `getUser()`
-- Funciones pequeñas y puras — máximo ~30 líneas
-- Imports ordenados: 1) externos, 2) internos absolutos (@/), 3) relativos
-- Un export por archivo cuando es componente/hook principal
+- Descriptive names required: `getUserById()`, not `getUser()`
+- Small, pure functions — ~30 lines max
+- Ordered imports: 1) external, 2) internal absolute (@/), 3) relative
+- One export per file when it's the main component/hook
 
 ### React / UI
 
-- Props tipadas con interfaces dedicadas
-- Keys únicas y estables en listas (nunca índice del array)
-- useMemo/useCallback solo con evidencia de problema real
-- Componentes: solo UI y binding. Lógica en hooks o services
-- Event handlers tipados
+- Props typed with dedicated interfaces
+- Unique and stable keys in lists (never array index)
+- useMemo/useCallback only with evidence of a real problem
+- Components: UI and binding only. Logic in hooks or services
+- Typed event handlers
 
-### Validación
+### Validation
 
-- Zod para validación de forms y datos de API
-- Schemas co-localizados con la feature que los usa
+- Zod for form and API data validation
+- Schemas co-located with the feature that uses them
 
 ## Next.js Rules
 
-- Preferir Server Components por defecto
-- Minimizar `use client`: solo cuando se necesita estado o eventos
-- Usar Server Actions para mutaciones
-- Evitar fetch en cliente si puede hacerse en servidor
-- loading.tsx y error.tsx para UX por segmento
-- cache() para deduplicar fetches en el mismo request
+- Prefer Server Components by default
+- Minimize `use client`: only when state or events are needed
+- Use Server Actions for mutations
+- Avoid client-side fetch if it can be done on the server
+- loading.tsx and error.tsx for per-segment UX
+- cache() to deduplicate fetches within the same request
 
 ## Thinking Rules
 
-- Cuestionar el problema antes de proponer solución
-- Evitar soluciones complejas si existe una simple
-- Priorizar velocidad de validación sobre perfección
-- No abstraer sin al menos 2 casos reales
-- UX primero, implementación técnica después
-- Preferir composición sobre herencia
+- Question the problem before proposing a solution
+- Avoid complex solutions if a simple one exists
+- Prioritize validation speed over perfection
+- Don't abstract without at least 2 real use cases
+- UX first, technical implementation second
+- Prefer composition over inheritance
 
-## PROHIBIDO
+## PROHIBITED
 
-- No generar archivos de scripts o tooling que NO se pidió
-- No crear archivos fuera del scope de la tarea
-- No `console.log` en producción
-- No hardcodear strings mágicos
+- Do not generate script or tooling files that were NOT requested
+- Do not create files outside the scope of the task
+- No `console.log` in production
+- Do not hardcode magic strings
