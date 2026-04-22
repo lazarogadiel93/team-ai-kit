@@ -95,7 +95,7 @@ echo "--- Test 6: user modification preserved ---"
 arch_skill="$TEST_DIR/team-skills/shared/architecture/SKILL.md"
 if [ -f "$arch_skill" ]; then
     echo '# MY CUSTOM ARCHITECTURE RULES' > "$arch_skill"
-    bash "$KIT_ROOT/bin/team-ai-kit" update --target-dir "$TEST_DIR" 2>&1 >/dev/null || true
+    bash "$KIT_ROOT/bin/team-ai-kit" update --target-dir "$TEST_DIR" >/dev/null 2>&1 || true
     content=$(cat "$arch_skill")
     if echo "$content" | grep -q "MY CUSTOM"; then
         pass "user modification preserved"
@@ -157,7 +157,7 @@ IJ_TEST_DIR="/tmp/team-ai-kit-e2e-ij-$$"
 IJ_HOME="/tmp/team-ai-kit-e2e-ij-home-$$"
 mkdir -p "$IJ_HOME" "$IJ_TEST_DIR/.git"
 # Setup with intellij first
-HOME="$IJ_HOME" bash "$KIT_ROOT/bin/team-ai-kit" setup --ide intellij --role backend-node --target-dir "$IJ_TEST_DIR" --skip-prerequisites --skip-gentle-ai 2>&1 >/dev/null || true
+HOME="$IJ_HOME" bash "$KIT_ROOT/bin/team-ai-kit" setup --ide intellij --role backend-node --target-dir "$IJ_TEST_DIR" --skip-prerequisites --skip-gentle-ai >/dev/null 2>&1 || true
 # Now init
 (cd "$IJ_TEST_DIR" && HOME="$IJ_HOME" bash "$KIT_ROOT/bin/team-ai-kit" init 2>&1) >/dev/null || true
 ij_instructions="$IJ_TEST_DIR/.github/copilot-instructions.md"
@@ -225,7 +225,7 @@ DRYRUN_DIR="/tmp/team-ai-kit-dryrun-$$"
 DRYRUN_HOME="/tmp/team-ai-kit-dryrun-home-$$"
 mkdir -p "$DRYRUN_HOME" "$DRYRUN_DIR/.git"
 # Setup first
-HOME="$DRYRUN_HOME" bash "$KIT_ROOT/bin/team-ai-kit" setup --ide vscode --role frontend --target-dir "$DRYRUN_DIR" --skip-prerequisites --skip-gentle-ai 2>&1 >/dev/null || true
+HOME="$DRYRUN_HOME" bash "$KIT_ROOT/bin/team-ai-kit" setup --ide vscode --role frontend --target-dir "$DRYRUN_DIR" --skip-prerequisites --skip-gentle-ai >/dev/null 2>&1 || true
 # Init with --dry-run
 output=$(cd "$DRYRUN_DIR" && HOME="$DRYRUN_HOME" bash "$KIT_ROOT/bin/team-ai-kit" init --dry-run 2>&1) || true
 if echo "$output" | grep -q "\[DRY-RUN\]"; then

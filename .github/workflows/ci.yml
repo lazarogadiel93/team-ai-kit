@@ -79,8 +79,8 @@ jobs:
 
       - name: Verify bash and PS1 versions match
         run: |
-          bash_version=$(grep -oP "^KIT_VERSION='\\K[^']+" bin/team-ai-kit)
-          ps1_version=$(grep -oP "^\\$KitVersion = '\\K[^']+" bin/team-ai-kit.ps1)
+          bash_version=$(sed -n "s/^KIT_VERSION='\(.*\)'/\1/p" bin/team-ai-kit)
+          ps1_version=$(sed -n "s/^\$KitVersion = '\(.*\)'/\1/p" bin/team-ai-kit.ps1)
           if [ -z "$bash_version" ] || [ -z "$ps1_version" ]; then
             echo "::error::Could not extract version from one or both scripts (bash='$bash_version' ps1='$ps1_version')"
             exit 1
@@ -91,4 +91,4 @@ jobs:
             echo "::error::Version mismatch! Bash=$bash_version PS1=$ps1_version"
             exit 1
           fi
-          echo "✅ Versions match: $bash_version"
+          echo "Versions match: $bash_version"
