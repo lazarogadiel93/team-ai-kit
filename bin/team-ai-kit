@@ -113,6 +113,7 @@ show_help() {
     echo "    --role <role>              Override global role for this project"
     echo "    --force                    Re-initialize without asking"
     echo "    --dry-run                  Preview changes without writing to disk"
+    echo "    --update                   Update already-installed tools during setup"
     echo ""
     echo -e "  ${C_YELLOW}Examples:${C_RESET}"
     echo "    team-ai-kit setup"
@@ -152,7 +153,27 @@ cmd_setup() {
 
         # -- gentle-ai --
         if test_gentle_ai_installed; then
-            ok "gentle-ai available"
+            if [[ "$OPT_UPDATE" == "true" ]]; then
+                if test_brew_installed; then
+                    step "Updating gentle-ai via Homebrew..."
+                    if brew upgrade gentle-ai 2>/dev/null; then
+                        ok "gentle-ai updated"
+                    else
+                        warn "Failed to update gentle-ai -- continuing with current version"
+                    fi
+                else
+                    step "Updating gentle-ai via direct download..."
+                    if dl_result=$(install_github_release_binary "Gentleman-Programming" "gentle-ai" "gentle-ai"); then
+                        local dl_version
+                        dl_version=$(echo "$dl_result" | jq -r '.version')
+                        ok "gentle-ai updated to $dl_version"
+                    else
+                        warn "Failed to update gentle-ai -- continuing with current version"
+                    fi
+                fi
+            else
+                ok "gentle-ai available"
+            fi
         elif test_brew_installed; then
             step "Installing gentle-ai via Homebrew..."
             if brew tap Gentleman-Programming/tap 2>/dev/null && brew install gentle-ai 2>/dev/null; then
@@ -186,7 +207,27 @@ cmd_setup() {
 
         # -- engram --
         if test_engram_installed; then
-            ok "engram available"
+            if [[ "$OPT_UPDATE" == "true" ]]; then
+                if test_brew_installed; then
+                    step "Updating engram via Homebrew..."
+                    if brew upgrade engram 2>/dev/null; then
+                        ok "engram updated"
+                    else
+                        warn "Failed to update engram -- continuing with current version"
+                    fi
+                else
+                    step "Updating engram via direct download..."
+                    if dl_result=$(install_github_release_binary "Gentleman-Programming" "engram" "engram"); then
+                        local dl_version
+                        dl_version=$(echo "$dl_result" | jq -r '.version')
+                        ok "engram updated to $dl_version"
+                    else
+                        warn "Failed to update engram -- continuing with current version"
+                    fi
+                fi
+            else
+                ok "engram available"
+            fi
         else
             step "Installing engram..."
             if test_brew_installed; then
@@ -1293,6 +1334,7 @@ SKIP_PREREQUISITES="false"
 SKIP_GENTLE_AI="false"
 OPT_FORCE="false"
 OPT_DRY_RUN="false"
+OPT_UPDATE="false"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -1315,6 +1357,7 @@ while [[ $# -gt 0 ]]; do
         --skip-gentle-ai)    SKIP_GENTLE_AI="true"; shift ;;
         --force)             OPT_FORCE="true"; shift ;;
         --dry-run)           OPT_DRY_RUN="true"; shift ;;
+        --update)            OPT_UPDATE="true"; shift ;;
         *)
             err "Unknown option: $1"
             echo '  Run "team-ai-kit help" for usage.'
