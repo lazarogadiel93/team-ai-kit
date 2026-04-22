@@ -325,7 +325,7 @@ public class UserService {
 
 ## Anti-Patterns
 
-### Don't: Use Field Injection with @Autowired
+### Anti-Pattern 1: Use Field Injection with @Autowired
 
 Field injection hides dependencies, breaks testability, and makes it impossible to create
 immutable objects. Constructor injection is the Spring team's recommended approach.
@@ -368,7 +368,7 @@ Why constructor injection wins:
 - **Testable** — pass mocks directly in unit tests, no reflection or Spring context needed
 - Catches missing beans at **startup**, not at runtime
 
-### Don't: Put Business Logic in Controllers
+### Anti-Pattern 2: Put Business Logic in Controllers
 
 Controllers that contain business rules become untestable, unreusable, and violate SRP.
 If you need a `@Transactional` annotation on a controller method, something is wrong.

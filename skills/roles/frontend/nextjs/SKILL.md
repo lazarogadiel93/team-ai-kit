@@ -373,7 +373,7 @@ export default function DashboardError({
 
 ## Anti-Patterns
 
-### Don't: Client-side fetch when Server Components can do it
+### Anti-Pattern 1: Client-side fetch when Server Components can do it
 
 ```typescript
 // ❌ BAD — useEffect fetch in a Client Component
@@ -393,7 +393,7 @@ export default async function ProductList() {
 }
 ```
 
-### Don't: `'use client'` at the page level
+### Anti-Pattern 2: `'use client'` at the page level
 
 ```typescript
 // ❌ BAD — entire page is a Client Component
@@ -412,7 +412,7 @@ export default async function SettingsPage() {
 }
 ```
 
-### Don't: Await sequential fetches without streaming
+### Anti-Pattern 3: Await sequential fetches without streaming
 
 ```typescript
 // ❌ BAD — waterfall: total time = sum of all fetches

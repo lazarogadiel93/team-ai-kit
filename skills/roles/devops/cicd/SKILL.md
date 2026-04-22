@@ -319,7 +319,7 @@ jobs:
 
 ## Anti-Patterns
 
-### Don't: Use `latest` as Image Tag
+### Anti-Pattern 1: Use `latest` as Image Tag
 
 ```dockerfile
 # ❌ BAD — not reproducible, breaks caching
@@ -329,7 +329,7 @@ FROM node:latest
 FROM node:20.11-alpine
 ```
 
-### Don't: Pipeline Without Fail-Fast
+### Anti-Pattern 2: Pipeline Without Fail-Fast
 
 ```yaml
 # ❌ BAD — deploys even if tests fail
@@ -344,7 +344,7 @@ stages:
     condition: succeeded()
 ```
 
-### Don't: Install Dev Dependencies in Production Image
+### Anti-Pattern 3: Install Dev Dependencies in Production Image
 
 ```dockerfile
 # ❌ BAD — image includes test/build tools
@@ -354,7 +354,7 @@ RUN npm install
 RUN npm ci --only=production
 ```
 
-### Don't: Run Containers as Root
+### Anti-Pattern 4: Run Containers as Root
 
 ```dockerfile
 # ❌ BAD — runs as root (security risk)
@@ -366,7 +366,7 @@ USER appuser
 CMD ["node", "dist/index.js"]
 ```
 
-### Don't: Skip .dockerignore
+### Anti-Pattern 5: Skip .dockerignore
 
 ```
 # .dockerignore — always include one
@@ -379,7 +379,7 @@ coverage
 .github
 ```
 
-### Don't: Hardcode Environment-Specific Values
+### Anti-Pattern 6: Hardcode Environment-Specific Values
 
 ```yaml
 # ❌ BAD — environment baked into pipeline

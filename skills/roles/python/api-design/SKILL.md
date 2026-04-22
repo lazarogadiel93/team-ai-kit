@@ -466,7 +466,7 @@ app = FastAPI(
 
 ## Anti-Patterns
 
-### Don't: Bare except
+### Anti-Pattern 1: Bare except
 
 ```python
 # ❌ BAD — swallows all errors silently
@@ -483,7 +483,7 @@ except SpecificError as e:
     raise
 ```
 
-### Don't: Use sync DB calls in async endpoints
+### Anti-Pattern 2: Use sync DB calls in async endpoints
 
 ```python
 # ❌ BAD — blocks the event loop
@@ -498,7 +498,7 @@ async def get_user(user_id: str, db: AsyncSession = Depends(get_db)):
     return result.scalar_one_or_none()
 ```
 
-### Don't: Return ORM models directly
+### Anti-Pattern 3: Return ORM models directly
 
 ```python
 # ❌ BAD — leaks internal fields and breaks if ORM changes

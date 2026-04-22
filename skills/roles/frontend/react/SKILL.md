@@ -434,7 +434,7 @@ export function Select<T>({ items, value, onChange, getLabel, getKey }: SelectPr
 
 ## Anti-Patterns
 
-### Don't: Side effects during render
+### Anti-Pattern 1: Side effects during render
 
 ```typescript
 // ❌ BAD — runs on every render, blocks paint
@@ -452,7 +452,7 @@ export function List({ items }: ListProps) {
 }
 ```
 
-### Don't: Components with too many responsibilities
+### Anti-Pattern 2: Components with too many responsibilities
 
 ```typescript
 // ❌ BAD — fetches, parses, validates, and renders all in one (200+ lines)
@@ -465,7 +465,7 @@ export function UserDashboard() {
 }
 ```
 
-### Don't: Array index as key for dynamic lists
+### Anti-Pattern 3: Array index as key for dynamic lists
 
 ```typescript
 // ❌ BAD — index keys break state when items reorder or delete
@@ -475,7 +475,7 @@ export function UserDashboard() {
 {items.map(item => <TodoItem key={item.id} item={item} />)}
 ```
 
-### Don't: Derive state that can be computed
+### Anti-Pattern 4: Derive state that can be computed
 
 ```typescript
 // ❌ BAD — syncing derived state with useEffect
