@@ -631,7 +631,7 @@ function Invoke-InitCommand {
     Write-Host '  [4/4] Setting up engram sync and git hooks...' -ForegroundColor White
 
     # Derive project name from directory
-    $projectName = Split-Path $projectRoot -Leaf
+    $projectName = ConvertTo-SafeProjectName (Split-Path $projectRoot -Leaf)
 
     if ($DryRun) {
         Write-Dry "Would run engram sync for project: $projectName"
