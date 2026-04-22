@@ -518,14 +518,7 @@ cmd_init() {
 
     # Resolve team repo URL: CLI param > project config > global config
     local effective_team_repo=""
-    if [[ -n "$OPT_TEAM_REPO" ]]; then
-        effective_team_repo="$OPT_TEAM_REPO"
-    elif test_project_initialized "$project_root"; then
-        effective_team_repo=$(get_project_config_value "$project_root" "teamRepo" 2>/dev/null) || true
-    fi
-    if [[ -z "$effective_team_repo" ]]; then
-        effective_team_repo=$(get_config_value "teamRepo" 2>/dev/null) || true
-    fi
+    effective_team_repo=$(_resolve_team_repo "$project_root" "$OPT_TEAM_REPO")
 
     # Clone/pull team repo if configured
     local team_rules_content=""
@@ -809,11 +802,8 @@ cmd_update() {
     project_root=$(pwd)
     if test_project_initialized "$project_root"; then
         has_project_config="true"
-        effective_team_repo=$(get_project_config_value "$project_root" "teamRepo" 2>/dev/null) || true
     fi
-    if [[ -z "$effective_team_repo" ]]; then
-        effective_team_repo=$(get_config_value "teamRepo" 2>/dev/null) || true
-    fi
+    effective_team_repo=$(_resolve_team_repo "$project_root")
 
     # Step 1: Pull team repo if configured
     local has_team_repo="false"
@@ -1006,14 +996,10 @@ cmd_status() {
     fi
 
     # Resolve per-project > global team repo
-    local effective_team_repo="$config_team"
     local project_root
     project_root=$(pwd)
-    if test_project_initialized "$project_root"; then
-        local pt
-        pt=$(get_project_config_value "$project_root" "teamRepo" 2>/dev/null) || true
-        if [[ -n "$pt" ]]; then effective_team_repo="$pt"; fi
-    fi
+    local effective_team_repo=""
+    effective_team_repo=$(_resolve_team_repo "$project_root")
 
     echo -e "  ${C_WHITE}Configuration:${C_RESET}"
     echo "    IDE:         $config_ide"

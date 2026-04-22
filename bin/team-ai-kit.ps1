@@ -567,10 +567,7 @@ function Invoke-InitCommand {
     }
 
     # Resolve team repo URL: CLI param > project config > global config
-    $effectiveTeamRepo = if ($TeamRepo) { $TeamRepo }
-        elseif ($existingConfig -and $existingConfig.teamRepo) { $existingConfig.teamRepo }
-        elseif ($globalConfig.teamRepo) { $globalConfig.teamRepo }
-        else { '' }
+    $effectiveTeamRepo = Resolve-TeamRepo -ProjectRoot $projectRoot -CliParam $TeamRepo
 
     # Clone/pull team repo if configured
     $teamRulesContent = ''
@@ -824,9 +821,7 @@ function Invoke-UpdateCommand {
     if (Test-ProjectInitialized -ProjectRoot $projectRoot) {
         $projectConfig = Get-ProjectConfig -ProjectRoot $projectRoot
     }
-    $effectiveTeamRepo = if ($projectConfig -and $projectConfig.teamRepo) { $projectConfig.teamRepo }
-        elseif ($config.teamRepo) { $config.teamRepo }
-        else { '' }
+    $effectiveTeamRepo = Resolve-TeamRepo -ProjectRoot $projectRoot
 
     Write-Host "  Updating for: IDE=$($config.ide), Role=$($config.role)" -ForegroundColor White
     Write-Host ''
@@ -1028,11 +1023,7 @@ function Invoke-StatusCommand {
     Write-Host "    Provider:    $($config.provider)"
     # Team repo status -- resolve per-project > global
     $projectRoot = (Get-Location).Path
-    $effectiveTeamRepo = $config.teamRepo
-    if (Test-ProjectInitialized -ProjectRoot $projectRoot) {
-        $pc = Get-ProjectConfig -ProjectRoot $projectRoot
-        if ($pc.teamRepo) { $effectiveTeamRepo = $pc.teamRepo }
-    }
+    $effectiveTeamRepo = Resolve-TeamRepo -ProjectRoot $projectRoot
 
     Write-Host "    Team Repo:   $(if ($effectiveTeamRepo) { $effectiveTeamRepo } else { '(none)' })"
     Write-Host "    Installed:   $($config.installedAt)"

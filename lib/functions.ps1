@@ -156,6 +156,30 @@ function Get-ProjectConfig {
     return $config
 }
 
+function Resolve-TeamRepo {
+    <#
+    .SYNOPSIS
+        Resolves the effective team repo URL using priority: CLI param > project config > global config.
+    .OUTPUTS
+        The resolved URL string (empty string if none configured).
+    #>
+    param(
+        [string]$ProjectRoot = '',
+        [string]$CliParam = ''
+    )
+    if ($CliParam) { return $CliParam }
+
+    if ($ProjectRoot -and (Test-ProjectInitialized -ProjectRoot $ProjectRoot)) {
+        $pc = Get-ProjectConfig -ProjectRoot $ProjectRoot
+        if ($pc -and $pc.teamRepo) { return $pc.teamRepo }
+    }
+
+    $globalConfig = Get-Config
+    if ($globalConfig.teamRepo) { return $globalConfig.teamRepo }
+
+    return ''
+}
+
 function Save-ProjectConfig {
     <#
     .SYNOPSIS

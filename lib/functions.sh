@@ -31,6 +31,25 @@ _sanitize_project_name() {
     echo "$1" | tr -cd 'a-zA-Z0-9._-'
 }
 
+_resolve_team_repo() {
+    # Resolves the effective team repo URL using priority: CLI param > project config > global config.
+    # Usage: _resolve_team_repo "$project_root" "$cli_param"
+    # Echoes the resolved URL (empty string if none configured).
+    local project_root="$1"
+    local cli_param="${2:-}"
+    local result=""
+
+    if [[ -n "$cli_param" ]]; then
+        result="$cli_param"
+    elif [[ -n "$project_root" ]] && test_project_initialized "$project_root" 2>/dev/null; then
+        result=$(get_project_config_value "$project_root" "teamRepo" 2>/dev/null) || true
+    fi
+    if [[ -z "$result" ]]; then
+        result=$(get_config_value "teamRepo" 2>/dev/null) || true
+    fi
+    echo "$result"
+}
+
 _array_contains() {
     local needle="$1"; shift
     local item
