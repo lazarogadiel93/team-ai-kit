@@ -1120,7 +1120,7 @@ function Get-FileContentHash-String {
     $bytes = [System.Text.Encoding]::UTF8.GetBytes($Content)
     $sha = [System.Security.Cryptography.SHA256]::Create()
     $hashBytes = $sha.ComputeHash($bytes)
-    return ($hashBytes | ForEach-Object { $_.ToString('x2') }) -join ''
+    return ($hashBytes | ForEach-Object { $_.ToString('X2') }) -join ''
 }
 
 function Test-TeamRepoCloned {
