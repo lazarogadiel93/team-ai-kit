@@ -1206,7 +1206,7 @@ function Invoke-DoctorCommand {
         }
 
         # Team repo
-        $effectiveRepo = if ($pc.teamRepo) { $pc.teamRepo } elseif ($config.teamRepo) { $config.teamRepo } else { '' }
+        $effectiveRepo = Resolve-TeamRepo -ProjectRoot $projectRoot
         if ($effectiveRepo) {
             Write-Ok "Team repo: $effectiveRepo"
         }
