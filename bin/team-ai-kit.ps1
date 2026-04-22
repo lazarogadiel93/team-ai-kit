@@ -182,6 +182,15 @@ function Invoke-SetupCommand {
                 try { & scoop update gentle-ai }
                 catch { Write-Warn "Failed to update gentle-ai: $_" }
             }
+            elseif ($Update) {
+                Write-Step 'Updating gentle-ai via direct download...'
+                try {
+                    $dlResult = Install-GithubReleaseBinary -Owner 'Gentleman-Programming' -Repo 'gentle-ai' -BinaryName 'gentle-ai'
+                    $null = Add-ToUserPath -Directory (Get-DirectDownloadBinDir)
+                    Write-Ok "gentle-ai $($dlResult.version) installed via direct download"
+                }
+                catch { Write-Warn "Failed to update gentle-ai: $_" }
+            }
             Write-Ok 'gentle-ai available'
         }
         elseif (Test-ScoopInstalled) {
@@ -223,6 +232,15 @@ function Invoke-SetupCommand {
             if ($Update -and (Test-ScoopInstalled)) {
                 Write-Step 'Updating engram...'
                 try { & scoop update engram }
+                catch { Write-Warn "Failed to update engram: $_" }
+            }
+            elseif ($Update) {
+                Write-Step 'Updating engram via direct download...'
+                try {
+                    $dlResult = Install-GithubReleaseBinary -Owner 'Gentleman-Programming' -Repo 'engram' -BinaryName 'engram'
+                    $null = Add-ToUserPath -Directory (Get-DirectDownloadBinDir)
+                    Write-Ok "engram $($dlResult.version) installed via direct download"
+                }
                 catch { Write-Warn "Failed to update engram: $_" }
             }
             Write-Ok 'engram available'
