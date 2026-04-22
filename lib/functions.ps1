@@ -174,7 +174,7 @@ function Resolve-TeamRepo {
         if ($pc -and $pc.teamRepo) { return $pc.teamRepo }
     }
 
-    $globalConfig = Get-Config
+    $globalConfig = Get-TeamAiKitConfig
     if ($globalConfig.teamRepo) { return $globalConfig.teamRepo }
 
     return ''
