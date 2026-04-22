@@ -52,6 +52,7 @@ _resolve_team_repo() {
 
 _get_installed_version() {
     # Returns the installed semver of a tool (gentle-ai or engram) by running `<tool> version`.
+    # SAFETY: only call with hardcoded tool names — executes "$tool" directly.
     # Echoes the version string (e.g. "1.2.3") or empty string if not found.
     local tool="$1"
     local output=""
@@ -73,9 +74,11 @@ _get_latest_github_version() {
         tag=$(gh release view --repo "$owner/$repo" --json tagName -q '.tagName' 2>/dev/null) || true
     fi
 
-    # Fallback: curl GitHub API
+    # Fallback: curl GitHub API (uses GITHUB_TOKEN if available for rate limit)
     if [[ -z "$tag" ]] && command -v curl &>/dev/null; then
-        tag=$(curl -fsSL "https://api.github.com/repos/$owner/$repo/releases/latest" 2>/dev/null \
+        local auth_header=""
+        [[ -n "${GITHUB_TOKEN:-}" ]] && auth_header="-H Authorization: token $GITHUB_TOKEN"
+        tag=$(curl -fsSL $auth_header "https://api.github.com/repos/$owner/$repo/releases/latest" 2>/dev/null \
             | jq -r '.tag_name // empty' 2>/dev/null) || true
     fi
 
@@ -86,12 +89,17 @@ _get_latest_github_version() {
 
 _version_lt() {
     # Returns 0 (true) if version $1 < $2, 1 (false) otherwise.
-    # Simple semver comparison using sort -V.
+    # Pure-bash semver comparison (no sort -V dependency for macOS compatibility).
     local v1="$1" v2="$2"
     if [[ "$v1" == "$v2" ]]; then return 1; fi
-    local lowest
-    lowest=$(printf '%s\n%s' "$v1" "$v2" | sort -V | head -n1)
-    [[ "$lowest" == "$v1" ]]
+    local IFS='.'
+    local -a a=($v1) b=($v2)
+    local i
+    for i in 0 1 2; do
+        if (( ${a[i]:-0} < ${b[i]:-0} )); then return 0; fi
+        if (( ${a[i]:-0} > ${b[i]:-0} )); then return 1; fi
+    done
+    return 1
 }
 
 _array_contains() {
