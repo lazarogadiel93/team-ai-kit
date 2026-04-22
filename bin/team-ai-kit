@@ -1093,7 +1093,7 @@ cmd_doctor() {
     step "Checking for updates..."
     local kit_latest=""
     kit_latest=$(_get_latest_github_version "lazarogadiel93" "team-ai-kit")
-    if [[ -n "$kit_latest" ]] && _version_lt "$KIT_VERSION" "$kit_latest"; then
+    if [[ -n "$kit_latest" && -n "$KIT_VERSION" ]] && _version_lt "$KIT_VERSION" "$kit_latest"; then
         warn "team-ai-kit: v$KIT_VERSION (update available: v$kit_latest) -- run: brew upgrade team-ai-kit"
     else
         ok "team-ai-kit: v$KIT_VERSION"

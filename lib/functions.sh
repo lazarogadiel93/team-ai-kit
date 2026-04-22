@@ -76,9 +76,9 @@ _get_latest_github_version() {
 
     # Fallback: curl GitHub API (uses GITHUB_TOKEN if available for rate limit)
     if [[ -z "$tag" ]] && command -v curl &>/dev/null; then
-        local auth_header=""
-        [[ -n "${GITHUB_TOKEN:-}" ]] && auth_header="-H Authorization: token $GITHUB_TOKEN"
-        tag=$(curl -fsSL $auth_header "https://api.github.com/repos/$owner/$repo/releases/latest" 2>/dev/null \
+        local auth_args=()
+        [[ -n "${GITHUB_TOKEN:-}" ]] && auth_args=(-H "Authorization: token $GITHUB_TOKEN")
+        tag=$(curl -fsSL --max-time 5 "${auth_args[@]}" "https://api.github.com/repos/$owner/$repo/releases/latest" 2>/dev/null \
             | jq -r '.tag_name // empty' 2>/dev/null) || true
     fi
 
