@@ -1089,6 +1089,16 @@ cmd_doctor() {
 
     local all_good=true
 
+    # team-ai-kit version check
+    step "Checking for updates..."
+    local kit_latest=""
+    kit_latest=$(_get_latest_github_version "lazarogadiel93" "team-ai-kit")
+    if [[ -n "$kit_latest" ]] && _version_lt "$KIT_VERSION" "$kit_latest"; then
+        warn "team-ai-kit: v$KIT_VERSION (update available: v$kit_latest)"
+    else
+        ok "team-ai-kit: v$KIT_VERSION"
+    fi
+
     # jq (required)
     if test_jq_installed; then ok "jq: installed"
     else err "jq: NOT found (required)"; all_good=false; fi
@@ -1099,16 +1109,32 @@ cmd_doctor() {
 
     # gentle-ai
     if test_gentle_ai_installed; then
-        local gentle_path=""
+        local gentle_path="" gentle_installed="" gentle_latest=""
         gentle_path=$(get_gentle_ai_binary_path 2>/dev/null) || gentle_path="(in PATH)"
-        ok "gentle-ai: installed ($gentle_path)"
+        gentle_installed=$(_get_installed_version "gentle-ai")
+        gentle_latest=$(_get_latest_github_version "Gentleman-Programming" "gentle-ai")
+        if [[ -n "$gentle_installed" && -n "$gentle_latest" ]] && _version_lt "$gentle_installed" "$gentle_latest"; then
+            warn "gentle-ai: v$gentle_installed (update available: v$gentle_latest)"
+        elif [[ -n "$gentle_installed" ]]; then
+            ok "gentle-ai: v$gentle_installed ($gentle_path)"
+        else
+            ok "gentle-ai: installed ($gentle_path)"
+        fi
     else err "gentle-ai: NOT found"; all_good=false; fi
 
     # engram
     if test_engram_installed; then
-        local engram_path=""
+        local engram_path="" engram_installed="" engram_latest=""
         engram_path=$(get_engram_binary_path 2>/dev/null) || engram_path="(in PATH)"
-        ok "engram: installed ($engram_path)"
+        engram_installed=$(_get_installed_version "engram")
+        engram_latest=$(_get_latest_github_version "Gentleman-Programming" "engram")
+        if [[ -n "$engram_installed" && -n "$engram_latest" ]] && _version_lt "$engram_installed" "$engram_latest"; then
+            warn "engram: v$engram_installed (update available: v$engram_latest)"
+        elif [[ -n "$engram_installed" ]]; then
+            ok "engram: v$engram_installed ($engram_path)"
+        else
+            ok "engram: installed ($engram_path)"
+        fi
     else err "engram: NOT found"; all_good=false; fi
 
     # Config

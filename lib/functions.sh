@@ -50,6 +50,50 @@ _resolve_team_repo() {
     echo "$result"
 }
 
+_get_installed_version() {
+    # Returns the installed semver of a tool (gentle-ai or engram) by running `<tool> version`.
+    # Echoes the version string (e.g. "1.2.3") or empty string if not found.
+    local tool="$1"
+    local output=""
+    output=$("$tool" version 2>/dev/null) || true
+    if [[ "$output" =~ ([0-9]+\.[0-9]+\.[0-9]+) ]]; then
+        echo "${BASH_REMATCH[1]}"
+    fi
+}
+
+_get_latest_github_version() {
+    # Returns the latest release version from a GitHub repo.
+    # Usage: _get_latest_github_version "owner" "repo"
+    # Echoes the version string (e.g. "1.2.3") or empty string if unavailable.
+    local owner="$1" repo="$2"
+    local tag=""
+
+    # Try gh CLI first (most reliable)
+    if command -v gh &>/dev/null; then
+        tag=$(gh release view --repo "$owner/$repo" --json tagName -q '.tagName' 2>/dev/null) || true
+    fi
+
+    # Fallback: curl GitHub API
+    if [[ -z "$tag" ]] && command -v curl &>/dev/null; then
+        tag=$(curl -fsSL "https://api.github.com/repos/$owner/$repo/releases/latest" 2>/dev/null \
+            | jq -r '.tag_name // empty' 2>/dev/null) || true
+    fi
+
+    if [[ "$tag" =~ ([0-9]+\.[0-9]+\.[0-9]+) ]]; then
+        echo "${BASH_REMATCH[1]}"
+    fi
+}
+
+_version_lt() {
+    # Returns 0 (true) if version $1 < $2, 1 (false) otherwise.
+    # Simple semver comparison using sort -V.
+    local v1="$1" v2="$2"
+    if [[ "$v1" == "$v2" ]]; then return 1; fi
+    local lowest
+    lowest=$(printf '%s\n%s' "$v1" "$v2" | sort -V | head -n1)
+    [[ "$lowest" == "$v1" ]]
+}
+
 _array_contains() {
     local needle="$1"; shift
     local item
