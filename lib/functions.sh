@@ -1624,13 +1624,8 @@ uninstall_project() {
         fi
     done <<< "$targets"
 
-    # Remove from global manifest
-    local manifest_path
-    manifest_path=$(get_skill_manifest_path)
-    if [[ -f "$manifest_path" ]]; then
-        rm -f "$manifest_path"
-        removed=$((removed + 1))
-    fi
+    # Note: global manifest (~/.team-ai-kit/manifest.json) is intentionally
+    # preserved to avoid breaking skill tracking for other projects.
 
     echo "{\"removed\":$removed}"
 }
