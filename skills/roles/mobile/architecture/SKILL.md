@@ -24,7 +24,7 @@ metadata:
 
 ## Critical Patterns
 
-### 1. File-Based Routing with Expo Router
+### Pattern 1: File-Based Routing with Expo Router
 
 Expo Router maps the `app/` directory to navigation routes. Layout files (`_layout.tsx`) define
 navigators. Route groups `(groupName)` organize routes without affecting the URL. Use typed
@@ -120,7 +120,7 @@ export default function TabLayout() {
 
 ---
 
-### 2. FlashList Over FlatList for Large Lists
+### Pattern 2: FlashList Over FlatList for Large Lists
 
 FlashList from `@shopify/flash-list` is a drop-in replacement for FlatList with recycling-based
 rendering. It is dramatically faster for lists with 100+ items.
@@ -172,7 +172,7 @@ export function Feed({ items }: { items: FeedItem[] }) {
 
 ---
 
-### 3. State Management: Zustand (Client) + TanStack Query (Server)
+### Pattern 3: State Management: Zustand (Client) + TanStack Query (Server)
 
 Separate **client UI state** (modals, filters, theme) from **server/async state** (API data,
 pagination, cache). Zustand owns client state. TanStack Query owns server state.
@@ -255,7 +255,7 @@ export function UserListScreen() {
 
 ---
 
-### 4. Platform-Specific Code Isolation
+### Pattern 4: Platform-Specific Code Isolation
 
 React Native resolves `.ios.tsx` and `.android.tsx` extensions automatically. Use this for
 components with fundamentally different native behavior. For minor tweaks, use `Platform.select`.
@@ -344,7 +344,7 @@ import { DatePicker } from "@/components/date-picker/date-picker";
 
 ## Anti-Patterns
 
-### 1. Using FlatList for Large Lists
+### Anti-Pattern 1: Using FlatList for Large Lists
 
 FlatList creates and destroys views on scroll — no recycling. For lists beyond ~100 items, this
 causes frame drops and high memory usage. FlashList's recycling architecture maintains 60fps
@@ -358,7 +358,7 @@ add `estimatedItemSize` (v1), and verify in release mode. See Pattern 2 above.
 
 ---
 
-### 2. Inline Styles Instead of StyleSheet.create or NativeWind
+### Anti-Pattern 2: Inline Styles Instead of StyleSheet.create or NativeWind
 
 Inline style objects are re-created on every render, triggering unnecessary bridge
 serialization and layout recalculations. This adds up in lists and animated views.

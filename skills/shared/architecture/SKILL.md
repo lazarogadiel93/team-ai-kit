@@ -247,7 +247,7 @@ func (r *RedisStorage) Set(key string, value string) error {
 
 ## Anti-Patterns
 
-### Don't: Business Logic in UI/Handler Layer
+### Anti-Pattern 1: Business Logic in UI/Handler Layer
 
 ```typescript
 // ❌ BAD — discount calculation in a UI component
@@ -279,7 +279,7 @@ def create_order():
     return jsonify(order.to_dict())
 ```
 
-### Don't: Framework Lock-in in Domain
+### Anti-Pattern 2: Framework Lock-in in Domain
 
 ```java
 // ❌ BAD — domain entity tied to JPA
@@ -298,7 +298,7 @@ public class User {
 // JPA mapping lives in the data layer, not in domain
 ```
 
-### Don't: God Modules
+### Anti-Pattern 3: God Modules
 
 ```
 # ❌ BAD — one file/module does everything

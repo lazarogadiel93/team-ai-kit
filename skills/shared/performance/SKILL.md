@@ -292,14 +292,14 @@ const [user, orders, profile] = await Promise.all([
 
 ## Anti-Patterns
 
-### Don't: Premature Optimization
+### Anti-Pattern 1: Premature Optimization
 
 ```
 ❌ BAD: "Let me add Redis caching to every endpoint just in case"
 ✅ GOOD: Profile → find the actual bottleneck → cache only what's slow
 ```
 
-### Don't: Load Entire Datasets Into Memory
+### Anti-Pattern 2: Load Entire Datasets Into Memory
 
 ```java
 // ❌ BAD — loads everything
@@ -312,7 +312,7 @@ try (Stream<Transaction> stream = transactionRepo.streamAll()) {
 }
 ```
 
-### Don't: Ignore Resource Cleanup
+### Anti-Pattern 3: Ignore Resource Cleanup
 
 ```go
 // ❌ BAD — response body never closed → connection leak
@@ -335,7 +335,7 @@ with open("large.csv") as f:
     data = f.read()
 ```
 
-### Don't: Cache Without Invalidation Strategy
+### Anti-Pattern 4: Cache Without Invalidation Strategy
 
 ```
 ❌ BAD: cache.set("user:123", user_data)  // no TTL, no invalidation → stale forever

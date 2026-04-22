@@ -12,7 +12,7 @@
 - Repositories handle data access only
 - Use DTOs (record classes) for API request/response — never expose entities
 
-## Coding Standards
+## Code Quality Rules
 
 - Use constructor injection — never field injection with `@Autowired`
 - Prefer `Optional<T>` returns from repositories over null checks
@@ -20,17 +20,25 @@
 - Always validate input with Jakarta Bean Validation (`@Valid`)
 - Use `@ControllerAdvice` for centralized error handling
 
-## Testing Standards
+### Testing
 
 - Every service method must have a unit test
 - Use `@SpringBootTest` only for integration tests — prefer plain JUnit 5 + Mockito for unit tests
 - Use Testcontainers for database integration tests
 - Use AssertJ for fluent, readable assertions
 
-## Naming Conventions
+### Naming
 
 - Controllers: `*Controller.java`
 - Services: `*Service.java` (interface) + `*ServiceImpl.java`
 - Repositories: `*Repository.java`
 - DTOs: `*Request.java`, `*Response.java`
 - Tests: `*Test.java` (unit), `*IT.java` (integration)
+
+## Thinking Rules
+
+- Design the API contract before implementation (API-first)
+- Think about idempotency and error cases before the happy path
+- Think about the function contract (inputs/outputs) before implementing
+- Validate inputs at the system boundary, not deep inside
+- Consider transaction boundaries and data consistency under partial failures

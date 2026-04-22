@@ -509,7 +509,7 @@ const filteredItems = items.filter(i => i.active)
 | Error Boundary             | Catch render errors — wrap per independent section    |
 | React.lazy                 | Code split heavy/conditional components               |
 | key prop reset             | Force remount when identity changes (e.g. chat ID)    |
-| forwardRef                 | Reusable primitives that expose DOM ref               |
+| forwardRef                 | Reusable primitives that expose DOM ref (pre-React 19; React 19+ uses ref as prop directly) |
 | useMemo                    | Expensive computations — profile first                |
 | useCallback                | Stable ref for memoized children — profile first      |
 | Generic components         | Reusable UI that works with multiple data types       |

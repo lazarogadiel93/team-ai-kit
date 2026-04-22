@@ -260,7 +260,7 @@ with mlflow.start_run(run_name="rf-baseline") as run:
 
 ## Anti-Patterns
 
-### Anti-Pattern 1 — Mutating DataFrames In-Place
+### Anti-Pattern 1: Mutating DataFrames In-Place
 
 In-place mutation makes pipelines fragile, non-deterministic, and impossible to debug.
 A function that modifies its input silently corrupts upstream references.
@@ -298,7 +298,7 @@ in the other. Method chaining with immutable returns makes data flow explicit an
 
 ---
 
-### Anti-Pattern 2 — Hardcoding Hyperparameters
+### Anti-Pattern 2: Hardcoding Hyperparameters
 
 Scattering magic numbers across training scripts makes experiments unreproducible and
 comparison impossible.

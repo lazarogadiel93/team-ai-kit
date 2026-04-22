@@ -245,7 +245,7 @@ public class OrderService {
 
 ## Anti-Patterns
 
-### Don't: Swallow Errors Silently
+### Anti-Pattern 1: Swallow Errors Silently
 
 ```typescript
 // ❌ BAD
@@ -279,7 +279,7 @@ except SpecificError as e:
     return fallback_value
 ```
 
-### Don't: Log and Throw (Double Handling)
+### Anti-Pattern 2: Log and Throw (Double Handling)
 
 ```java
 // ❌ BAD — logs the error AND throws it → duplicate log entries
@@ -299,7 +299,7 @@ try {
 }
 ```
 
-### Don't: Catch Generic Exceptions
+### Anti-Pattern 3: Catch Generic Exceptions
 
 ```python
 # ❌ BAD — catches everything including KeyboardInterrupt
@@ -316,7 +316,7 @@ except (ConnectionError, TimeoutError) as e:
     return None
 ```
 
-### Don't: Use Print Debugging in Production Code
+### Anti-Pattern 4: Use Print Debugging in Production Code
 
 ```go
 // ❌ BAD — fmt.Println left in production code

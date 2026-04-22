@@ -376,7 +376,7 @@ app.use(cors({
 
 ## Anti-Patterns
 
-### Don't: Raw SQL in Services
+### Anti-Pattern 1: Raw SQL in Services
 
 ```typescript
 // ❌ BAD — service coupled to raw SQL
@@ -390,7 +390,7 @@ async function getUser(id: string) {
 }
 ```
 
-### Don't: Leaking Internal State in Responses
+### Anti-Pattern 2: Leaking Internal State in Responses
 
 ```typescript
 // ❌ BAD — exposes password hash and internal fields
@@ -407,7 +407,7 @@ function toUserResponse(user: User): UserResponse {
 res.json({ data: toUserResponse(user) })
 ```
 
-### Don't: God Router Files
+### Anti-Pattern 3: God Router Files
 
 ```typescript
 // ❌ BAD — one file with 50+ routes
