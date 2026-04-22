@@ -1192,7 +1192,8 @@ cmd_uninstall() {
     show_banner
     _require_jq || exit 1
     local project_root
-    project_root=$(pwd)    if ! test_project_initialized "$project_root"; then
+    project_root=$(pwd)
+    if ! test_project_initialized "$project_root"; then
         err "No team-ai-kit project found in this directory."
         echo "  Run this command from a project that was initialized with 'team-ai-kit init'."
         exit 1
