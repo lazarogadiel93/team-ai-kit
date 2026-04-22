@@ -1444,8 +1444,8 @@ function Install-SkillsWithMerge {
     $skillsBase = Join-Path $KitRoot 'skills'
 
     foreach ($skillPath in $defaultSkills) {
-        $relativePath = $skillPath.Replace($skillsBase, '').TrimStart('\', '/')
-        $manifestKey = "team-skills\$relativePath"
+        $relativePath = $skillPath.Replace($skillsBase, '').TrimStart('\', '/').Replace('\', '/')
+        $manifestKey = "team-skills/$relativePath"
         $destPath = Join-Path $TargetDir $manifestKey
 
         $result = Install-SingleSkillWithTracking `
@@ -1467,8 +1467,8 @@ function Install-SkillsWithMerge {
             $teamSkillsBase = Join-Path $teamRepoPath 'skills'
 
             foreach ($skillPath in $teamSkills) {
-                $relativePath = $skillPath.Replace($teamSkillsBase, '').TrimStart('\', '/')
-                $manifestKey = "team-skills\$relativePath"
+                $relativePath = $skillPath.Replace($teamSkillsBase, '').TrimStart('\', '/').Replace('\', '/')
+                $manifestKey = "team-skills/$relativePath"
                 $destPath = Join-Path $TargetDir $manifestKey
 
                 $result = Install-SingleSkillWithTracking `
