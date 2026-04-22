@@ -280,16 +280,18 @@ remove_gitattributes_block() {
     grep -qF "$marker" "$ga_path" 2>/dev/null || return 0
 
     local cleaned=""
-    local skip_count=0
+    local skip_rules=false
     while IFS= read -r line; do
         if [[ "$line" == *"$marker"* ]]; then
-            skip_count=2
+            skip_rules=true
             continue
         fi
-        if [[ "$skip_count" -gt 0 ]]; then
-            # Skip the rule lines that follow the marker
-            skip_count=$((skip_count - 1))
-            continue
+        if [[ "$skip_rules" == true ]]; then
+            # Skip rule lines that start with .engram/ (content-adaptive)
+            if [[ "$line" =~ ^\.engram/ ]]; then
+                continue
+            fi
+            skip_rules=false
         fi
         cleaned+="$line"$'\n'
     done < "$ga_path"
