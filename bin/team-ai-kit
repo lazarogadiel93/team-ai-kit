@@ -697,6 +697,7 @@ cmd_init() {
 # -- Init Knowledge (scaffold team knowledge repo) ----------------------------
 cmd_init_knowledge() {
     show_banner
+    _require_jq || exit 1
     local target_dir
     target_dir=$(pwd)
 
@@ -743,7 +744,9 @@ cmd_init_knowledge() {
 cmd_sync() {
     show_banner
     _require_jq || exit 1
-    local project_root    # Check project config for project name
+    local project_root
+    project_root=$(pwd)
+    # Check project config for project name
     local project_name=""
     if test_project_initialized "$project_root"; then
         project_name=$(_sanitize_project_name "$(basename "$project_root")")
@@ -1187,10 +1190,9 @@ cmd_doctor() {
 # -- Uninstall -----------------------------------------------------------------
 cmd_uninstall() {
     show_banner
+    _require_jq || exit 1
     local project_root
-    project_root=$(pwd)
-
-    if ! test_project_initialized "$project_root"; then
+    project_root=$(pwd)    if ! test_project_initialized "$project_root"; then
         err "No team-ai-kit project found in this directory."
         echo "  Run this command from a project that was initialized with 'team-ai-kit init'."
         exit 1

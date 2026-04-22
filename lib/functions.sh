@@ -20,7 +20,7 @@ _lowercase() { echo "$1" | tr '[:upper:]' '[:lower:]'; }
 _require_jq() {
     # Validates that jq is installed before commands that depend on it.
     if ! command -v jq &>/dev/null; then
-        echo "Error: 'jq' is required but not installed. Run 'team-ai-kit setup' or install jq manually." >&2
+        echo "Error: 'jq' is required but not installed. Install it: brew install jq (macOS) or apt install jq (Linux)." >&2
         return 1
     fi
 }
