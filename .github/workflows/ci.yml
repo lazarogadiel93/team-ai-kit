@@ -27,7 +27,7 @@ jobs:
         shell: pwsh
         run: |
           $config = New-PesterConfiguration
-          $config.Run.Path = "./tests/functions.Tests.ps1"
+          $config.Run.Path = @("./tests/functions.Tests.ps1", "./tests/skills.Tests.ps1")
           $config.Output.Verbosity = "Detailed"
           $config.TestResult.Enabled = $true
           $config.TestResult.OutputPath = "./testResults.xml"
@@ -51,7 +51,7 @@ jobs:
         run: sudo apt-get install -y shellcheck
 
       - name: Run shellcheck on scripts
-        run: shellcheck --severity=warning -s bash bin/team-ai-kit lib/functions.sh
+        run: shellcheck --severity=warning -s bash bin/team-ai-kit lib/functions.sh tests/e2e-bash.sh tests/functions-bash.sh
 
   bash-e2e:
     name: Bash E2E Tests (Ubuntu)
@@ -70,3 +70,21 @@ jobs:
 
       - name: Run E2E tests
         run: bash tests/e2e-bash.sh
+
+  version-sync:
+    name: Version Sync Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify bash and PS1 versions match
+        run: |
+          bash_version=$(grep -oP "^KIT_VERSION='\\K[^']+" bin/team-ai-kit)
+          ps1_version=$(grep -oP "^\\$KitVersion = '\\K[^']+" bin/team-ai-kit.ps1)
+          echo "Bash version: $bash_version"
+          echo "PS1 version:  $ps1_version"
+          if [ "$bash_version" != "$ps1_version" ]; then
+            echo "::error::Version mismatch! Bash=$bash_version PS1=$ps1_version"
+            exit 1
+          fi
+          echo "✅ Versions match: $bash_version"
