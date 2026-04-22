@@ -3,53 +3,53 @@
 [![CI](https://github.com/lazarogadiel93/team-ai-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/lazarogadiel93/team-ai-kit/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-> [gentle-ai](https://github.com/Gentleman-Programming/gentle-ai) para equipos. Un comando, 3 preguntas, y todo tu equipo tiene la misma base de AI configurada.
+> [gentle-ai](https://github.com/Gentleman-Programming/gentle-ai) for teams. One command, 3 questions, and your entire team shares the same AI configuration.
 
-## El problema
+## The Problem
 
-Hoy cada dev configura su asistente de AI por su cuenta. Las convenciones del equipo no llegan al AI, el conocimiento se pierde al cerrar cada sesion, y cada nuevo integrante arranca de cero.
+Today every dev configures their AI assistant on their own. Team conventions never reach the AI, knowledge is lost when sessions close, and every new team member starts from scratch.
 
-**Sin estandarizar:**
-
-```
-Dev A → AI genera componentes con any y useEffect para fetching
-Dev B → AI genera Server Components con tipos estrictos
-Dev C → AI ni siquiera sabe que el equipo usa Zod
-```
-
-**Con Team AI Kit:**
+**Without standardization:**
 
 ```
-Todos → AI genera Server Components, TypeScript estricto, Zod, patrones del equipo
-         Porque los skills y reglas son los mismos para todos.
+Dev A → AI generates components with any and useEffect for fetching
+Dev B → AI generates Server Components with strict types
+Dev C → AI doesn't even know the team uses Zod
 ```
 
-## Que resuelve
+**With Team AI Kit:**
 
-| Problema | Solucion |
-|----------|----------|
-| Cada dev tiene su AI configurado diferente | **Skills por rol** -- Frontend, Backend, DevOps, Python. Mismos patrones para todos |
-| El conocimiento se pierde entre sesiones | **[Memoria compartida](docs/engram-guide.md)** -- engram sync entre devs. Lo que aprende uno, lo saben todos |
-| Updates del equipo pisan configs locales | **Merge inteligente** -- updates NUNCA pisan tus customizaciones |
-| Onboarding lento para nuevos integrantes | **Zero config** -- un setup, 2 minutos, listo |
-| No hay forma de compartir convenciones | **[Team Knowledge Repo](docs/team-knowledge-repo.md)** -- repo centralizado con skills y reglas custom |
+```
+Everyone → AI generates Server Components, strict TypeScript, Zod, team patterns
+           Because the skills and rules are the same for everyone.
+```
+
+## What It Solves
+
+| Problem | Solution |
+|---------|----------|
+| Every dev has a different AI config | **Skills per role** — 8 roles covering Frontend, Backend, DevOps, Python, Mobile, Data. Same patterns for everyone |
+| Knowledge is lost between sessions | **[Shared memory](docs/engram-guide.md)** — engram sync between devs. What one learns, everyone knows |
+| Team updates overwrite local configs | **Smart merge** — updates NEVER overwrite your customizations |
+| Slow onboarding for new members | **Zero config** — one setup, 2 minutes, done |
+| No way to share conventions | **[Team Knowledge Repo](docs/team-knowledge-repo.md)** — centralized repo with custom skills and rules |
 
 ---
 
-## Ejemplo rapido
+## Quick Example
 
-Un dev de **Backend** escribe un controller. Asi cambia el comportamiento del AI:
+A **Backend** dev writes a controller. Here's how the AI behavior changes:
 
 <table>
 <tr>
-<th>❌ Sin estandarizar</th>
-<th>✅ Con Team AI Kit</th>
+<th>❌ Without standardization</th>
+<th>✅ With Team AI Kit</th>
 </tr>
 <tr>
 <td>
 
 ```typescript
-// Todo en el controller, SQL crudo
+// Everything in the controller, raw SQL
 app.get('/users/:id', async (req, res) => {
   const user = await db.query(
     'SELECT * FROM users WHERE id = $1',
@@ -63,14 +63,14 @@ app.get('/users/:id', async (req, res) => {
 <td>
 
 ```typescript
-// Controller: valida y delega
+// Controller: validates and delegates
 async getById(req: Request, res: Response) {
   const { id } = userIdSchema.parse(req.params);
   const user = await this.service.getById(id);
   res.json(user);
 }
 
-// Service: logica de negocio
+// Service: business logic
 async getById(id: string): Promise<User> {
   const user = await this.repo.findById(id);
   if (!user) throw new NotFoundError('User');
@@ -82,74 +82,92 @@ async getById(id: string): Promise<User> {
 </tr>
 </table>
 
-> 📖 Ejemplos para todos los roles (Frontend, Backend, DevOps, QA/Funcionales): **[docs/examples-by-role.md](docs/examples-by-role.md)**
+> 📖 Detailed examples with code for every role: **[docs/examples-by-role.md](docs/examples-by-role.md)**
 
 ---
 
-## Instalar
+## Why Not Just `.md` Files?
+
+You could copy-paste `.md` files into each project. Here's why that breaks down at scale:
+
+| Challenge | Raw `.md` files | Team AI Kit |
+|-----------|----------------|-------------|
+| **Keeping 10 repos in sync** | Manual copy-paste every time a pattern changes | `team-ai-kit update` — one command, all repos updated |
+| **New team member onboarding** | "Read this wiki, copy these files, set up engram..." | `team-ai-kit setup` — 2 minutes, done |
+| **Role-specific patterns** | Everyone gets everything or you maintain separate folders | Automatic role-based skill selection (8 roles) |
+| **Local customizations** | Overwritten on every sync | Smart merge — your changes are NEVER overwritten |
+| **Memory across sessions** | Lost every time the AI context resets | engram sync via git hooks — automatic, cross-dev |
+| **IDE differences** | Different instruction paths for VS Code, Cursor, IntelliJ, OpenCode | Auto-detected and configured per IDE |
+| **Knowing what's installed** | `ls` and hope for the best | `team-ai-kit status` — role, IDE, skills, versions |
+
+**Team AI Kit is the difference between "we have docs" and "the AI actually follows our patterns."**
+
+---
+
+## Install
 
 ### Windows (Scoop)
 
 ```powershell
-# Instalar Scoop (si no lo tenes): https://scoop.sh
+# Install Scoop (if you don't have it): https://scoop.sh
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
 
-# Instalar team-ai-kit
+# Install team-ai-kit
 scoop bucket add team-ai-kit https://github.com/lazarogadiel93/scoop-bucket
 scoop install team-ai-kit
 team-ai-kit setup
 
-# Actualizar a la ultima version
+# Update to latest version
 scoop update team-ai-kit
 
-# Si Scoop no agarra la ultima version (cache), limpiar y reintentar
+# If Scoop doesn't pick up the latest version (cache), clear and retry
 scoop cache rm team-ai-kit
 scoop update team-ai-kit
 ```
 
-### Windows (sin Scoop -- entornos corporativos)
+### Windows (without Scoop — corporate environments)
 
-En entornos con restricciones de PowerShell (Constrained Language Mode, GPO, AppLocker), Scoop no funciona. Clonar el repo directamente:
+In environments with PowerShell restrictions (Constrained Language Mode, GPO, AppLocker), Scoop won't work. Clone the repo directly:
 
 ```powershell
-# Instalar
+# Install
 git clone https://github.com/lazarogadiel93/team-ai-kit
 cd team-ai-kit
 .\setup.ps1
 
-# Actualizar
+# Update
 cd team-ai-kit
 git pull
 .\setup.ps1
 ```
 
-> **Nota**: `setup.ps1` es un wrapper de bootstrap que solo ejecuta `team-ai-kit setup`. Para los demas comandos (`init`, `update`, `doctor`, etc.) usar `team-ai-kit <comando>` directamente.
+> **Note**: `setup.ps1` is a bootstrap wrapper that only runs `team-ai-kit setup`. For other commands (`init`, `update`, `doctor`, etc.) use `team-ai-kit <command>` directly.
 
-El setup detecta automaticamente que Scoop no esta disponible y descarga `gentle-ai` y `engram` directo desde GitHub Releases. Los binarios se instalan en `%LOCALAPPDATA%\team-ai-kit\bin` y se agregan al PATH.
+The setup automatically detects that Scoop is unavailable and downloads `gentle-ai` and `engram` directly from GitHub Releases. Binaries are installed to `%LOCALAPPDATA%\team-ai-kit\bin` and added to PATH.
 
 ### macOS / Linux
 
 ```bash
-# Instalar Homebrew (si no lo tenes): https://brew.sh
+# Install Homebrew (if you don't have it): https://brew.sh
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
-# Instalar jq (requerido)
+# Install jq (required)
 brew install jq        # macOS
 # sudo apt install jq  # Debian/Ubuntu
 
-# Instalar team-ai-kit
+# Install team-ai-kit
 git clone https://github.com/lazarogadiel93/team-ai-kit
 cd team-ai-kit
 ./setup.sh
 
-# Actualizar a la ultima version
+# Update to latest version
 cd team-ai-kit
 git pull
 ./setup.sh
 ```
 
-### Clonar y ejecutar (desarrollo)
+### Clone and run (development)
 
 ```powershell
 # Windows
@@ -167,73 +185,73 @@ cd team-ai-kit
 
 ---
 
-## Usar
+## Usage
 
 ```
-team-ai-kit setup          # Primera configuracion (skills base a global)
-team-ai-kit init           # Inicializar proyecto (team skills + instructions + hooks)
-team-ai-kit init-knowledge # Crear estructura de un Team Knowledge Repo
-team-ai-kit update         # Pull del team repo + actualizar skills (global + proyecto)
-team-ai-kit sync           # Sincronizar memorias engram manualmente (export + import)
-team-ai-kit status         # Ver config, skills globales y de proyecto
-team-ai-kit doctor         # Verificar que todo este bien
-team-ai-kit uninstall      # Remover team-ai-kit del proyecto actual
+team-ai-kit setup          # First-time configuration (base skills to global)
+team-ai-kit init           # Initialize project (team skills + instructions + hooks)
+team-ai-kit init-knowledge # Create Team Knowledge Repo structure
+team-ai-kit update         # Pull from team repo + update skills (global + project)
+team-ai-kit sync           # Manually sync engram memories (export + import)
+team-ai-kit status         # View config, global and project skills
+team-ai-kit doctor         # Verify everything is set up correctly
+team-ai-kit uninstall      # Remove team-ai-kit from current project
 ```
 
 ### Uninstall
 
-Remueve todos los artefactos de team-ai-kit del proyecto actual:
+Removes all team-ai-kit artifacts from the current project:
 
-- `.team-ai-kit.json` (config del proyecto)
-- Archivo de instrucciones generado (`.github/copilot-instructions.md`, `.cursor/rules/team-ai-kit.md`, `AGENTS.md`)
-- Directorio `team-skills/` con las skills instaladas
-- Bloques de git hooks inyectados (pre-commit, post-merge)
-- Reglas de `.gitattributes` para colapsar diffs de `.engram/` en PRs
-- Manifest global de skills
+- `.team-ai-kit.json` (project config)
+- Generated instructions file (`.github/copilot-instructions.md`, `.cursor/rules/team-ai-kit.md`, `AGENTS.md`)
+- `team-skills/` directory with installed skills
+- Injected git hook blocks (pre-commit, post-merge)
+- `.gitattributes` rules for collapsing `.engram/` diffs in PRs
+- Global skills manifest
 
 ```bash
-team-ai-kit uninstall         # Pide confirmacion antes de borrar
-team-ai-kit uninstall --force # Sin confirmacion (para CI/scripts)
+team-ai-kit uninstall         # Asks for confirmation before deleting
+team-ai-kit uninstall --force # No confirmation (for CI/scripts)
 ```
 
 ### Dry Run
 
-Usa `--dry-run` (bash) o `-DryRun` (PowerShell) para ver que haria cada comando **sin modificar nada**:
+Use `--dry-run` (bash) or `-DryRun` (PowerShell) to see what each command would do **without modifying anything**:
 
 ```bash
-team-ai-kit init --dry-run       # Muestra que archivos crearia
-team-ai-kit update --dry-run     # Muestra que skills/rules actualizaria
-team-ai-kit uninstall --dry-run  # Muestra que archivos borraria
+team-ai-kit init --dry-run       # Shows which files would be created
+team-ai-kit update --dry-run     # Shows which skills/rules would be updated
+team-ai-kit uninstall --dry-run  # Shows which files would be deleted
 ```
 
-> **Nota**: `.engram/` no se borra automaticamente. Si ya no necesitas memory sync, borralo manualmente.
+> **Note**: `.engram/` is not deleted automatically. If you no longer need memory sync, delete it manually.
 
-### Flujo completo
+### Full Workflow
 
 ```powershell
-# 1. Setup global (una sola vez)
+# 1. Global setup (once)
 team-ai-kit setup
 
-# 2. En cada proyecto, inicializar
-cd mi-proyecto
+# 2. Initialize each project
+cd my-project
 team-ai-kit init
 
-# 3. Si el proyecto usa otro rol
-cd mi-api-backend
-team-ai-kit init -Role backend-node   # override sin cambiar el global
+# 3. If a project uses a different role
+cd my-backend-api
+team-ai-kit init -Role backend-node   # override without changing global
 
-# 4. Si el proyecto usa un team repo distinto al global
-cd mi-otro-proyecto
-team-ai-kit init -TeamRepo https://github.com/otro-equipo/knowledge
+# 4. If a project uses a different team repo than the global default
+cd my-other-project
+team-ai-kit init -TeamRepo https://github.com/other-team/knowledge
 ```
 
-### Setup no interactivo
+### Non-Interactive Setup
 
 ```powershell
 # Windows (PowerShell)
 team-ai-kit setup -Ide vscode -Role frontend
 team-ai-kit setup -Ide opencode -Role devops -Provider anthropic
-team-ai-kit setup -Ide vscode -Role frontend -TeamRepo https://dev.azure.com/equipo/team-knowledge
+team-ai-kit setup -Ide vscode -Role frontend -TeamRepo https://dev.azure.com/team/team-knowledge
 ```
 
 ```bash
@@ -245,96 +263,100 @@ team-ai-kit setup --ide vscode --role frontend --team-repo https://github.com/te
 
 ---
 
-## Roles y Skills
+## Roles and Skills
 
-Cada rol recibe **5 skills compartidos** + **2 skills especificos**:
+Each role receives **5 shared skills** + **2-4 role-specific skills** = **23 total skill files**.
 
-### Skills compartidos (todos los roles)
+### Shared Skills (all roles)
 
-| Skill | Que hace | Trigger |
-|-------|----------|---------|
-| 🏗️ **architecture** | Patrones de estructura, modulos, dependencias | Disenar arquitectura |
-| ✨ **code-quality** | Reglas de calidad, convenciones, clean code | Escribir o revisar codigo |
-| 🔍 **debug** | Root cause analysis, narrowing sistematico | Investigar bugs |
-| 🧠 **thinking** | Descomponer problemas, evaluar alternativas | Analizar antes de proponer |
-| ⚡ **performance** | Optimizar bundle, rendering, tokens, queries | Mejorar rendimiento |
+| Skill | What it does | Trigger |
+|-------|-------------|---------|
+| 🏗️ **architecture** | Structure patterns, modules, dependency direction | Designing architecture |
+| ✨ **code-quality** | Quality rules, conventions, clean code | Writing or reviewing code |
+| 🔍 **debug** | Root cause analysis, systematic narrowing | Investigating bugs |
+| 🧠 **thinking** | Problem decomposition, evaluating alternatives | Analyzing before proposing |
+| ⚡ **performance** | Optimize bundle, rendering, queries, caching | Improving performance |
 
-### Skills por rol
+### Role-Specific Skills
 
-| Rol | Skills especificos | Ejemplo de impacto |
-|-----|-------------------|-------------------|
-| **frontend** | react, nextjs | Server Components por defecto, TypeScript estricto, cero `any` |
-| **backend-node** | api-design, testing | Separacion en capas, Zod en el borde, DI para testing |
-| **devops** | cicd, monitoring | Multi-stage Dockerfiles, pipelines fail-fast, logging JSON |
-| **python** | api-design, testing | Estructura de API, testing patterns |
+| Role | Skills | Example Impact |
+|------|--------|---------------|
+| **frontend** | react, nextjs, angular, vue | Server Components by default, strict TypeScript, zero `any` |
+| **backend-node** | api-design, testing | Layered separation, Zod at the boundary, DI for testing |
+| **backend-java** | api-design, testing | Spring Boot patterns, JUnit 5 + Mockito, hexagonal architecture |
+| **backend-dotnet** | api-design, testing | ASP.NET Core minimal APIs, xUnit + NSubstitute, clean architecture |
+| **devops** | cicd, monitoring | Multi-stage Dockerfiles, fail-fast pipelines, structured JSON logging |
+| **python** | api-design, testing | FastAPI structure, pytest fixtures, Pydantic validation |
+| **mobile** | architecture, testing | Feature modules, MVVM/MVI, platform testing patterns |
+| **data** | pipelines, testing | ETL/ELT patterns, data quality, pipeline testing |
 
-> 📖 Ejemplos detallados con codigo para cada rol: **[docs/examples-by-role.md](docs/examples-by-role.md)**
+> 📖 Detailed examples with code for every role: **[docs/examples-by-role.md](docs/examples-by-role.md)**
 
 ---
 
 ## Team Knowledge Repo
 
-Un repo Git centralizado donde el Tech Lead define skills y reglas que **todo el equipo recibe automaticamente**:
+A centralized Git repo where the Tech Lead defines skills and rules that **the whole team receives automatically**:
 
 ```
-team-knowledge/              # Repo mantenido por tech leads
+team-knowledge/              # Repo maintained by tech leads
 ├── skills/
-│   ├── shared/              # Skills para TODOS los roles
+│   ├── shared/              # Skills for ALL roles
 │   │   └── logging/
-│   │       └── SKILL.md     # Estandar de logging del equipo
+│   │       └── SKILL.md     # Team logging standard
 │   └── roles/
 │       └── frontend/
 │           └── design-system/
 │               └── SKILL.md
-└── rules/                   # Reglas cross-proyecto
+└── rules/                   # Cross-project rules
     └── team-conventions.md
 ```
 
 ```powershell
-# Crear el repo del equipo
+# Create the team repo
 mkdir team-knowledge; cd team-knowledge; git init
 team-ai-kit init-knowledge
 
-# Setup con team repo (global default)
-team-ai-kit setup -Ide vscode -Role frontend -TeamRepo https://dev.azure.com/equipo/team-knowledge
+# Setup with team repo (global default)
+team-ai-kit setup -Ide vscode -Role frontend -TeamRepo https://dev.azure.com/team/team-knowledge
 
-# O per-project (si trabajas en equipos distintos)
-cd mi-proyecto
-team-ai-kit init -TeamRepo https://github.com/otro-equipo/knowledge
+# Or per-project (if you work across different teams)
+cd my-project
+team-ai-kit init -TeamRepo https://github.com/other-team/knowledge
 
-# Actualizar cuando el equipo publique cambios (skills + reglas en instructions)
+# Update when the team publishes changes (skills + rules in instructions)
 team-ai-kit update
 ```
 
-**Prioridad de merge** (lo local siempre gana):
+**Merge priority** (local always wins):
 
-1. 🟢 **Customizaciones locales** -- lo que vos modificaste → **nunca se pisa**
-2. 🔵 **Team Knowledge Repo** -- skills del equipo → se agregan si son nuevos
-3. ⚪ **Defaults del package** -- skills base → menor prioridad
+1. 🟢 **Local customizations** — what you modified → **never overwritten**
+2. 🔵 **Team Knowledge Repo** — team skills → added if new
+3. ⚪ **Package defaults** — base skills → lowest priority
 
-> 📖 Guia completa con ejemplo real paso a paso: **[docs/team-knowledge-repo.md](docs/team-knowledge-repo.md)**
-
----
-
-## engram -- Memoria del equipo
-
-Lo que un dev aprende, todo el equipo lo sabe. Automatico, via git hooks:
-
-```
-Dev A resuelve bug → engram save → git push → Dev B hace pull → AI de Dev B ya sabe
-```
-
-El AI recuerda decisiones, bugs resueltos, patrones establecidos -- entre sesiones y entre devs. Sin hacer nada manual.
-
-Para que el AI use engram **proactivamente** (guardar sin que le pidas, buscar contexto previo, hacer resumen al cerrar sesion), team-ai-kit inyecta un **Memory Protocol** en las instrucciones del proyecto. Sin este protocolo, el AI tiene las herramientas pero nunca las usa por su cuenta.
-
-El comando `update` mantiene el protocolo actualizado automaticamente.
-
-> 📖 Como funciona, flujo completo, ejemplo real: **[docs/engram-guide.md](docs/engram-guide.md)**
+> 📖 Complete guide with real step-by-step example: **[docs/team-knowledge-repo.md](docs/team-knowledge-repo.md)**
 
 ---
 
-## Arquitectura
+## engram — Team Memory
+
+What one dev learns, the whole team knows. Automatic, via git hooks:
+
+```
+Dev A fixes bug → engram save → git push → Dev B pulls → Dev B's AI already knows
+```
+
+The AI remembers decisions, fixed bugs, established patterns — across sessions and across devs. No manual effort.
+
+For the AI to use engram **proactively** (save without being asked, search prior context, summarize on session close), team-ai-kit injects a **Memory Protocol** into project instructions. Without this protocol, the AI has the tools but never uses them on its own.
+
+The `update` command keeps the protocol up to date automatically.
+
+> 📖 How it works, full flow, real example: **[docs/engram-guide.md](docs/engram-guide.md)**
+
+---
+
+## Architecture
 
 ```
 +-------------------------------------------+
@@ -352,20 +374,20 @@ El comando `update` mantiene el protocolo actualizado automaticamente.
 +-------------------------------------------+
 ```
 
-Cada proyecto tiene sus propios team skills (diferentes equipos, diferentes stacks). Los skills base son globales y compartidos por todos los proyectos.
+Each project has its own team skills (different teams, different stacks). Base skills are global and shared across all projects.
 
 ---
 
-## Crear un skill
+## Creating a Skill
 
-1. Crear `skills/shared/<nombre>/SKILL.md` (compartido) o `skills/roles/<rol>/<nombre>/SKILL.md` (por rol):
+1. Create `skills/shared/<name>/SKILL.md` (shared) or `skills/roles/<role>/<name>/SKILL.md` (role-specific):
 
 ```markdown
 ---
-name: nombre-del-skill
+name: skill-name
 description: >
-  Que hace este skill.
-  Trigger: Cuando se carga.
+  What this skill does.
+  Trigger: When it should be loaded.
 metadata:
   author: team-ai-kit
   version: "1.0"
@@ -373,35 +395,35 @@ metadata:
 
 ## When to Use
 
-- Situacion 1
-- Situacion 2
+- Situation 1
+- Situation 2
 
 ## Critical Patterns
 
 ### Pattern 1
 
-Explicacion y ejemplos.
+Explanation and examples.
 ```
 
-2. Validar: `Invoke-Pester tests/skills.Tests.ps1 -Output Detailed`
+2. Validate: `Invoke-Pester tests/skills.Tests.ps1 -Output Detailed`
 
-### Crear un rol nuevo
+### Creating a New Role
 
-1. `skills/roles/<nuevo-rol>/` -- 2+ skill files
-2. `packs/<nuevo-rol>/rules.md` -- reglas del rol
-3. Agregar a `VALID_ROLES` en `lib/functions.ps1` y `lib/functions.sh`
-4. Agregar opcion en menus interactivos de `bin/team-ai-kit.ps1` y `bin/team-ai-kit`
+1. `skills/roles/<new-role>/` — 2+ skill files
+2. `packs/<new-role>/rules.md` — role rules
+3. Add to `VALID_ROLES` in `lib/functions.ps1` and `lib/functions.sh`
+4. Add option in interactive menus in `bin/team-ai-kit.ps1` and `bin/team-ai-kit`
 
 ---
 
-## IDEs soportados
+## Supported IDEs
 
-| IDE | gentle-ai | MCP | Notas |
+| IDE | gentle-ai | MCP | Notes |
 |-----|-----------|-----|-------|
-| **VS Code + Copilot** | Nativo | Via gentle-ai | Full support |
-| **IntelliJ + Copilot** | No | Via template MCP | Config MCP manual |
-| **Cursor** | Nativo | Via gentle-ai | Full support |
-| **OpenCode (CLI)** | Nativo | Via gentle-ai | Full support |
+| **VS Code + Copilot** | Native | Via gentle-ai | Full support |
+| **IntelliJ + Copilot** | No | Via template MCP | Manual MCP config |
+| **Cursor** | Native | Via gentle-ai | Full support |
+| **OpenCode (CLI)** | Native | Via gentle-ai | Full support |
 
 ---
 
@@ -411,27 +433,27 @@ Explicacion y ejemplos.
 # Windows: Pester (unit tests)
 Invoke-Pester tests/ -Output Detailed
 
-# macOS/Linux: E2E bash (9 tests)
+# macOS/Linux: E2E bash
 bash tests/e2e-bash.sh
 ```
 
 ---
 
-## Requisitos
+## Requirements
 
 | | Windows | macOS / Linux |
 |-|---------|---------------|
 | **Shell** | PowerShell 5.1+ | Bash 4+ |
-| **Package manager** | Scoop (auto-install) | Homebrew (recomendado) |
-| **JSON** | Built-in | jq (requerido) |
+| **Package manager** | Scoop (auto-install) | Homebrew (recommended) |
+| **JSON** | Built-in | jq (required) |
 | **Hash** | Built-in | sha256sum / shasum |
-| **Git** | Requerido | Requerido |
+| **Git** | Required | Required |
 
-**Dependencias**: [gentle-ai](https://github.com/Gentleman-Programming/gentle-ai), [engram](https://github.com/Gentleman-Programming/engram), [context7](https://context7.com)
+**Dependencies**: [gentle-ai](https://github.com/Gentleman-Programming/gentle-ai), [engram](https://github.com/Gentleman-Programming/engram), [context7](https://context7.com)
 
 ---
 
-## Estructura
+## Project Structure
 
 ```
 team-ai-kit/
@@ -439,23 +461,23 @@ team-ai-kit/
 │   ├── team-ai-kit.ps1           CLI (Windows)
 │   └── team-ai-kit               CLI (macOS/Linux)
 ├── lib/
-│   ├── functions.ps1              Funciones (Windows)
-│   └── functions.sh               Funciones (macOS/Linux)
+│   ├── functions.ps1              Functions (Windows)
+│   └── functions.sh               Functions (macOS/Linux)
 ├── skills/
-│   ├── shared/                    5 skills compartidos
-│   └── roles/                     2 skills por rol
-├── packs/                         Reglas por rol
+│   ├── shared/                    5 shared skills
+│   └── roles/                     2-4 skills per role (8 roles)
+├── packs/                         Rules per role
 ├── templates/                     IntelliJ (MCP config)
 ├── tests/
 │   ├── functions.Tests.ps1        Unit tests (Pester)
 │   ├── skills.Tests.ps1           Skill validation tests (Pester)
 │   └── e2e-bash.sh                E2E tests (bash)
 ├── docs/
-│   ├── examples-by-role.md        Ejemplos detallados por rol
-│   ├── team-knowledge-repo.md     Guia del Team Knowledge Repo
-│   ├── engram-guide.md            Guia de engram
-│   ├── onboarding.md              Guia de onboarding
-│   └── presentation.html          Presentacion visual
+│   ├── examples-by-role.md        Detailed examples per role
+│   ├── team-knowledge-repo.md     Team Knowledge Repo guide
+│   ├── engram-guide.md            engram guide
+│   ├── onboarding.md              Onboarding guide
+│   └── presentation.html          Visual presentation
 ├── scoop/team-ai-kit.json         Scoop manifest
 ├── setup.ps1                      Wrapper Windows
 ├── setup.sh                       Wrapper macOS/Linux
@@ -464,18 +486,18 @@ team-ai-kit/
 
 ---
 
-## Documentacion
+## Documentation
 
-| Documento | Contenido |
-|-----------|-----------|
-| **[Ejemplos por rol](docs/examples-by-role.md)** | Comparaciones antes/despues para Frontend, Backend, DevOps y QA/Funcionales |
-| **[Team Knowledge Repo](docs/team-knowledge-repo.md)** | Como crear y mantener el repo de conocimiento del equipo |
-| **[Guia de engram](docs/engram-guide.md)** | Memoria compartida: como funciona, flujo, ejemplo real |
-| **[Guia de onboarding](docs/onboarding.md)** | Paso a paso para nuevos integrantes del equipo |
-| **[Presentacion](docs/presentation.html)** | Presentacion visual de la herramienta |
+| Document | Content |
+|----------|---------|
+| **[Examples per role](docs/examples-by-role.md)** | Before/after comparisons for all 8 roles |
+| **[Team Knowledge Repo](docs/team-knowledge-repo.md)** | How to create and maintain the team knowledge repo |
+| **[engram guide](docs/engram-guide.md)** | Shared memory: how it works, flow, real example |
+| **[Onboarding guide](docs/onboarding.md)** | Step by step for new team members |
+| **[Presentation](docs/presentation.html)** | Visual presentation of the tool |
 
 ---
 
-## Licencia
+## License
 
 MIT
