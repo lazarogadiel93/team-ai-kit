@@ -113,6 +113,7 @@ show_help() {
     echo "    --role <role>              Override global role for this project"
     echo "    --force                    Re-initialize without asking"
     echo "    --dry-run                  Preview changes without writing to disk"
+    echo "    --update                   Update already-installed tools during setup"
     echo ""
     echo -e "  ${C_YELLOW}Examples:${C_RESET}"
     echo "    team-ai-kit setup"
@@ -152,6 +153,30 @@ cmd_setup() {
 
         # -- gentle-ai --
         if test_gentle_ai_installed; then
+            if [[ "$OPT_UPDATE" == "true" ]]; then
+                if test_brew_installed; then
+                    step "Updating gentle-ai via Homebrew..."
+                    local brew_output="" brew_exit=0
+                    brew_output=$(brew upgrade gentle-ai 2>&1) || brew_exit=$?
+                    if echo "$brew_output" | grep -qi "already up-to-date\|already installed"; then
+                        ok "gentle-ai already at latest version"
+                    elif [[ $brew_exit -eq 0 ]]; then
+                        ok "gentle-ai updated"
+                    else
+                        warn "Failed to update gentle-ai via Homebrew -- continuing with current version"
+                    fi
+                else
+                    step "Updating gentle-ai via direct download..."
+                    local dl_result=""
+                    if dl_result=$(install_github_release_binary "Gentleman-Programming" "gentle-ai" "gentle-ai"); then
+                        local dl_version=""
+                        dl_version=$(echo "$dl_result" | jq -r '.version' 2>/dev/null)
+                        ok "gentle-ai updated${dl_version:+ to $dl_version}"
+                    else
+                        warn "Failed to update gentle-ai -- continuing with current version"
+                    fi
+                fi
+            fi
             ok "gentle-ai available"
         elif test_brew_installed; then
             step "Installing gentle-ai via Homebrew..."
@@ -186,6 +211,30 @@ cmd_setup() {
 
         # -- engram --
         if test_engram_installed; then
+            if [[ "$OPT_UPDATE" == "true" ]]; then
+                if test_brew_installed; then
+                    step "Updating engram via Homebrew..."
+                    local brew_output="" brew_exit=0
+                    brew_output=$(brew upgrade engram 2>&1) || brew_exit=$?
+                    if echo "$brew_output" | grep -qi "already up-to-date\|already installed"; then
+                        ok "engram already at latest version"
+                    elif [[ $brew_exit -eq 0 ]]; then
+                        ok "engram updated"
+                    else
+                        warn "Failed to update engram via Homebrew -- continuing with current version"
+                    fi
+                else
+                    step "Updating engram via direct download..."
+                    local dl_result=""
+                    if dl_result=$(install_github_release_binary "Gentleman-Programming" "engram" "engram"); then
+                        local dl_version=""
+                        dl_version=$(echo "$dl_result" | jq -r '.version' 2>/dev/null)
+                        ok "engram updated${dl_version:+ to $dl_version}"
+                    else
+                        warn "Failed to update engram -- continuing with current version"
+                    fi
+                fi
+            fi
             ok "engram available"
         else
             step "Installing engram..."
@@ -1293,6 +1342,7 @@ SKIP_PREREQUISITES="false"
 SKIP_GENTLE_AI="false"
 OPT_FORCE="false"
 OPT_DRY_RUN="false"
+OPT_UPDATE="false"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -1315,6 +1365,7 @@ while [[ $# -gt 0 ]]; do
         --skip-gentle-ai)    SKIP_GENTLE_AI="true"; shift ;;
         --force)             OPT_FORCE="true"; shift ;;
         --dry-run)           OPT_DRY_RUN="true"; shift ;;
+        --update)            OPT_UPDATE="true"; shift ;;
         *)
             err "Unknown option: $1"
             echo '  Run "team-ai-kit help" for usage.'
