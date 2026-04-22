@@ -2102,12 +2102,8 @@ function Invoke-Uninstall {
         }
     }
 
-    # Remove global manifest
-    $manifestPath = Get-SkillManifestPath
-    if (Test-Path $manifestPath) {
-        Remove-Item $manifestPath -Force
-        $removed++
-    }
+    # Note: global manifest (~/.team-ai-kit/manifest.json) is intentionally
+    # preserved to avoid breaking skill tracking for other projects.
 
     return @{ removed = $removed }
 }
