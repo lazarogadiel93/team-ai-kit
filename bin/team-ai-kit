@@ -387,15 +387,6 @@ cmd_setup() {
     total_updated=$(echo "$merge_json" | jq -r '.updated')
     total_skipped=$(echo "$merge_json" | jq -r '.skipped')
     ok "$total_installed installed, $total_updated updated, $total_skipped unchanged"
-
-    # 5c. Generate project-level instructions
-    local pack_rules_content=""
-    local pack_rules_path=""
-    pack_rules_path=$(get_pack_rules_path "$KIT_ROOT" "$OPT_ROLE" 2>/dev/null) || true
-    if [[ -n "$pack_rules_path" ]]; then
-        pack_rules_content=$(cat "$pack_rules_path")
-    fi
-    ok "Project instructions generated for role: $OPT_ROLE"
     step "Run 'team-ai-kit init' in each project to apply instructions"
 
     # -- Save config -----------------------------------------------------------
@@ -451,6 +442,7 @@ cmd_setup() {
 # -- Init (project-level) -----------------------------------------------------
 cmd_init() {
     show_banner
+    _require_jq || exit 1
     local project_root
     project_root=$(pwd)
 
@@ -636,7 +628,7 @@ cmd_init() {
         fi
         if echo "$hooks_json" | jq -e '.skipped | index("not-a-git-repo")' >/dev/null 2>&1; then
             warn "Not a git repo -- hooks skipped"
-        elif [[ -n "$hooks_skipped_list" && "$hooks_skipped_list" != "" ]]; then
+        elif [[ -n "$hooks_skipped_list" ]]; then
             step "Git hooks already present: $hooks_skipped_list"
         fi
 
@@ -705,6 +697,7 @@ cmd_init() {
 # -- Init Knowledge (scaffold team knowledge repo) ----------------------------
 cmd_init_knowledge() {
     show_banner
+    _require_jq || exit 1
     local target_dir
     target_dir=$(pwd)
 
@@ -750,9 +743,9 @@ cmd_init_knowledge() {
 # -- Sync (manual engram sync) -------------------------------------------------
 cmd_sync() {
     show_banner
+    _require_jq || exit 1
     local project_root
     project_root=$(pwd)
-
     # Check project config for project name
     local project_name=""
     if test_project_initialized "$project_root"; then
@@ -798,6 +791,7 @@ cmd_sync() {
 # -- Update --------------------------------------------------------------------
 cmd_update() {
     show_banner
+    _require_jq || exit 1
     local config_ide config_role
     config_ide=$(get_config_value "ide")
     config_role=$(get_config_value "role")
@@ -995,6 +989,7 @@ cmd_update() {
 # -- Status --------------------------------------------------------------------
 cmd_status() {
     show_banner
+    _require_jq || exit 1
     local config_ide config_role config_provider config_team config_installed config_update config_version
     config_ide=$(get_config_value "ide")
     config_role=$(get_config_value "role")
@@ -1102,6 +1097,7 @@ cmd_status() {
 # -- Doctor --------------------------------------------------------------------
 cmd_doctor() {
     show_banner
+    _require_jq || exit 1
     echo -e "  ${C_WHITE}Checking installation health...${C_RESET}"
     echo ""
 
@@ -1194,9 +1190,9 @@ cmd_doctor() {
 # -- Uninstall -----------------------------------------------------------------
 cmd_uninstall() {
     show_banner
+    _require_jq || exit 1
     local project_root
     project_root=$(pwd)
-
     if ! test_project_initialized "$project_root"; then
         err "No team-ai-kit project found in this directory."
         echo "  Run this command from a project that was initialized with 'team-ai-kit init'."

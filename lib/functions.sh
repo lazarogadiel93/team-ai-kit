@@ -11,11 +11,19 @@ set -euo pipefail
 VALID_IDES=("vscode" "intellij" "opencode" "cursor")
 VALID_ROLES=("frontend" "backend-node" "backend-java" "backend-dotnet" "devops" "python" "mobile" "data")
 VALID_PROVIDERS=("openai" "azure-openai" "anthropic" "github-copilot")
-VALID_COMMANDS=("setup" "init" "init-knowledge" "sync" "update" "status" "doctor" "help")
+VALID_COMMANDS=("setup" "init" "init-knowledge" "sync" "update" "uninstall" "status" "doctor" "help")
 
 # -- Helpers -------------------------------------------------------------------
 
 _lowercase() { echo "$1" | tr '[:upper:]' '[:lower:]'; }
+
+_require_jq() {
+    # Validates that jq is installed before commands that depend on it.
+    if ! command -v jq &>/dev/null; then
+        echo "Error: 'jq' is required but not installed. Install it: brew install jq (macOS) or apt install jq (Linux)." >&2
+        return 1
+    fi
+}
 
 _sanitize_project_name() {
     # Strips unsafe characters from project name to prevent shell injection in git hooks.
