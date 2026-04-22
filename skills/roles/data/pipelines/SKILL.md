@@ -31,7 +31,7 @@ transformation pipelines. Each step returns a **new** DataFrame, making the flow
 and debuggable.
 
 ```python
-# ❌ BAD: imperative mutations scattered across lines
+# ❌ BAD — imperative mutations scattered across lines
 df["revenue_usd"] = df["revenue"] * df["exchange_rate"]
 df = df[df["revenue_usd"] > 0]
 df["log_revenue"] = np.log1p(df["revenue_usd"])
@@ -40,7 +40,7 @@ df = df.sort_values("log_revenue", ascending=False)
 ```
 
 ```python
-# ✅ GOOD: method chaining: each step is a pure transformation
+# ✅ GOOD — method chaining: each step is a pure transformation
 def compute_log_revenue(df: pd.DataFrame) -> pd.DataFrame:
     """Custom transform compatible with .pipe()."""
     return df.assign(log_revenue=lambda d: np.log1p(d["revenue_usd"]))
@@ -58,7 +58,7 @@ clean_df = (
 
 **Key rules:**
 - Wrap the entire chain in parentheses for multi-line readability.
-- Use `assign` for new/derived columns: it returns a new DataFrame.
+- Use `assign` for new/derived columns — it returns a new DataFrame.
 - Use `pipe` to inject custom functions into the chain without breaking the flow.
 - Use `query` instead of boolean indexing (`df[df["col"] > 0]`) inside chains.
 - Every function passed to `pipe` MUST accept a DataFrame and return a DataFrame.
@@ -72,7 +72,7 @@ Separate numeric and categorical preprocessing into sub-pipelines, combine them 
 guarantees identical transformations at train and inference time.
 
 ```python
-# ❌ BAD: manual, fragile, order-dependent preprocessing
+# ❌ BAD — manual, fragile, order-dependent preprocessing
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.impute import SimpleImputer
 
@@ -87,11 +87,11 @@ X_test[num_cols] = scaler.transform(X_test[num_cols])
 encoder = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
 X_train_cat = encoder.fit_transform(X_train[cat_cols])
 X_test_cat = encoder.transform(X_test[cat_cols])
-# Easy to forget a step or apply fit_transform on test data: data leakage
+# Easy to forget a step or apply fit_transform on test data — data leakage
 ```
 
 ```python
-# ✅ GOOD: declarative Pipeline + ColumnTransformer
+# ✅ GOOD — declarative Pipeline + ColumnTransformer
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.impute import SimpleImputer
@@ -121,17 +121,17 @@ model = Pipeline([
     ("classifier", RandomForestClassifier(n_estimators=200, random_state=42)),
 ])
 
-# Single call: no leakage possible
+# Single call — no leakage possible
 model.fit(X_train, y_train)
 predictions = model.predict(X_test)
 ```
 
 **Key rules:**
 - Define feature lists (`NUM_FEATURES`, `CAT_FEATURES`) as module-level constants.
-- Never call `fit_transform` on test/validation data: the Pipeline handles this.
+- Never call `fit_transform` on test/validation data — the Pipeline handles this.
 - Use `handle_unknown="ignore"` in `OneHotEncoder` to survive unseen categories at inference.
 - Use `Pipeline` (not `make_pipeline`) when you need named steps for grid search: `"classifier__n_estimators"`.
-- The entire pipeline is serializable with `joblib`: ship it as one artifact.
+- The entire pipeline is serializable with `joblib` — ship it as one artifact.
 
 ---
 
@@ -142,7 +142,7 @@ Define explicit contracts for your data at pipeline boundaries. Use `DataFrameMo
 automatic runtime validation on function inputs and outputs.
 
 ```python
-# ❌ BAD: ad-hoc assertions that miss edge cases and are hard to maintain
+# ❌ BAD — ad-hoc assertions that miss edge cases and are hard to maintain
 assert df["age"].dtype == int
 assert df["age"].min() >= 0
 assert df["email"].str.contains("@").all()
@@ -151,7 +151,7 @@ assert set(df.columns) == {"age", "email", "score"}
 ```
 
 ```python
-# ✅ GOOD: pandera DataFrameModel with typed fields and reusable checks
+# ✅ GOOD — pandera DataFrameModel with typed fields and reusable checks
 import pandera.pandas as pa
 from pandera.typing import Series, DataFrame
 
@@ -169,7 +169,7 @@ class ScoredUserSchema(UserSchema):
 
 @pa.check_types
 def enrich_users(df: DataFrame[UserSchema]) -> DataFrame[ScoredUserSchema]:
-    """Validated input AND output: contract enforced at runtime."""
+    """Validated input AND output — contract enforced at runtime."""
     return df.assign(
         risk_label=lambda d: pd.cut(
             d["score"], bins=[0, 0.33, 0.66, 1.0], labels=["low", "medium", "high"]
@@ -183,7 +183,7 @@ result = enrich_users(raw_df)
 **Key rules:**
 - Prefer `DataFrameModel` (class-based) over `DataFrameSchema` (dict-based) for type safety.
 - Use `coerce=True` to auto-cast columns before checking (e.g., `"123"` to `123`).
-- Use `strict=True` to reject unexpected columns: catches schema drift early.
+- Use `strict=True` to reject unexpected columns — catches schema drift early.
 - Use `@pa.check_types` on every function at a pipeline boundary (ingestion, transformation, export).
 - Inherit schemas (`ScoredUserSchema(UserSchema)`) to extend contracts without duplication.
 
@@ -195,7 +195,7 @@ Wrap every training run in `mlflow.start_run()`, log parameters, metrics (with s
 and the final model. This makes every experiment reproducible and comparable.
 
 ```python
-# ❌ BAD: results printed to console, lost after the session
+# ❌ BAD — results printed to console, lost after the session
 model = RandomForestClassifier(n_estimators=200, max_depth=10)
 model.fit(X_train, y_train)
 print(f"Accuracy: {model.score(X_test, y_test)}")
@@ -203,7 +203,7 @@ print(f"Accuracy: {model.score(X_test, y_test)}")
 ```
 
 ```python
-# ✅ GOOD: structured experiment tracking with MLflow
+# ✅ GOOD — structured experiment tracking with MLflow
 import mlflow
 from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
 
@@ -236,7 +236,7 @@ with mlflow.start_run(run_name="rf-baseline") as run:
     }
     mlflow.log_metrics(metrics)
 
-    # Log the model artifact: includes conda env and signature
+    # Log the model artifact — includes conda env and signature
     mlflow.sklearn.log_model(
         sk_model=model,
         artifact_path="model",
@@ -248,11 +248,11 @@ with mlflow.start_run(run_name="rf-baseline") as run:
 ```
 
 **Key rules:**
-- Always use `mlflow.start_run()` as a context manager: guarantees the run is closed.
+- Always use `mlflow.start_run()` as a context manager — guarantees the run is closed.
 - Use `log_params` (plural) to log a dict of hyperparameters in one call.
 - Use `log_metrics` (plural) to log all evaluation metrics together.
 - Use `set_tag` for metadata not related to model performance (dataset version, author, etc.).
-- Pass `input_example` to `log_model`: enables signature inference and serving validation.
+- Pass `input_example` to `log_model` — enables signature inference and serving validation.
 - For iterative training (deep learning), use `log_metric("loss", value, step=epoch)`.
 - For scikit-learn specifically, consider `mlflow.sklearn.autolog()` as a complementary tool.
 
@@ -266,7 +266,7 @@ In-place mutation makes pipelines fragile, non-deterministic, and impossible to 
 A function that modifies its input silently corrupts upstream references.
 
 ```python
-# ❌ DANGEROUS: in-place mutation
+# ❌ DANGEROUS — in-place mutation
 def prepare_features(df: pd.DataFrame) -> pd.DataFrame:
     df["age_bucket"] = pd.cut(df["age"], bins=[0, 18, 35, 65, 120])
     df.drop(columns=["raw_timestamp"], inplace=True)
@@ -275,11 +275,11 @@ def prepare_features(df: pd.DataFrame) -> pd.DataFrame:
 
 # Caller's original DataFrame is now silently modified
 clean = prepare_features(raw_df)
-# raw_df has ALSO been mutated: "raw_timestamp" is gone
+# raw_df has ALSO been mutated — "raw_timestamp" is gone
 ```
 
 ```python
-# ✅ SAFE: method chaining returns new DataFrames
+# ✅ SAFE — method chaining returns new DataFrames
 def prepare_features(df: pd.DataFrame) -> pd.DataFrame:
     return (
         df
@@ -304,7 +304,7 @@ Scattering magic numbers across training scripts makes experiments unreproducibl
 comparison impossible.
 
 ```python
-# ❌ FRAGILE: hyperparameters buried in code
+# ❌ FRAGILE — hyperparameters buried in code
 model = GradientBoostingClassifier(
     n_estimators=150,
     learning_rate=0.05,
@@ -316,7 +316,7 @@ model.fit(X_train, y_train)
 ```
 
 ```python
-# ✅ TRACEABLE: config dict + MLflow tracking
+# ✅ TRACEABLE — config dict + MLflow tracking
 from dataclasses import dataclass, asdict
 
 @dataclass(frozen=True)

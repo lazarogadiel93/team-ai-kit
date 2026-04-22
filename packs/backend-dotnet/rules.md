@@ -20,7 +20,7 @@
 - Always validate input with FluentValidation or Data Annotations
 - Use middleware for cross-cutting concerns (logging, auth, error handling)
 
-### Testing
+## Testing
 
 - Every service method must have a unit test
 - Use `WebApplicationFactory<Program>` for integration tests
@@ -28,7 +28,7 @@
 - Use FluentAssertions for readable assertions
 - Use Testcontainers for database integration tests when needed
 
-### Naming
+## Naming
 
 - Controllers: `*Controller.cs`
 - Services: `I*Service.cs` (interface) + `*Service.cs`

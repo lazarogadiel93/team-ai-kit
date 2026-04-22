@@ -19,14 +19,14 @@
 - Handle keyboard avoidance, safe areas, and gesture conflicts
 - Test on both iOS and Android before merging
 
-### Testing
+## Testing
 
 - Use React Native Testing Library (RNTL) for component tests
 - Mock native modules with `jest.mock()` in setup files
 - Avoid snapshot tests — prefer behavioral assertions
 - Use Detox or Maestro for E2E testing
 
-### Naming
+## Naming
 
 - Screens: `*Screen.tsx` in `app/` or `screens/`
 - Components: PascalCase in `components/`

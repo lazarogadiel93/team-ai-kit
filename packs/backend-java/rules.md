@@ -20,14 +20,14 @@
 - Always validate input with Jakarta Bean Validation (`@Valid`)
 - Use `@ControllerAdvice` for centralized error handling
 
-### Testing
+## Testing
 
 - Every service method must have a unit test
 - Use `@SpringBootTest` only for integration tests — prefer plain JUnit 5 + Mockito for unit tests
 - Use Testcontainers for database integration tests
 - Use AssertJ for fluent, readable assertions
 
-### Naming
+## Naming
 
 - Controllers: `*Controller.java`
 - Services: `*Service.java` (interface) + `*ServiceImpl.java`

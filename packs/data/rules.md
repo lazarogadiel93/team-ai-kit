@@ -19,14 +19,14 @@
 - Type-hint all function signatures
 - Use `logging` module — never `print()` in production code
 
-### Testing
+## Testing
 
 - Test data transformations with known input/output pairs
 - Validate data schemas with pandera or Great Expectations
 - Assert model metrics stay above defined thresholds (regression tests)
 - Use pytest fixtures for sample DataFrames
 
-### Naming
+## Naming
 
 - Modules: `snake_case.py`
 - Pipelines: `*_pipeline.py`
