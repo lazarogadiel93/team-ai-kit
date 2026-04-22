@@ -471,7 +471,7 @@ team-ai-kit/
 ├── tests/
 │   ├── functions.Tests.ps1        Unit tests (Pester)
 │   ├── skills.Tests.ps1           Skill validation tests (Pester)
-│   ├── functions-bash.sh           Unit tests (bash)
+│   ├── functions-bash.sh          Unit tests (bash)
 │   └── e2e-bash.sh                E2E tests (bash)
 ├── docs/
 │   ├── examples-by-role.md        Detailed examples per role
