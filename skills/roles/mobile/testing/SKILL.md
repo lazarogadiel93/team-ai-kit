@@ -26,7 +26,7 @@ metadata:
 
 ## Critical Patterns
 
-### 1. Component Testing with RNTL (render, screen, userEvent)
+### Pattern 1: Component Testing with RNTL (render, screen, userEvent)
 
 Use `@testing-library/react-native` with **userEvent** for realistic interactions.
 Query by **role first**, then label, then text. Avoid testID when an accessible query exists.
@@ -81,7 +81,7 @@ test('submits login form with valid credentials', async () => {
 
 ---
 
-### 2. Mocking Native Modules in jest.setup.ts
+### Pattern 2: Mocking Native Modules in jest.setup.ts
 
 Native modules crash under Jest because there is no bridge. Mock them in a central
 setup file referenced by `setupFiles` in your Jest config.
@@ -156,7 +156,7 @@ jest.mock('expo-location', () => ({
 
 ---
 
-### 3. Testing Navigation (mocking useNavigation / useRouter)
+### Pattern 3: Testing Navigation (mocking useNavigation / useRouter)
 
 Navigation tests should verify that the correct **route** is called, not that the
 navigator renders. Mock the hook, not the entire library.
@@ -238,7 +238,7 @@ test('pushes to profile screen', async () => {
 
 ---
 
-### 4. E2E Testing with Detox (device, element, expect)
+### Pattern 4: E2E Testing with Detox (device, element, expect)
 
 Detox tests run on a real simulator/emulator. They use `element()`, `by.*` matchers,
 actions (`.tap()`, `.typeText()`), and `expect()` assertions.
@@ -299,7 +299,7 @@ describe('Login flow', () => {
 
 ## Anti-Patterns
 
-### 1. Snapshot Tests for Behavior Verification
+### Anti-Pattern 1: Snapshot Tests for Behavior Verification
 
 Snapshot tests capture rendered output as a string. They are useful for detecting
 **unintentional UI changes** but tell you nothing about **behavior**.
@@ -331,7 +331,7 @@ of service screen) against accidental changes. Never as the only test for a comp
 
 ---
 
-### 2. Testing Implementation Details (testID Over Accessible Queries)
+### Anti-Pattern 2: Testing Implementation Details (testID Over Accessible Queries)
 
 Querying by `testID` when an accessible role or label exists couples tests to
 implementation rather than user-visible behavior.

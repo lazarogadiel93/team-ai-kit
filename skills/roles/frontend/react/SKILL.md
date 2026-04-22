@@ -434,7 +434,7 @@ export function Select<T>({ items, value, onChange, getLabel, getKey }: SelectPr
 
 ## Anti-Patterns
 
-### Don't: Side effects during render
+### Anti-Pattern 1: Side effects during render
 
 ```typescript
 // ❌ BAD — runs on every render, blocks paint
@@ -452,7 +452,7 @@ export function List({ items }: ListProps) {
 }
 ```
 
-### Don't: Components with too many responsibilities
+### Anti-Pattern 2: Components with too many responsibilities
 
 ```typescript
 // ❌ BAD — fetches, parses, validates, and renders all in one (200+ lines)
@@ -465,7 +465,7 @@ export function UserDashboard() {
 }
 ```
 
-### Don't: Array index as key for dynamic lists
+### Anti-Pattern 3: Array index as key for dynamic lists
 
 ```typescript
 // ❌ BAD — index keys break state when items reorder or delete
@@ -475,7 +475,7 @@ export function UserDashboard() {
 {items.map(item => <TodoItem key={item.id} item={item} />)}
 ```
 
-### Don't: Derive state that can be computed
+### Anti-Pattern 4: Derive state that can be computed
 
 ```typescript
 // ❌ BAD — syncing derived state with useEffect
@@ -509,7 +509,7 @@ const filteredItems = items.filter(i => i.active)
 | Error Boundary             | Catch render errors — wrap per independent section    |
 | React.lazy                 | Code split heavy/conditional components               |
 | key prop reset             | Force remount when identity changes (e.g. chat ID)    |
-| forwardRef                 | Reusable primitives that expose DOM ref               |
+| forwardRef                 | Reusable primitives that expose DOM ref (pre-React 19; React 19+ uses ref as prop directly) |
 | useMemo                    | Expensive computations — profile first                |
 | useCallback                | Stable ref for memoized children — profile first      |
 | Generic components         | Reusable UI that works with multiple data types       |

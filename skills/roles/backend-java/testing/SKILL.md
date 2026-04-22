@@ -12,8 +12,6 @@ metadata:
   version: "1.0"
 ---
 
-# Backend Java — Testing
-
 ## When to Use
 
 - Writing unit tests for services or domain logic with JUnit 5 + Mockito

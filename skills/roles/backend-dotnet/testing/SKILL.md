@@ -12,8 +12,6 @@ metadata:
   version: "1.0"
 ---
 
-# Backend .NET — Testing
-
 ## When to Use
 
 Load this skill when:

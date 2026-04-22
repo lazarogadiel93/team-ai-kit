@@ -439,7 +439,7 @@ async def test_welcome_email_sent_after_registration(client, sample_user):
 
 ## Anti-Patterns
 
-### Don't: Tests that depend on execution order
+### Anti-Pattern 1: Tests that depend on execution order
 
 ```python
 # ❌ BAD — test_b depends on test_a having run first
@@ -460,7 +460,7 @@ async def test_get_user(client, sample_user):
     assert response.status_code == 200
 ```
 
-### Don't: Test implementation details
+### Anti-Pattern 2: Test implementation details
 
 ```python
 # ❌ BAD — asserting on internal method calls
@@ -475,7 +475,7 @@ async def test_register_creates_user(client, sample_user):
     assert response.json()["email"] == sample_user["email"]
 ```
 
-### Don't: Ignore test isolation
+### Anti-Pattern 3: Ignore test isolation
 
 ```python
 # ❌ BAD — shared mutable state between tests

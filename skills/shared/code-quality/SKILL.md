@@ -337,7 +337,7 @@ class UserRepository:
 
 ## Anti-Patterns
 
-### Don't: Non-null Assertions Without Context
+### Anti-Pattern 1: Non-null Assertions Without Context
 
 ```typescript
 // ❌ BAD
@@ -348,7 +348,7 @@ const value = map.get(key);
 if (!value) throw new Error(`Key not found: ${key}`);
 ```
 
-### Don't: Swallow Errors Silently
+### Anti-Pattern 2: Swallow Errors Silently
 
 ```python
 # ❌ BAD
@@ -365,7 +365,7 @@ except PaymentError as e:
     raise
 ```
 
-### Don't: Boolean Parameters That Change Behavior
+### Anti-Pattern 3: Boolean Parameters That Change Behavior
 
 ```java
 // ❌ BAD — what does `true` mean here?
@@ -379,7 +379,7 @@ generateReport(data, new ReportOptions(
 ));
 ```
 
-### Don't: Magic Numbers and Strings
+### Anti-Pattern 4: Magic Numbers and Strings
 
 ```go
 // ❌ BAD

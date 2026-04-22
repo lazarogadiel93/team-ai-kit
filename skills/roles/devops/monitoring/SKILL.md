@@ -359,7 +359,7 @@ async function callDownstream(url: string) {
 
 ## Anti-Patterns
 
-### Don't: Log Sensitive Data
+### Anti-Pattern 1: Log Sensitive Data
 
 ```typescript
 // ❌ BAD — leaks credentials into log aggregator
@@ -369,7 +369,7 @@ logger.info({ password: user.password, token }, 'Auth attempt')
 logger.info({ userId: user.id, hasToken: !!token }, 'Auth attempt')
 ```
 
-### Don't: Use String Interpolation in Log Messages
+### Anti-Pattern 2: Use String Interpolation in Log Messages
 
 ```typescript
 // ❌ BAD — prevents log aggregation (every message is unique)
@@ -379,7 +379,7 @@ logger.info(`User ${userId} placed order ${orderId}`)
 logger.info({ userId, orderId }, 'Order placed')
 ```
 
-### Don't: High-Cardinality Labels
+### Anti-Pattern 3: High-Cardinality Labels
 
 ```typescript
 // ❌ BAD — userId as label creates millions of time series, kills Prometheus
@@ -395,7 +395,7 @@ const counter = new Counter({
 })
 ```
 
-### Don't: Alert on Symptoms Without Context
+### Anti-Pattern 4: Alert on Symptoms Without Context
 
 ```
 ❌ BAD: Alert on "disk usage > 80%" with no follow-up
@@ -403,7 +403,7 @@ const counter = new Counter({
          with a runbook link explaining how to expand or clean up
 ```
 
-### Don't: Ignore Log Correlation
+### Anti-Pattern 5: Ignore Log Correlation
 
 ```typescript
 // ❌ BAD — logs from different services can't be correlated

@@ -229,7 +229,7 @@ Start by reviewing those changes.
 
 ## Anti-Patterns
 
-### Don't: Jump Straight to Code
+### Anti-Pattern 1: Jump Straight to Code
 
 ```
 ❌ User: "I need authentication"
@@ -241,7 +241,7 @@ Start by reviewing those changes.
            Do you need role-based access?"
 ```
 
-### Don't: Abstract Prematurely
+### Anti-Pattern 2: Abstract Prematurely
 
 ```
 ❌ Create BaseRepository<T> when you only have one use case
@@ -249,7 +249,7 @@ Start by reviewing those changes.
 ✅ Implement directly. Extract an abstraction at the second real case.
 ```
 
-### Don't: Confuse Effort with Progress
+### Anti-Pattern 3: Confuse Effort with Progress
 
 ```
 ❌ "I spent 3 days building a perfect config system"
@@ -258,7 +258,7 @@ Start by reviewing those changes.
 ✅ Start with hardcoded values → extract config when needed
 ```
 
-### Don't: Optimize for the Wrong Audience
+### Anti-Pattern 4: Optimize for the Wrong Audience
 
 ```
 ❌ "This architecture will support 10 million users"
@@ -268,7 +268,7 @@ Start by reviewing those changes.
    You'll rewrite before you hit 10M anyway.
 ```
 
-### Don't: Ignore the "Do Nothing" Option
+### Anti-Pattern 5: Ignore the "Do Nothing" Option
 
 ```
 ❌ "We need to migrate from REST to GraphQL"

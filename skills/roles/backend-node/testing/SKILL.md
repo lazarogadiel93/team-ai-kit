@@ -415,7 +415,7 @@ describe('User API Contract', () => {
 
 ## Anti-Patterns
 
-### Don't: Test Everything Through the HTTP Layer
+### Anti-Pattern 1: Test Everything Through the HTTP Layer
 
 ```typescript
 // ❌ BAD — testing business logic via HTTP (slow, brittle)
@@ -431,7 +431,7 @@ it('should reject password shorter than 8 chars', () => {
 })
 ```
 
-### Don't: Share Mutable State Across Tests
+### Anti-Pattern 2: Share Mutable State Across Tests
 
 ```typescript
 // ❌ BAD — shared mutable state causes flaky tests
@@ -461,7 +461,7 @@ it('test 2', async () => {
 })
 ```
 
-### Don't: Skip Error Path Tests
+### Anti-Pattern 3: Skip Error Path Tests
 
 ```typescript
 // ❌ BAD — only testing the happy path

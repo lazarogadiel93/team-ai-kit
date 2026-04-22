@@ -24,7 +24,7 @@ Load this skill when:
 
 ## Critical Patterns
 
-### Pattern 1 — Pandas Method Chaining for Readable Transformations
+### Pattern 1: Pandas Method Chaining for Readable Transformations
 
 Use `assign`, `pipe`, `query`, and other chainable methods to build linear, readable
 transformation pipelines. Each step returns a **new** DataFrame, making the flow explicit
@@ -65,7 +65,7 @@ clean_df = (
 
 ---
 
-### Pattern 2 — scikit-learn Pipeline + ColumnTransformer for Reproducible Preprocessing
+### Pattern 2: scikit-learn Pipeline + ColumnTransformer for Reproducible Preprocessing
 
 Separate numeric and categorical preprocessing into sub-pipelines, combine them with
 `ColumnTransformer`, then chain the result with an estimator via `Pipeline`. This
@@ -135,7 +135,7 @@ predictions = model.predict(X_test)
 
 ---
 
-### Pattern 3 — Data Validation with Pandera Schemas
+### Pattern 3: Data Validation with Pandera Schemas
 
 Define explicit contracts for your data at pipeline boundaries. Use `DataFrameModel`
 (class-based API) for type-annotated schemas and the `@check_types` decorator for
@@ -189,7 +189,7 @@ result = enrich_users(raw_df)
 
 ---
 
-### Pattern 4 — Experiment Tracking with MLflow
+### Pattern 4: Experiment Tracking with MLflow
 
 Wrap every training run in `mlflow.start_run()`, log parameters, metrics (with step),
 and the final model. This makes every experiment reproducible and comparable.
@@ -260,7 +260,7 @@ with mlflow.start_run(run_name="rf-baseline") as run:
 
 ## Anti-Patterns
 
-### Anti-Pattern 1 — Mutating DataFrames In-Place
+### Anti-Pattern 1: Mutating DataFrames In-Place
 
 In-place mutation makes pipelines fragile, non-deterministic, and impossible to debug.
 A function that modifies its input silently corrupts upstream references.
@@ -298,7 +298,7 @@ in the other. Method chaining with immutable returns makes data flow explicit an
 
 ---
 
-### Anti-Pattern 2 — Hardcoding Hyperparameters
+### Anti-Pattern 2: Hardcoding Hyperparameters
 
 Scattering magic numbers across training scripts makes experiments unreproducible and
 comparison impossible.
