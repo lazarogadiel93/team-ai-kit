@@ -93,7 +93,9 @@ _version_lt() {
     local v1="$1" v2="$2"
     if [[ "$v1" == "$v2" ]]; then return 1; fi
     local IFS='.'
-    local -a a=($v1) b=($v2)
+    local -a a b
+    read -ra a <<< "$v1"
+    read -ra b <<< "$v2"
     local i
     for i in 0 1 2; do
         if (( ${a[i]:-0} < ${b[i]:-0} )); then return 0; fi
