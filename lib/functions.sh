@@ -357,7 +357,7 @@ install_git_hooks() {
 
     local project_flag
     if [[ -n "$project_name" ]]; then
-        project_flag="--project \"$project_name\""
+        project_flag="--project '${project_name}'"
     else
         project_flag="--all"
     fi
@@ -868,8 +868,22 @@ test_team_repo_cloned() {
     [[ -d "$local_path/.git" ]]
 }
 
+_validate_repo_url() {
+    # Validates that a repo URL uses an allowed protocol (https, http, git@ SSH).
+    # Rejects anything else to prevent git flag injection or path traversal.
+    local url="$1"
+    if [[ "$url" =~ ^https?:// ]] || [[ "$url" =~ ^git@ ]]; then
+        return 0
+    fi
+    return 1
+}
+
 invoke_team_repo_clone() {
     local repo_url="$1"
+    if ! _validate_repo_url "$repo_url"; then
+        echo "Error: invalid repo URL — only https://, http://, or git@ URLs are allowed." >&2
+        return 1
+    fi
     local local_path
     local_path=$(get_team_repo_local_path "$repo_url")
     if test_team_repo_cloned "$repo_url"; then
@@ -879,11 +893,15 @@ invoke_team_repo_clone() {
     local parent_dir
     parent_dir=$(dirname "$local_path")
     [[ -d "$parent_dir" ]] || mkdir -p "$parent_dir"
-    git clone "$repo_url" "$local_path" &>/dev/null
+    git clone -- "$repo_url" "$local_path" &>/dev/null
 }
 
 invoke_team_repo_pull() {
     local repo_url="${1:-}"
+    if [[ -n "$repo_url" ]] && ! _validate_repo_url "$repo_url"; then
+        echo "Error: invalid repo URL — only https://, http://, or git@ URLs are allowed." >&2
+        return 1
+    fi
     local local_path
     local_path=$(get_team_repo_local_path "$repo_url")
     test_team_repo_cloned "$repo_url" || return 1

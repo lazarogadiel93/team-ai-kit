@@ -366,7 +366,7 @@ function Install-GitHooks {
     }
 
     $marker = '# [team-ai-kit] engram sync hook'
-    $projectFlag = if ($ProjectName) { "--project `"$ProjectName`"" } else { '--all' }
+    $projectFlag = if ($ProjectName) { "--project '$ProjectName'" } else { '--all' }
 
     # -- pre-commit hook -------------------------------------------------------
     $preCommitPath = Join-Path $gitHooksDir 'pre-commit'
@@ -1143,6 +1143,17 @@ function Test-TeamRepoCloned {
     return Test-Path (Join-Path $localPath '.git')
 }
 
+function Test-RepoUrl {
+    <#
+    .SYNOPSIS
+        Validates that a repo URL uses an allowed protocol (https, http, git@ SSH).
+    .OUTPUTS
+        $true if valid, $false otherwise.
+    #>
+    param([Parameter(Mandatory)][string]$Url)
+    return ($Url -match '^https?://' -or $Url -match '^git@')
+}
+
 function Invoke-TeamRepoClone {
     <#
     .SYNOPSIS
@@ -1154,6 +1165,10 @@ function Invoke-TeamRepoClone {
         [Parameter(Mandatory)]
         [string]$RepoUrl
     )
+    if (-not (Test-RepoUrl -Url $RepoUrl)) {
+        Write-Error "Invalid repo URL - only https://, http://, or git@ URLs are allowed."
+        return $false
+    }
     $localPath = Get-TeamRepoLocalPath -RepoUrl $RepoUrl
     if (Test-TeamRepoCloned -RepoUrl $RepoUrl) {
         return Invoke-TeamRepoPull -RepoUrl $RepoUrl
@@ -1162,7 +1177,7 @@ function Invoke-TeamRepoClone {
     if (-not (Test-Path $parentDir)) {
         New-Item -ItemType Directory -Path $parentDir -Force | Out-Null
     }
-    $null = & git clone $RepoUrl $localPath 2>&1
+    $null = & git clone -- $RepoUrl $localPath 2>&1
     return $LASTEXITCODE -eq 0
 }
 
