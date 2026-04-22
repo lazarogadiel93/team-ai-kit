@@ -69,7 +69,7 @@ fi
 step()  { echo -e "  ${C_CYAN}> $1${C_RESET}"; }
 ok()    { echo -e "  ${C_GREEN}+ $1${C_RESET}"; }
 warn()  { echo -e "  ${C_YELLOW}! $1${C_RESET}"; }
-err()   { echo -e "  ${C_RED}x $1${C_RESET}"; }
+err()   { echo -e "  ${C_RED}x $1${C_RESET}" >&2; }
 
 # -- Banner --------------------------------------------------------------------
 show_banner() {

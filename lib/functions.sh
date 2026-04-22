@@ -183,12 +183,6 @@ save_config() {
     echo "$config_path"
 }
 
-test_first_run() {
-    local config_path
-    config_path=$(get_config_path)
-    [[ ! -f "$config_path" ]]
-}
-
 test_valid_command() {
     local cmd
     cmd=$(_lowercase "$1")
@@ -826,23 +820,6 @@ get_ide_instructions_path() {
     esac
 }
 
-# -- Skills Installation (simple copy, no tracking) ----------------------------
-
-install_team_skills() {
-    local kit_root="$1" role="$2" target_dir="$3"
-    local skills_base="$kit_root/skills"
-
-    while IFS= read -r skill_path; do
-        [[ -z "$skill_path" ]] && continue
-        local relative_path="${skill_path#"$skills_base"/}"
-        local dest_path="$target_dir/team-skills/$relative_path"
-        local dest_dir
-        dest_dir=$(dirname "$dest_path")
-        [[ -d "$dest_dir" ]] || mkdir -p "$dest_dir"
-        cp "$skill_path" "$dest_path"
-        echo "$dest_path"
-    done < <(get_all_skill_paths_for_role "$kit_root" "$role")
-}
 
 # -- Team Repo Management -----------------------------------------------------
 
@@ -855,12 +832,6 @@ get_team_repo_local_path() {
     else
         echo "$(get_config_dir)/team-content"
     fi
-}
-
-test_team_repo_configured() {
-    local repo
-    repo=$(get_config_value "teamRepo")
-    [[ -n "$repo" ]]
 }
 
 test_team_repo_cloned() {
@@ -997,6 +968,13 @@ test_skill_modified_by_user() {
 
 # -- Skills Merge (3-layer: defaults + team + user) ----------------------------
 
+_update_manifest_entry() {
+    # Usage: echo "$manifest_json" | _update_manifest_entry key hash source timestamp
+    local key="$1" hash="$2" src="$3" ts="$4"
+    jq --arg key "$key" --arg hash "$hash" --arg src "$src" --arg ts "$ts" \
+       '.files[$key] = {hash: $hash, source: $src, installedAt: $ts}'
+}
+
 install_single_skill_with_tracking() {
     # Installs one skill. Returns "action\nmanifest_json" via stdout.
     # Caller is responsible for writing manifest to disk once at the end.
@@ -1011,17 +989,9 @@ install_single_skill_with_tracking() {
     local source_hash
     source_hash=$(get_file_content_hash "$source_path") || { printf 'skipped\n%s' "$manifest_json"; return; }
 
-    _update_manifest_entry() {
-        echo "$manifest_json" | jq --arg key "$manifest_key" \
-             --arg hash "$source_hash" \
-             --arg src "$source" \
-             --arg ts "$timestamp" \
-             '.files[$key] = {hash: $hash, source: $src, installedAt: $ts}'
-    }
-
     if [[ ! -f "$dest_path" ]]; then
         cp "$source_path" "$dest_path"
-        printf 'installed\n%s' "$(_update_manifest_entry)"
+        printf 'installed\n%s' "$(echo "$manifest_json" | _update_manifest_entry "$manifest_key" "$source_hash" "$source" "$timestamp")"
         return
     fi
 
@@ -1041,7 +1011,7 @@ install_single_skill_with_tracking() {
 
     # Source changed, user hasn't modified -> update
     cp "$source_path" "$dest_path"
-    printf 'updated\n%s' "$(_update_manifest_entry)"
+    printf 'updated\n%s' "$(echo "$manifest_json" | _update_manifest_entry "$manifest_key" "$source_hash" "$source" "$timestamp")"
 }
 
 # shellcheck disable=SC2178,SC2128
