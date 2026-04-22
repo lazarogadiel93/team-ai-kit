@@ -156,7 +156,11 @@ cmd_setup() {
             if [[ "$OPT_UPDATE" == "true" ]]; then
                 if test_brew_installed; then
                     step "Updating gentle-ai via Homebrew..."
-                    if brew upgrade gentle-ai 2>/dev/null; then
+                    local brew_output=""
+                    brew_output=$(brew upgrade gentle-ai 2>&1) || true
+                    if echo "$brew_output" | grep -qi "already up-to-date\|already installed"; then
+                        ok "gentle-ai already at latest version"
+                    elif [[ -n "$brew_output" ]]; then
                         ok "gentle-ai updated"
                     else
                         warn "Failed to update gentle-ai -- continuing with current version"
@@ -171,9 +175,8 @@ cmd_setup() {
                         warn "Failed to update gentle-ai -- continuing with current version"
                     fi
                 fi
-            else
-                ok "gentle-ai available"
             fi
+            ok "gentle-ai available"
         elif test_brew_installed; then
             step "Installing gentle-ai via Homebrew..."
             if brew tap Gentleman-Programming/tap 2>/dev/null && brew install gentle-ai 2>/dev/null; then
@@ -210,7 +213,11 @@ cmd_setup() {
             if [[ "$OPT_UPDATE" == "true" ]]; then
                 if test_brew_installed; then
                     step "Updating engram via Homebrew..."
-                    if brew upgrade engram 2>/dev/null; then
+                    local brew_output=""
+                    brew_output=$(brew upgrade engram 2>&1) || true
+                    if echo "$brew_output" | grep -qi "already up-to-date\|already installed"; then
+                        ok "engram already at latest version"
+                    elif [[ -n "$brew_output" ]]; then
                         ok "engram updated"
                     else
                         warn "Failed to update engram -- continuing with current version"
@@ -225,9 +232,8 @@ cmd_setup() {
                         warn "Failed to update engram -- continuing with current version"
                     fi
                 fi
-            else
-                ok "engram available"
             fi
+            ok "engram available"
         else
             step "Installing engram..."
             if test_brew_installed; then
