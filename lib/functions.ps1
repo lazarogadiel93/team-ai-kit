@@ -1677,8 +1677,8 @@ function Update-InstructionsEngramProtocol {
             if ($endIdx -ge 0) {
                 $endIdx += $endMarker.Length
                 $updated = $existing.Substring(0, $startIdx) + $existing.Substring($endIdx)
-                $updated = $updated -replace '(\r?\n){3,}', "`r`n`r`n"
-                $updated = $updated.TrimEnd() + "`r`n"
+                $updated = $updated -replace '(\r?\n){3,}', "`n`n"
+                $updated = $updated.TrimEnd() + "`n"
                 if ($updated -eq $existing) { return $false }
                 [System.IO.File]::WriteAllText($FilePath, $updated, [System.Text.Encoding]::UTF8)
                 return $true

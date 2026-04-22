@@ -1243,7 +1243,7 @@ cmd_doctor() {
 
     # Team repo
     local config_team
-    config_team=$(get_config_value "teamRepo")
+    config_team=$(_resolve_team_repo "$project_root")
     if [[ -n "$config_team" ]]; then
         ok "Team repo: $config_team"
     else
