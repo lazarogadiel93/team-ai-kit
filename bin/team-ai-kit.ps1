@@ -165,6 +165,16 @@ function Invoke-SetupCommand {
 
         Set-TlsProtocol
 
+        # -- git (required) --
+        if (Get-Command git -ErrorAction SilentlyContinue) {
+            Write-Ok 'git available'
+        }
+        else {
+            Write-Err 'git is required but not found'
+            Write-Step 'Install: https://git-scm.com/downloads or winget install Git.Git'
+            return
+        }
+
         # -- gentle-ai --
         if (Test-GentleAiInstalled) {
             if ($Update -and (Test-ScoopInstalled)) {
@@ -1116,6 +1126,14 @@ function Invoke-DoctorCommand {
     else {
         Write-Ok "team-ai-kit: v$KitVersion"
     }
+
+    # git (required)
+    $gitCmd = Get-Command git -ErrorAction SilentlyContinue
+    if ($gitCmd) {
+        $gitVer = (& git --version) -replace 'git version ', ''
+        Write-Ok "git: v$gitVer"
+    }
+    else { Write-Err 'git: NOT found (required)'; $allGood = $false }
 
     # Scoop (optional)
     if (Test-ScoopInstalled) { Write-Ok 'Scoop: installed' }

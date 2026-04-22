@@ -146,6 +146,13 @@ cmd_setup() {
         fi
         ok "jq available"
 
+        if ! command -v git &>/dev/null; then
+            err "git is required but not found"
+            step "Install: brew install git (macOS) or apt install git (Debian/Ubuntu)"
+            exit 1
+        fi
+        ok "git available"
+
         if ! test_curl_installed; then
             err "curl is required but not found"
             exit 1
@@ -1151,6 +1158,10 @@ cmd_doctor() {
     # jq (required)
     if test_jq_installed; then ok "jq: installed"
     else err "jq: NOT found (required)"; all_good=false; fi
+
+    # git (required)
+    if command -v git &>/dev/null; then ok "git: $(git --version | head -1)"
+    else err "git: NOT found (required)"; all_good=false; fi
 
     # Homebrew (optional)
     if test_brew_installed; then ok "Homebrew: installed"

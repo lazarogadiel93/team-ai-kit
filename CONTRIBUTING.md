@@ -6,7 +6,7 @@ Thanks for your interest in contributing! This project follows a straightforward
 
 1. Fork the repo
 2. Clone your fork
-3. Create a feature branch from `main`
+3. Create a feature branch from `master`
 
 ```bash
 git clone https://github.com/<your-user>/team-ai-kit
