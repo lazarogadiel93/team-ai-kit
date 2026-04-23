@@ -71,6 +71,16 @@ jobs:
       - name: Run E2E tests
         run: bash tests/e2e-bash.sh
 
+  ps1-e2e:
+    name: PowerShell E2E Tests (Windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run PowerShell E2E tests
+        shell: pwsh
+        run: ./tests/e2e-ps1.ps1
+
   version-sync:
     name: Version Sync Check
     runs-on: ubuntu-latest
