@@ -24,6 +24,24 @@
 - Structured logs (JSON) to integrate with observability systems
 - Use --dry-run / plan before apply/destroy in production
 
+## Testing
+
+- Every pipeline must be tested in a non-production environment first
+- Use linting as the first validation gate: shellcheck, hadolint, tflint
+- Terraform: `terraform validate` + `terraform plan` in CI before apply
+- Docker: build and scan images in CI (trivy, grype, or similar)
+- Smoke tests post-deploy to verify critical endpoints/services
+- Infrastructure integration tests with Terratest or similar when complexity warrants it
+
+## Naming
+
+- Scripts: `kebab-case` (e.g. `deploy-staging.sh`)
+- Environment variables: `UPPER_SNAKE_CASE` (e.g. `DATABASE_URL`)
+- Terraform resources: `snake_case` (e.g. `aws_instance.web_server`)
+- Docker images: `lowercase-with-dashes` (e.g. `my-app-api`)
+- CI/CD jobs: `kebab-case` (e.g. `build-and-push`, `deploy-staging`)
+- Secrets: `UPPER_SNAKE_CASE` with prefix (e.g. `SECRET_DB_PASSWORD`)
+
 ## Thinking Rules
 
 - Think about reversibility first: every change must be undoable
