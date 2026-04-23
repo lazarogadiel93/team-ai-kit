@@ -617,7 +617,10 @@ function Invoke-InitCommand {
         }
     }
 
-    $skipProtocol = Test-GentleAiSupportsIde -Ide $effectiveIde
+    # Always inject engram protocol into project instructions for all IDEs.
+    # Even when gentle-ai handles it globally, having it at project level
+    # reinforces the behavior (especially for models that don't follow global instructions reliably).
+    $skipProtocol = $false
     $relInstructionsPath = $instructionsPath.Replace($projectRoot, '').TrimStart('\', '/')
 
     if ($DryRun) {
@@ -992,7 +995,8 @@ function Invoke-UpdateCommand {
                 Write-Dry "Would update engram protocol in: $relPath"
             }
             else {
-                $skipProtocol = Test-GentleAiSupportsIde -Ide $config.ide
+                # Always inject engram protocol -- reinforces behavior at project level
+                $skipProtocol = $false
                 $protocolChanged = Update-InstructionsEngramProtocol -FilePath $instructionsPath -SkipEngramProtocol:$skipProtocol
                 if ($protocolChanged) {
                     if ($skipProtocol) {
