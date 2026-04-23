@@ -15,6 +15,8 @@ metadata:
 
 ## When to Use
 
+Load this skill when:
+
 - Writing unit or integration tests for React Native / Expo components
 - Testing screen-level behavior (forms, lists, navigation transitions)
 - Mocking native modules that crash in the Jest JSDOM environment
@@ -37,13 +39,13 @@ import { render, fireEvent } from '@testing-library/react-native';
 
 test('submits form', () => {
   const onSubmit = jest.fn();
-  render(<LoginForm onSubmit={onSubmit} />);
+  const { getByTestId } = render(<LoginForm onSubmit={onSubmit} />);
 
   fireEvent.changeText(
-    render.getByTestId('email-input'),
+    getByTestId('email-input'),
     'user@example.com',
   );
-  fireEvent.press(render.getByTestId('submit-btn'));
+  fireEvent.press(getByTestId('submit-btn'));
 
   expect(onSubmit).toHaveBeenCalled();
 });

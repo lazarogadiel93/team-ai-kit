@@ -14,6 +14,8 @@ metadata:
 
 ## When to Use
 
+Load this skill when:
+
 - Writing unit tests for services or domain logic with JUnit 5 + Mockito
 - Testing Spring MVC controllers with `@WebMvcTest` and `MockMvc`
 - Writing integration tests that boot the full Spring context with `@SpringBootTest`

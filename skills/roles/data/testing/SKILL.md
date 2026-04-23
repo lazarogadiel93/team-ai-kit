@@ -14,6 +14,8 @@ metadata:
 
 ## When to Use
 
+Load this skill when:
+
 - Writing tests for pandas/polars DataFrame transformations
 - Validating data schemas at pipeline boundaries (ingestion, transform, export)
 - Testing ML model performance against baseline thresholds

@@ -16,6 +16,7 @@ metadata:
 ## When to Use
 
 Load this skill when:
+
 - Transforming or cleaning data with pandas (ETL pipelines, feature engineering)
 - Building reproducible ML preprocessing with scikit-learn Pipeline and ColumnTransformer
 - Adding runtime data validation with pandera schemas
