@@ -625,6 +625,17 @@ function Invoke-InitCommand {
     }
     else {
         $instructions = New-CopilotInstructions -Role $effectiveRole -PackRulesContent $packRulesContent -TeamRulesContent $teamRulesContent -SkipEngramProtocol:$skipProtocol
+
+        # Preserve existing instructions content: append below team-ai-kit section
+        if (Test-Path $instructionsPath) {
+            $existing = [System.IO.File]::ReadAllText($instructionsPath, [System.Text.UTF8Encoding]::new($false))
+            # Only preserve if it's NOT a previous team-ai-kit generated file
+            if ($existing -and $existing -notmatch '# Team AI Kit -- Copilot Instructions') {
+                Write-Step "Existing $relInstructionsPath found -- preserving content below team-ai-kit section"
+                $instructions += "`n---`n`n## Project Instructions (pre-existing)`n`n$existing"
+            }
+        }
+
         [System.IO.File]::WriteAllText($instructionsPath, $instructions, [System.Text.UTF8Encoding]::new($false))
         Write-Ok "Created: $relInstructionsPath"
     }
