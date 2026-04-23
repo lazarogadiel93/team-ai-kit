@@ -588,17 +588,10 @@ function Invoke-InitCommand {
         New-Item -ItemType Directory -Path $instructionsDir -Force | Out-Null
     }
 
-    $packRulesPath = Get-PackRulesPath -KitRoot $kitRoot -Role $effectiveRole
-    $packRulesContent = ''
-    if ($packRulesPath) {
-        $packRulesContent = Get-Content -Path $packRulesPath -Raw
-    }
-
     # Resolve team repo URL: CLI param > project config > global config
     $effectiveTeamRepo = Resolve-TeamRepo -ProjectRoot $projectRoot -CliParam $TeamRepo
 
     # Clone/pull team repo if configured
-    $teamRulesContent = ''
     if ($effectiveTeamRepo) {
         Write-Step "Team repo: $effectiveTeamRepo"
         if (Test-TeamRepoCloned -RepoUrl $effectiveTeamRepo) {
@@ -611,28 +604,30 @@ function Invoke-InitCommand {
             if ($cloneOk) { Write-Ok 'Team repo cloned' }
             else { Write-Warn 'Failed to clone team repo' }
         }
-        $teamRulesContent = Get-TeamRepoRulesContent -RepoUrl $effectiveTeamRepo
-        if ($teamRulesContent) {
-            Write-Ok 'Team rules loaded from knowledge repo'
-        }
     }
 
-    # Always inject engram protocol into project instructions for all IDEs.
-    # Even when gentle-ai handles it globally, having it at project level
-    # reinforces the behavior (especially for models that don't follow global instructions reliably).
+    # Generate instructions from template with IDE-specific skill paths.
+    # Team rules are stored in engram (not inline) and pack rules live in skills.
     $relInstructionsPath = $instructionsPath.Replace($projectRoot, '').TrimStart('\', '/')
 
     if ($DryRun) {
         Write-Dry "Would create: $relInstructionsPath"
     }
     else {
-        $instructions = New-CopilotInstructions -Role $effectiveRole -PackRulesContent $packRulesContent -TeamRulesContent $teamRulesContent -KitRoot $kitRoot
+        $globalSkillsDir = Get-IdeSkillsDirectory -Ide $effectiveIde
+        $projectSkillsDir = Get-IdeProjectSkillsDirectory -Ide $effectiveIde -ProjectRoot $projectRoot
+        # Use relative path for project skills (committed to repo)
+        $relProjectSkills = $projectSkillsDir.Replace($projectRoot, '').TrimStart('\', '/').Replace('\', '/')
+        # Use ~ shorthand for global skills
+        $homeDir = Get-UserHome
+        $relGlobalSkills = $globalSkillsDir.Replace($homeDir, '~').Replace('\', '/')
+        $instructions = New-CopilotInstructions -Ide $effectiveIde -ProjectSkillsDir $relProjectSkills -GlobalSkillsDir $relGlobalSkills -KitRoot $kitRoot
 
         # Preserve existing instructions content: append below team-ai-kit section
         if (Test-Path $instructionsPath) {
             $existing = [System.IO.File]::ReadAllText($instructionsPath, [System.Text.UTF8Encoding]::new($false))
             # Only preserve if it's NOT a previous team-ai-kit generated file
-            if ($existing -and $existing -notmatch '# Team AI Kit -- Copilot Instructions') {
+            if ($existing -and $existing -notmatch '# Team AI Kit -- Instructions') {
                 Write-Step "Existing $relInstructionsPath found -- preserving content below team-ai-kit section"
                 $instructions += "`n---`n`n## Project Instructions (pre-existing)`n`n$existing"
             }
@@ -660,6 +655,15 @@ function Invoke-InitCommand {
             }
             else {
                 Write-Step 'No team skills to install (repo has no skills for this role)'
+            }
+        }
+
+        # 3c. Save team rules to engram for AI agent memory
+        if (-not $DryRun) {
+            $projectName = Split-Path $projectRoot -Leaf
+            $rulesSaved = Save-TeamRulesToEngram -RepoUrl $effectiveTeamRepo -ProjectName $projectName
+            if ($rulesSaved -gt 0) {
+                Write-Ok "$rulesSaved team rules saved to engram"
             }
         }
     }
@@ -961,52 +965,27 @@ function Invoke-UpdateCommand {
         }
     }
 
-    # Step 3: Auto-update team rules in instructions if project is initialized
+    # Step 3: Save team rules to engram (not inline in instructions)
     if ($hasTeamRepo -and $projectConfig) {
         $teamRulesContent = Get-TeamRepoRulesContent -RepoUrl $effectiveTeamRepo
         if ($teamRulesContent) {
-            $instructionsPath = Get-IdeInstructionsPath -Ide $config.ide -ProjectRoot $projectRoot
-            if (Test-Path $instructionsPath) {
-                if ($DryRun) {
-                    $relPath = $instructionsPath.Replace($projectRoot, '').TrimStart('\', '/')
-                    Write-Dry "Would update team rules in: $relPath"
-                }
-                else {
-                    $rulesChanged = Update-InstructionsTeamRules -FilePath $instructionsPath -TeamRulesContent $teamRulesContent
-                    if ($rulesChanged) {
-                        Write-Ok 'Team rules updated in project instructions'
-                    }
-                    else {
-                        Write-Step 'Team rules unchanged in project instructions'
-                    }
-                }
-            }
-        }
-    }
-
-    # Step 4: Auto-update engram Memory Protocol in instructions
-    # Skip for IDEs where gentle-ai handles the protocol globally
-    if ($projectConfig) {
-        $instructionsPath = Get-IdeInstructionsPath -Ide $config.ide -ProjectRoot $projectRoot
-        if (Test-Path $instructionsPath) {
             if ($DryRun) {
-                $relPath = $instructionsPath.Replace($projectRoot, '').TrimStart('\', '/')
-                Write-Dry "Would update engram protocol in: $relPath"
+                Write-Dry 'Would save team rules to engram'
             }
             else {
-                # Always inject engram protocol -- reinforces behavior at project level
-                $protocolChanged = Update-InstructionsEngramProtocol -FilePath $instructionsPath -KitRoot $kitRoot
-                if ($protocolChanged) {
-                    Write-Ok 'Engram Memory Protocol updated in project instructions'
+                $projectName = Split-Path $projectRoot -Leaf
+                $rulesSaved = Save-TeamRulesToEngram -RepoUrl $effectiveTeamRepo -ProjectName $projectName
+                if ($rulesSaved -gt 0) {
+                    Write-Ok "$rulesSaved team rules saved to engram"
                 }
                 else {
-                    Write-Step 'Engram Memory Protocol unchanged in project instructions'
+                    Write-Step 'No team rules changes to save'
                 }
             }
         }
     }
 
-    # Step 4b: Ensure .gitattributes has engram diff rules
+    # Step 4: Ensure .gitattributes has engram diff rules
     if ($DryRun) {
         Write-Dry 'Would ensure .gitattributes has engram diff rules'
     }

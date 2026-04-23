@@ -416,86 +416,73 @@ Describe 'Get-EngramProtocolContent' {
 }
 
 Describe 'New-CopilotInstructions' {
-    It 'includes role in header' {
-        $instructions = New-CopilotInstructions -Role 'frontend'
-        $instructions | Should -BeLike '*frontend*'
+    It 'includes instructions header with markers' {
+        $instructions = New-CopilotInstructions -Ide 'vscode' -KitRoot $script:kitRoot
+        $instructions | Should -BeLike '*# Team AI Kit -- Instructions*'
+        $instructions | Should -BeLike '*<!-- team-ai-kit:instructions -->*'
+        $instructions | Should -BeLike '*<!-- /team-ai-kit:instructions -->*'
     }
 
-    It 'includes team conventions section' {
-        $instructions = New-CopilotInstructions -Role 'backend-node'
-        $instructions | Should -BeLike '*Team Conventions*'
-    }
-
-    It 'includes engram Memory Protocol with markers' {
-        $instructions = New-CopilotInstructions -Role 'frontend'
-        $instructions | Should -BeLike '*<!-- team-ai-kit:engram-protocol -->*'
-        $instructions | Should -BeLike '*<!-- /team-ai-kit:engram-protocol -->*'
-        $instructions | Should -BeLike '*mem_save*'
+    It 'includes On Conversation Start section' {
+        $instructions = New-CopilotInstructions -Ide 'vscode' -KitRoot $script:kitRoot
+        $instructions | Should -BeLike '*On Conversation Start*'
         $instructions | Should -BeLike '*mem_context*'
-        $instructions | Should -BeLike '*mem_session_summary*'
-        $instructions | Should -BeLike '*AFTER COMPACTION*'
     }
 
-    It 'places engram-protocol before team-rules in output' {
-        $instructions = New-CopilotInstructions -Role 'frontend' -TeamRulesContent '## Team Rules'
-        $engramIdx = $instructions.IndexOf('<!-- team-ai-kit:engram-protocol -->')
-        $teamIdx = $instructions.IndexOf('<!-- team-ai-kit:team-rules -->')
-        $engramIdx | Should -BeLessThan $teamIdx
+    It 'includes Priorities section' {
+        $instructions = New-CopilotInstructions -Ide 'vscode' -KitRoot $script:kitRoot
+        $instructions | Should -BeLike '*Priorities*'
+        $instructions | Should -BeLike '*Task first*'
+        $instructions | Should -BeLike '*Team rules are law*'
     }
 
-    It 'appends pack rules when provided' {
-        $rules = "## My Custom Rules`nRule 1: Do this"
-        $instructions = New-CopilotInstructions -Role 'frontend' -PackRulesContent $rules
-        $instructions | Should -BeLike '*My Custom Rules*'
-        $instructions | Should -BeLike '*Rule 1*'
+    It 'includes Universal Conventions section' {
+        $instructions = New-CopilotInstructions -Ide 'vscode' -KitRoot $script:kitRoot
+        $instructions | Should -BeLike '*Universal Conventions*'
+        $instructions | Should -BeLike '*Explain WHY*'
     }
 
-    It 'works without pack rules' {
-        $instructions = New-CopilotInstructions -Role 'devops'
-        $instructions | Should -Not -BeNullOrEmpty
-        $instructions | Should -BeLike '*devops*'
+    It 'includes Skills section with paths' {
+        $instructions = New-CopilotInstructions -Ide 'vscode' -KitRoot $script:kitRoot
+        $instructions | Should -BeLike '*Skills*'
+        $instructions | Should -BeLike '*Project skills*'
+        $instructions | Should -BeLike '*Global skills*'
     }
 
-    It 'wraps team rules in markers when TeamRulesContent provided' {
-        $teamRules = "## Architecture`nUse hexagonal architecture"
-        $instructions = New-CopilotInstructions -Role 'frontend' -TeamRulesContent $teamRules
-        $instructions | Should -BeLike '*<!-- team-ai-kit:team-rules -->*'
-        $instructions | Should -BeLike '*<!-- /team-ai-kit:team-rules -->*'
-        $instructions | Should -BeLike '*hexagonal architecture*'
-    }
-
-    It 'includes both pack rules and team rules' {
-        $packRules = "## Pack Rules`nRule 1"
-        $teamRules = "## Team Rules`nRule 2"
-        $instructions = New-CopilotInstructions -Role 'frontend' -PackRulesContent $packRules -TeamRulesContent $teamRules
-        $instructions | Should -BeLike '*Pack Rules*'
-        $instructions | Should -BeLike '*Team Rules*'
-        $instructions | Should -BeLike '*<!-- team-ai-kit:team-rules -->*'
-    }
-
-    It 'does not include team-rules markers when TeamRulesContent is empty' {
-        $instructions = New-CopilotInstructions -Role 'frontend'
-        $instructions | Should -Not -BeLike '*team-ai-kit:team-rules*'
-    }
-
-    It 'skips engram protocol when SkipEngramProtocol is set' {
-        $instructions = New-CopilotInstructions -Role 'frontend' -SkipEngramProtocol
-        $instructions | Should -Not -BeLike '*team-ai-kit:engram-protocol*'
-        $instructions | Should -Not -BeLike '*mem_save*'
-        $instructions | Should -BeLike '*Team Conventions*'
-    }
-
-    It 'includes engram protocol when SkipEngramProtocol is not set' {
-        $instructions = New-CopilotInstructions -Role 'frontend'
-        $instructions | Should -BeLike '*team-ai-kit:engram-protocol*'
+    It 'includes Memory section with engram tools' {
+        $instructions = New-CopilotInstructions -Ide 'vscode' -KitRoot $script:kitRoot
+        $instructions | Should -BeLike '*Memory (Engram)*'
         $instructions | Should -BeLike '*mem_save*'
+        $instructions | Should -BeLike '*mem_search*'
+        $instructions | Should -BeLike '*mem_session_summary*'
     }
 
-    It 'skips engram protocol but keeps team rules when both flags used' {
-        $instructions = New-CopilotInstructions -Role 'frontend' -TeamRulesContent '## Team Rules' -SkipEngramProtocol
+    It 'resolves project skills path placeholder' {
+        $instructions = New-CopilotInstructions -Ide 'vscode' -ProjectSkillsDir '.github/skills/' -KitRoot $script:kitRoot
+        $instructions | Should -BeLike '*.github/skills/*'
+        $instructions | Should -Not -BeLike '*{{PROJECT_SKILLS_DIR}}*'
+    }
+
+    It 'resolves global skills path placeholder' {
+        $instructions = New-CopilotInstructions -Ide 'vscode' -GlobalSkillsDir '~/.copilot/skills/' -KitRoot $script:kitRoot
+        $instructions | Should -BeLike '*~/.copilot/skills/*'
+        $instructions | Should -Not -BeLike '*{{GLOBAL_SKILLS_DIR}}*'
+    }
+
+    It 'uses default paths when not provided' {
+        $instructions = New-CopilotInstructions -Ide 'vscode' -KitRoot $script:kitRoot
+        $instructions | Should -BeLike '*.github/skills/*'
+        $instructions | Should -BeLike '*~/.copilot/skills/*'
+    }
+
+    It 'does not contain inline pack rules or team rules' {
+        $instructions = New-CopilotInstructions -Ide 'vscode' -KitRoot $script:kitRoot
+        $instructions | Should -Not -BeLike '*team-ai-kit:team-rules*'
         $instructions | Should -Not -BeLike '*team-ai-kit:engram-protocol*'
-        $instructions | Should -BeLike '*<!-- team-ai-kit:team-rules -->*'
-        $instructions | Should -BeLike '*Team Rules*'
+    }
+
+    It 'throws when template is missing' {
+        { New-CopilotInstructions -Ide 'vscode' -KitRoot 'C:\nonexistent' } | Should -Throw '*template not found*'
     }
 }
 
