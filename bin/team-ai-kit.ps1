@@ -625,7 +625,7 @@ function Invoke-InitCommand {
     }
     else {
         $instructions = New-CopilotInstructions -Role $effectiveRole -PackRulesContent $packRulesContent -TeamRulesContent $teamRulesContent -SkipEngramProtocol:$skipProtocol
-        [System.IO.File]::WriteAllText($instructionsPath, $instructions, [System.Text.Encoding]::UTF8)
+        [System.IO.File]::WriteAllText($instructionsPath, $instructions, [System.Text.UTF8Encoding]::new($false))
         Write-Ok "Created: $relInstructionsPath"
     }
 

@@ -1140,7 +1140,7 @@ function Get-FileContentHash-String {
         Returns a SHA256 hash of a string (used for URL hashing).
     #>
     param([Parameter(Mandatory)][string]$Content)
-    $bytes = [System.Text.Encoding]::UTF8.GetBytes($Content)
+    $bytes = [System.Text.UTF8Encoding]::new($false).GetBytes($Content)
     $sha = [System.Security.Cryptography.SHA256]::Create()
     $hashBytes = $sha.ComputeHash($bytes)
     return ($hashBytes | ForEach-Object { $_.ToString('X2') }) -join ''
@@ -1688,7 +1688,7 @@ function Update-InstructionsEngramProtocol {
                 $updated = $updated -replace '(\r?\n){3,}', "`n`n"
                 $updated = $updated.TrimEnd() + "`n"
                 if ($updated -eq $existing) { return $false }
-                [System.IO.File]::WriteAllText($FilePath, $updated, [System.Text.Encoding]::UTF8)
+                [System.IO.File]::WriteAllText($FilePath, $updated, [System.Text.UTF8Encoding]::new($false))
                 return $true
             }
         }
@@ -1714,7 +1714,7 @@ function Update-InstructionsEngramProtocol {
 
     if ($updated -eq $existing) { return $false }
 
-    [System.IO.File]::WriteAllText($FilePath, $updated, [System.Text.Encoding]::UTF8)
+    [System.IO.File]::WriteAllText($FilePath, $updated, [System.Text.UTF8Encoding]::new($false))
     return $true
 }
 
@@ -1810,7 +1810,7 @@ function Update-InstructionsTeamRules {
 
     if ($updated -eq $existing) { return $false }
 
-    [System.IO.File]::WriteAllText($FilePath, $updated, [System.Text.Encoding]::UTF8)
+    [System.IO.File]::WriteAllText($FilePath, $updated, [System.Text.UTF8Encoding]::new($false))
     return $true
 }
 
