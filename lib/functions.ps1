@@ -99,7 +99,8 @@ function Save-TeamAiKitConfig {
         New-Item -ItemType Directory -Path $configDir -Force | Out-Null
     }
     $configPath = Join-Path $configDir 'config.json'
-    $Config | ConvertTo-Json -Depth 5 | Set-Content -Path $configPath -Encoding UTF8
+    $json = $Config | ConvertTo-Json -Depth 5
+    [System.IO.File]::WriteAllText($configPath, $json, [System.Text.UTF8Encoding]::new($false))
     return $configPath
 }
 
@@ -194,7 +195,8 @@ function Save-ProjectConfig {
         [hashtable]$Config
     )
     $configPath = Get-ProjectConfigPath -ProjectRoot $ProjectRoot
-    $Config | ConvertTo-Json -Depth 5 | Set-Content -Path $configPath -Encoding UTF8
+    $json = $Config | ConvertTo-Json -Depth 5
+    [System.IO.File]::WriteAllText($configPath, $json, [System.Text.UTF8Encoding]::new($false))
     return $configPath
 }
 
@@ -272,13 +274,24 @@ function Remove-GitAttributesBlock {
         $cleaned += $line
     }
 
-    $cleaned = @($cleaned | Where-Object { $_.Trim() -ne '' })
+    # Remove consecutive blank lines (collapse to max 1 blank line)
+    $deduped = @()
+    $prevBlank = $false
+    foreach ($line in $cleaned) {
+        $isBlank = ($line.Trim() -eq '')
+        if ($isBlank -and $prevBlank) { continue }
+        $deduped += $line
+        $prevBlank = $isBlank
+    }
+    # Remove leading/trailing blank lines
+    while ($deduped.Count -gt 0 -and $deduped[0].Trim() -eq '') { $deduped = $deduped[1..($deduped.Count - 1)] }
+    while ($deduped.Count -gt 0 -and $deduped[-1].Trim() -eq '') { $deduped = $deduped[0..($deduped.Count - 2)] }
 
-    if ($cleaned.Count -eq 0) {
+    if ($deduped.Count -eq 0) {
         Remove-Item $gaPath -Force
     }
     else {
-        $newContent = ($cleaned -join "`n") + "`n"
+        $newContent = ($deduped -join "`n") + "`n"
         $lfContent = $newContent -replace "`r`n", "`n"
         [System.IO.File]::WriteAllText($gaPath, $lfContent, [System.Text.UTF8Encoding]::new($false))
     }
@@ -1193,14 +1206,8 @@ function Invoke-TeamRepoPull {
     if (-not (Test-TeamRepoCloned -RepoUrl $RepoUrl)) {
         return $false
     }
-    Push-Location $localPath
-    try {
-        $null = & git pull 2>&1
-        return $LASTEXITCODE -eq 0
-    }
-    finally {
-        Pop-Location
-    }
+    $null = & git -C $localPath pull 2>&1
+    return $LASTEXITCODE -eq 0
 }
 
 function Get-TeamRepoSkillPaths {
@@ -1304,7 +1311,8 @@ function Save-SkillManifest {
     if (-not (Test-Path $dir)) {
         New-Item -ItemType Directory -Path $dir -Force | Out-Null
     }
-    $Manifest | ConvertTo-Json -Depth 5 | Set-Content -Path $path -Encoding UTF8
+    $json = $Manifest | ConvertTo-Json -Depth 5
+    [System.IO.File]::WriteAllText($path, $json, [System.Text.UTF8Encoding]::new($false))
     return $path
 }
 
@@ -1590,7 +1598,7 @@ function Install-ProjectSkills {
         New-Item -ItemType Directory -Path $teamSkillsDir -Force | Out-Null
     }
     $json = $manifest | ConvertTo-Json -Depth 5
-    $json | Set-Content -Path $manifestPath -Encoding UTF8
+    [System.IO.File]::WriteAllText($manifestPath, $json, [System.Text.UTF8Encoding]::new($false))
 
     return $results
 }

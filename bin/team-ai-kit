@@ -271,6 +271,8 @@ cmd_setup() {
         fi
     else
         echo -e "  ${C_DIM}[1/5] Skipping prerequisites (--skip-prerequisites)${C_RESET}"
+        # jq is still required for config/manifest operations even when skipping prerequisites
+        _require_jq || exit 1
     fi
 
     # -- Step 2: IDE Selection -------------------------------------------------
@@ -1334,7 +1336,7 @@ cmd_uninstall() {
     local removed
     removed=$(echo "$result" | jq -r '.removed')
 
-    echo -e "  ${C_GREEN}✔ Uninstalled team-ai-kit from this project ($removed items removed).${C_RESET}"
+    echo -e "  ${C_GREEN}+ Uninstalled team-ai-kit from this project ($removed items removed).${C_RESET}"
     echo ""
     echo -e "  ${C_DIM}Tip: You may also want to remove .engram/ if you no longer need memory sync.${C_RESET}"
     echo ""
