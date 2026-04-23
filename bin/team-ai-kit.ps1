@@ -692,7 +692,7 @@ function Invoke-InitCommand {
         }
 
         # 4c. Setup .gitattributes for clean PR diffs
-        $gaResult = Ensure-GitAttributes -ProjectRoot $projectRoot
+        $gaResult = Set-GitAttributes -ProjectRoot $projectRoot
 
         if ($gaResult.created) {
             Write-Ok '.gitattributes created -- .engram/ diffs collapsed in PRs'
@@ -1003,7 +1003,7 @@ function Invoke-UpdateCommand {
         Write-Dry 'Would ensure .gitattributes has engram diff rules'
     }
     else {
-        $gaResult = Ensure-GitAttributes -ProjectRoot $projectRoot
+        $gaResult = Set-GitAttributes -ProjectRoot $projectRoot
 
         if ($gaResult.created) {
             Write-Ok '.gitattributes created -- .engram/ diffs collapsed in PRs'

@@ -198,7 +198,7 @@ function Save-ProjectConfig {
     return $configPath
 }
 
-function Ensure-GitAttributes {
+function Set-GitAttributes {
     <#
     .SYNOPSIS
         Creates or updates .gitattributes with rules to collapse .engram/ diffs in PRs.
