@@ -1457,7 +1457,11 @@ initialize_knowledge_repo() {
     done
 
     local created_json
-    created_json=$(printf '%s\n' "${created[@]}" | jq -R . | jq -sc '.')
+    if [[ ${#created[@]} -eq 0 ]]; then
+        created_json='[]'
+    else
+        created_json=$(printf '%s\n' "${created[@]}" | jq -R . | jq -sc '.')
+    fi
     jq -n --argjson created "$created_json" --arg path "$target_dir" \
         '{created: $created, path: $path}'
 }
