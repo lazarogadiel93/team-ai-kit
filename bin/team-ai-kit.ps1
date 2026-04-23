@@ -626,7 +626,7 @@ function Invoke-InitCommand {
         Write-Dry "Would create: $relInstructionsPath"
     }
     else {
-        $instructions = New-CopilotInstructions -Role $effectiveRole -PackRulesContent $packRulesContent -TeamRulesContent $teamRulesContent
+        $instructions = New-CopilotInstructions -Role $effectiveRole -PackRulesContent $packRulesContent -TeamRulesContent $teamRulesContent -KitRoot $kitRoot
 
         # Preserve existing instructions content: append below team-ai-kit section
         if (Test-Path $instructionsPath) {
@@ -995,7 +995,7 @@ function Invoke-UpdateCommand {
             }
             else {
                 # Always inject engram protocol -- reinforces behavior at project level
-                $protocolChanged = Update-InstructionsEngramProtocol -FilePath $instructionsPath
+                $protocolChanged = Update-InstructionsEngramProtocol -FilePath $instructionsPath -KitRoot $kitRoot
                 if ($protocolChanged) {
                     Write-Ok 'Engram Memory Protocol updated in project instructions'
                 }

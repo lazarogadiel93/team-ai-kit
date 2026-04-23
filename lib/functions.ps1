@@ -1661,8 +1661,18 @@ function Get-EngramProtocolContent {
         Returns the Engram Memory Protocol markdown content from shared template.
         Single source of truth: templates/engram-protocol.md
     #>
-    $kitRoot = Split-Path -Parent $PSScriptRoot
-    Get-Content (Join-Path $kitRoot 'templates' 'engram-protocol.md') -Raw
+    param(
+        [string]$KitRoot
+    )
+    if (-not $KitRoot) {
+        $KitRoot = Split-Path -Parent $PSScriptRoot
+    }
+    $templatePath = Join-Path (Join-Path $KitRoot 'templates') 'engram-protocol.md'
+    if (-not (Test-Path $templatePath)) {
+        Write-Warning "Engram protocol template not found: $templatePath"
+        return ''
+    }
+    return [string](Get-Content $templatePath -Raw)
 }
 
 function Update-InstructionsEngramProtocol {
@@ -1678,6 +1688,7 @@ function Update-InstructionsEngramProtocol {
     param(
         [Parameter(Mandatory)]
         [string]$FilePath,
+        [string]$KitRoot = '',
         [switch]$SkipEngramProtocol
     )
 
@@ -1706,7 +1717,7 @@ function Update-InstructionsEngramProtocol {
         return $false
     }
 
-    $protocolContent = Get-EngramProtocolContent
+    $protocolContent = Get-EngramProtocolContent -KitRoot $KitRoot
     $newSection = $protocolContent.Trim()
     if ($startIdx -ge 0) {
         $endIdx = $existing.IndexOf($endMarker, $startIdx)
@@ -1733,15 +1744,14 @@ function New-CopilotInstructions {
     <#
     .SYNOPSIS
         Generates the copilot-instructions.md content with team rules injected.
-        Engram protocol is only included for IDEs where gentle-ai does NOT handle it
-        (e.g. IntelliJ). For gentle-ai-supported IDEs, gentle-ai injects the protocol
-        globally and team-ai-kit skips it to avoid duplication.
+        Engram protocol is always included by default. Use SkipEngramProtocol to exclude.
     #>
     param(
         [Parameter(Mandatory)]
         [string]$Role,
         [string]$PackRulesContent = '',
         [string]$TeamRulesContent = '',
+        [string]$KitRoot = '',
         [switch]$SkipEngramProtocol
     )
 
@@ -1763,7 +1773,7 @@ function New-CopilotInstructions {
     $result = $header
 
     if (-not $SkipEngramProtocol) {
-        $memoryProtocol = Get-EngramProtocolContent
+        $memoryProtocol = Get-EngramProtocolContent -KitRoot $KitRoot
         $result += $memoryProtocol
     }
 
