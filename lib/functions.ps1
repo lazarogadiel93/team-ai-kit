@@ -680,8 +680,11 @@ function Install-GithubReleaseBinary {
         New-Item -ItemType Directory -Path $binDir -Force | Out-Null
     }
 
-    $tempZip = Join-Path $env:TEMP "$Repo-download-$(Get-Random).zip"
-    $tempExtract = Join-Path $env:TEMP "$Repo-extract-$(Get-Random)"
+    # Normalize $env:TEMP to long path -- corporate PCs may have 8.3 short paths
+    # (e.g. C:\Users\C630D~1.LAB\...) that fail when creating files/directories.
+    $tempDir = if (Test-Path $env:TEMP) { (Get-Item $env:TEMP).FullName } else { $env:TEMP }
+    $tempZip = Join-Path $tempDir "$Repo-download-$(Get-Random).zip"
+    $tempExtract = Join-Path $tempDir "$Repo-extract-$(Get-Random)"
 
     try {
         Invoke-WebRequest -Uri $release.url -OutFile $tempZip -UseBasicParsing
