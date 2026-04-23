@@ -372,6 +372,14 @@ team-ai-kit.ps1 init
 
 Listo. Abri VS Code y empeza a trabajar.
 
+### 6. Actualizar
+
+| Que actualizar | Comando |
+|----------------|---------|
+| **team-ai-kit** (scripts, skills, docs) | `cd <RUTA_DONDE_QUIERAS>` → `git pull` |
+| **gentle-ai + engram** (binarios) | `team-ai-kit.ps1 setup -Update` |
+| **Skills + reglas en un proyecto** | `cd mi-proyecto` → `team-ai-kit.ps1 update` |
+
 ---
 
 ## Troubleshooting
