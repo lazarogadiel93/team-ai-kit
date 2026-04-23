@@ -1,0 +1,87 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Releasing version: $VERSION"
+
+      - name: Verify tag matches source version
+        run: |
+          bash_version=$(sed -n "s/^KIT_VERSION='\(.*\)'/\1/p" bin/team-ai-kit)
+          tag_version="${{ steps.version.outputs.version }}"
+          if [ "$bash_version" != "$tag_version" ]; then
+            echo "::error::Tag version ($tag_version) does not match source version ($bash_version)"
+            exit 1
+          fi
+
+      - name: Create release zip
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          ZIPNAME="team-ai-kit-v${VERSION}.zip"
+          mkdir -p team-ai-kit
+          cp -r bin lib packs skills templates setup.sh setup.ps1 LICENSE README.md team-ai-kit/
+          zip -r "$ZIPNAME" team-ai-kit
+          echo "zipname=$ZIPNAME" >> "$GITHUB_ENV"
+
+      - name: Compute SHA256 hash
+        run: |
+          HASH=$(sha256sum "$zipname" | awk '{print $1}')
+          echo "hash=$HASH" >> "$GITHUB_ENV"
+          echo "SHA256: $HASH"
+
+      - name: Update scoop manifest
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          jq --arg v "$VERSION" --arg h "$hash" \
+            '.version = $v | .url = "https://github.com/lazarogadiel93/team-ai-kit/releases/download/v\($v)/team-ai-kit-v\($v).zip" | .hash = $h' \
+            scoop/team-ai-kit.json > scoop/team-ai-kit.json.tmp
+          mv scoop/team-ai-kit.json.tmp scoop/team-ai-kit.json
+          cat scoop/team-ai-kit.json
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.zipname }}
+          generate_release_notes: true
+          body: |
+            ## Installation
+
+            ### Scoop (Windows)
+            ```
+            scoop install team-ai-kit
+            ```
+
+            ### Manual
+            Download `${{ env.zipname }}` and extract.
+
+            **SHA256:** `${{ env.hash }}`
+
+      - name: Commit updated scoop manifest
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout master
+          git add scoop/team-ai-kit.json
+          if git diff --cached --quiet; then
+            echo "No scoop manifest changes to commit"
+          else
+            git commit -m "chore: update scoop manifest for v${{ steps.version.outputs.version }}"
+            git push origin master
+          fi
