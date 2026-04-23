@@ -2119,7 +2119,7 @@ Describe 'Test-ValidCommand includes uninstall' {
 
 # -- GitAttributes (.engram/ diff rules) ----------------------------------------
 
-Describe 'Ensure-GitAttributes' {
+Describe 'Set-GitAttributes' {
     BeforeEach {
         $script:gaTestDir = Join-Path $TestDrive "ga-test-$(Get-Random)"
         New-Item -ItemType Directory -Path $script:gaTestDir -Force | Out-Null
@@ -2129,7 +2129,7 @@ Describe 'Ensure-GitAttributes' {
     }
 
     It 'creates .gitattributes when file does not exist' {
-        $result = Ensure-GitAttributes -ProjectRoot $script:gaTestDir
+        $result = Set-GitAttributes -ProjectRoot $script:gaTestDir
         $result.created | Should -BeTrue
         $result.updated | Should -BeFalse
         $gaPath = Join-Path $script:gaTestDir '.gitattributes'
@@ -2143,7 +2143,7 @@ Describe 'Ensure-GitAttributes' {
     It 'appends rules to existing .gitattributes without our marker' {
         $gaPath = Join-Path $script:gaTestDir '.gitattributes'
         "*.pdf binary`n" | Set-Content $gaPath -NoNewline
-        $result = Ensure-GitAttributes -ProjectRoot $script:gaTestDir
+        $result = Set-GitAttributes -ProjectRoot $script:gaTestDir
         $result.created | Should -BeFalse
         $result.updated | Should -BeTrue
         $content = Get-Content $gaPath -Raw
@@ -2155,7 +2155,7 @@ Describe 'Ensure-GitAttributes' {
         $gaPath = Join-Path $script:gaTestDir '.gitattributes'
         $existing = "# [team-ai-kit] engram diff rules`n.engram/** linguist-generated=true`n.engram/** -diff`n"
         Set-Content $gaPath -Value $existing -NoNewline
-        $result = Ensure-GitAttributes -ProjectRoot $script:gaTestDir
+        $result = Set-GitAttributes -ProjectRoot $script:gaTestDir
         $result.created | Should -BeFalse
         $result.updated | Should -BeFalse
     }
