@@ -16,6 +16,8 @@
 
 > Scoop, gentle-ai y engram los instala el setup si faltan.
 
+> **Importante:** En Windows usa siempre **PowerShell** para ejecutar team-ai-kit. Git Bash ejecuta la version bash del script (pensada para macOS/Linux) que requiere `jq` y otras dependencias Unix. Si usas el terminal integrado de tu IDE, asegurate de que el shell seleccionado sea PowerShell y no Git Bash. Ademas, si modificaste el PATH recientemente, reinicia el IDE para que tome los cambios.
+
 ### macOS / Linux
 
 | Herramienta | Instalacion |
