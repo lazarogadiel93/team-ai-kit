@@ -311,6 +311,67 @@ Invoke-Pester tests/skills.Tests.ps1 -Output Detailed
 
 ---
 
+## Instalacion en PC corporativa (sin Scoop)
+
+Si tu PC corporativa no permite instalar Scoop o modificar variables de entorno via script, segui estos pasos:
+
+### 1. Clonar el repositorio
+
+Clona team-ai-kit en la carpeta que prefieras:
+
+```powershell
+git clone https://github.com/lazarogadiel93/team-ai-kit <RUTA_DONDE_QUIERAS>
+# Ejemplo: git clone https://github.com/lazarogadiel93/team-ai-kit C:\tools\team-ai-kit
+```
+
+### 2. Ejecutar el setup
+
+```powershell
+cd <RUTA_DONDE_QUIERAS>
+.\setup.ps1
+```
+
+El setup descarga gentle-ai y engram automaticamente. Es posible que veas warnings como:
+
+```
+WARNING: could not add ... to PATH: exit status 1
+```
+
+Esto es normal en PCs corporativas. Los binarios se instalaron correctamente, solo que no se pudo agregar la ruta al PATH automaticamente.
+
+### 3. Agregar team-ai-kit al PATH manualmente
+
+Para poder ejecutar `team-ai-kit.ps1` desde cualquier carpeta:
+
+1. **Win + R** → escribir `sysdm.cpl` → Enter
+2. Pestaña **Advanced** → boton **Environment Variables**
+3. En **User variables** (las de arriba), seleccionar **Path** → **Edit**
+4. Click en **New** → pegar: `<RUTA_DONDE_QUIERAS>\bin`
+5. Aceptar todo y **reiniciar la terminal**
+
+> Nota: las variables de usuario no requieren permisos de administrador. Si el boton Edit esta deshabilitado, consulta con tu equipo de IT.
+
+### 4. Verificar
+
+Abri una terminal nueva y correr:
+
+```powershell
+team-ai-kit.ps1 doctor
+```
+
+Deberia mostrar gentle-ai y engram como disponibles.
+
+### 5. Inicializar en tu proyecto
+
+```powershell
+cd mi-proyecto
+team-ai-kit.ps1 init
+```
+
+Listo. Abri VS Code y empeza a trabajar.
+
+---
+
 ## Troubleshooting
 
 ### Primero: correr doctor
@@ -324,9 +385,15 @@ Si algo falla, te dice exactamente que.
 ### gentle-ai no se encuentra
 
 ```powershell
-# Windows
+# Windows (Scoop)
 scoop bucket add team-ai-kit https://github.com/lazarogadiel93/scoop-bucket
 scoop install gentle-ai
+```
+
+```powershell
+# Windows (PC corporativa -- sin Scoop)
+# El setup ya lo descarga automaticamente.
+# Si no funciona el comando, es un problema de PATH. Ver seccion "Instalacion en PC corporativa".
 ```
 
 ```bash
