@@ -9,6 +9,14 @@ globs:
   - "**/*Test.*"
   - "**/*.spec.*"
   - "**/*.log"
+  - "**/*.ts"
+  - "**/*.tsx"
+  - "**/*.js"
+  - "**/*.jsx"
+  - "**/*.py"
+  - "**/*.java"
+  - "**/*.cs"
+  - "**/*.go"
 metadata:
   author: team-ai-kit
   version: "1.0"
@@ -245,41 +253,7 @@ public class OrderService {
 
 ## Anti-Patterns
 
-### Anti-Pattern 1: Swallow Errors Silently
-
-```typescript
-// ❌ BAD
-try {
-  await riskyOperation();
-} catch {
-  /* total silence */
-}
-
-// ✅ GOOD
-try {
-  await riskyOperation();
-} catch (error) {
-  logger.error("riskyOperation failed", { error });
-  // decide: re-throw, fallback, or notify
-}
-```
-
-```python
-# ❌ BAD
-try:
-    process()
-except Exception:
-    pass
-
-# ✅ GOOD
-try:
-    process()
-except SpecificError as e:
-    logger.warning("Process failed, using fallback", exc_info=e)
-    return fallback_value
-```
-
-### Anti-Pattern 2: Log and Throw (Double Handling)
+### Anti-Pattern 1: Shotgun Debugging (Random Changes)
 
 ```java
 // ❌ BAD — logs the error AND throws it → duplicate log entries
@@ -299,7 +273,7 @@ try {
 }
 ```
 
-### Anti-Pattern 3: Catch Generic Exceptions
+### Anti-Pattern 2: Catch Generic Exceptions
 
 ```python
 # ❌ BAD — catches everything including KeyboardInterrupt
@@ -316,7 +290,7 @@ except (ConnectionError, TimeoutError) as e:
     return None
 ```
 
-### Anti-Pattern 4: Use Print Debugging in Production Code
+### Anti-Pattern 3: Use Print Debugging in Production Code
 
 ```go
 // ❌ BAD — fmt.Println left in production code

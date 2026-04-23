@@ -15,6 +15,8 @@ metadata:
 
 ## When to Use
 
+Load this skill when:
+
 - Setting up or modifying Expo Router file-based navigation (layouts, groups, typed routes)
 - Building list-heavy screens that need scroll performance optimization
 - Choosing between client state (Zustand) and server state (TanStack Query)

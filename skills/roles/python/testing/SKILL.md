@@ -285,6 +285,9 @@ markers = [
 
 ```python
 # With anyio (recommended — works with both asyncio and trio)
+# Use anyio when: your code or dependencies may need to run on different async
+# backends (asyncio or trio), or when you want a single test suite that is
+# backend-agnostic. Install: pip install anyio pytest
 import pytest
 
 @pytest.mark.anyio
@@ -292,7 +295,10 @@ async def test_async_operation():
     result = await some_async_function()
     assert result is not None
 
-# With pytest-asyncio
+# With pytest-asyncio (simpler — asyncio only)
+# Use pytest-asyncio when: your project exclusively uses asyncio (e.g., FastAPI,
+# aiohttp) and you have no need for trio compatibility.
+# Install: pip install pytest-asyncio
 import pytest
 
 @pytest.mark.asyncio

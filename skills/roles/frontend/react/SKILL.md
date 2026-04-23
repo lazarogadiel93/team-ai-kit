@@ -493,6 +493,15 @@ const filteredItems = items.filter(i => i.active)
 
 ---
 
+## React 18+ Compatibility Notes
+
+- **`createRoot` API**: Use `createRoot(container).render(<App />)` instead of the legacy `ReactDOM.render(<App />, container)`. The legacy API is deprecated and will be removed in a future version.
+- **Strict Mode double rendering**: In development, `<React.StrictMode>` intentionally double-invokes render, effects setup, and effects cleanup to surface impure components. Do not write code that relies on effects running exactly once.
+- **Automatic batching**: React 18 batches all state updates (including inside promises, timeouts, and event handlers) by default. If you need to force a synchronous re-render, use `flushSync()`.
+- **`useId`**: Use `useId()` for generating stable unique IDs that work with SSR hydration. Do not use `Math.random()` or incrementing counters for IDs.
+
+---
+
 ## Quick Reference
 
 | Pattern                    | When to apply                                         |
