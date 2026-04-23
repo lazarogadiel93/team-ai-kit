@@ -620,14 +620,13 @@ function Invoke-InitCommand {
     # Always inject engram protocol into project instructions for all IDEs.
     # Even when gentle-ai handles it globally, having it at project level
     # reinforces the behavior (especially for models that don't follow global instructions reliably).
-    $skipProtocol = $false
     $relInstructionsPath = $instructionsPath.Replace($projectRoot, '').TrimStart('\', '/')
 
     if ($DryRun) {
         Write-Dry "Would create: $relInstructionsPath"
     }
     else {
-        $instructions = New-CopilotInstructions -Role $effectiveRole -PackRulesContent $packRulesContent -TeamRulesContent $teamRulesContent -SkipEngramProtocol:$skipProtocol
+        $instructions = New-CopilotInstructions -Role $effectiveRole -PackRulesContent $packRulesContent -TeamRulesContent $teamRulesContent
 
         # Preserve existing instructions content: append below team-ai-kit section
         if (Test-Path $instructionsPath) {
@@ -996,15 +995,9 @@ function Invoke-UpdateCommand {
             }
             else {
                 # Always inject engram protocol -- reinforces behavior at project level
-                $skipProtocol = $false
-                $protocolChanged = Update-InstructionsEngramProtocol -FilePath $instructionsPath -SkipEngramProtocol:$skipProtocol
+                $protocolChanged = Update-InstructionsEngramProtocol -FilePath $instructionsPath
                 if ($protocolChanged) {
-                    if ($skipProtocol) {
-                        Write-Ok 'Engram Memory Protocol removed from project instructions (gentle-ai handles it)'
-                    }
-                    else {
-                        Write-Ok 'Engram Memory Protocol updated in project instructions'
-                    }
+                    Write-Ok 'Engram Memory Protocol updated in project instructions'
                 }
                 else {
                     Write-Step 'Engram Memory Protocol unchanged in project instructions'
