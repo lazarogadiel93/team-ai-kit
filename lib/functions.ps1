@@ -868,10 +868,18 @@ function Get-InstalledVersion {
     <#
     .SYNOPSIS
         Returns the installed version of a tool (gentle-ai or engram).
+        Uses full binary path to work even when PATH is not configured
+        (e.g. corporate environments that block PATH modifications).
     #>
     param([Parameter(Mandatory)][string]$Tool)
+    $binPath = switch ($Tool) {
+        'gentle-ai' { Get-GentleAiBinaryPath }
+        'engram'    { Get-EngramBinaryPath }
+        default     { $Tool }
+    }
+    if (-not $binPath) { return $null }
     try {
-        $output = & $Tool version 2>$null
+        $output = & $binPath version 2>$null
         if ($output -match '(\d+\.\d+\.\d+)') { return $Matches[1] }
     }
     catch {}
