@@ -239,6 +239,39 @@ function Set-GitAttributes {
     }
 }
 
+function Set-GitIgnoreRules {
+    <#
+    .SYNOPSIS
+        Ensures .team-ai-kit.json is listed in the project .gitignore.
+    .DESCRIPTION
+        Appends .team-ai-kit.json to .gitignore if not already present.
+        Creates .gitignore if it does not exist. Idempotent.
+    #>
+    param(
+        [Parameter(Mandatory)]
+        [string]$ProjectRoot
+    )
+
+    $giPath = Join-Path $ProjectRoot '.gitignore'
+    $entry = '.team-ai-kit.json'
+
+    if (Test-Path $giPath) {
+        $existing = Get-Content $giPath -Raw -ErrorAction SilentlyContinue
+        if ($existing -and $existing.Contains($entry)) {
+            return @{ created = $false; updated = $false; path = $giPath }
+        }
+        $newContent = $existing.TrimEnd() + "`n" + $entry + "`n"
+        $lfContent = $newContent -replace "`r`n", "`n"
+        [System.IO.File]::WriteAllText($giPath, $lfContent, [System.Text.UTF8Encoding]::new($false))
+        return @{ created = $false; updated = $true; path = $giPath }
+    }
+    else {
+        $lfContent = ($entry + "`n") -replace "`r`n", "`n"
+        [System.IO.File]::WriteAllText($giPath, $lfContent, [System.Text.UTF8Encoding]::new($false))
+        return @{ created = $true; updated = $false; path = $giPath }
+    }
+}
+
 function Remove-GitAttributesBlock {
     <#
     .SYNOPSIS
@@ -1671,6 +1704,7 @@ function New-VsCodeMcpConfig {
             engram = @{
                 command = $EngramBinaryPath
                 args    = @('mcp', '--tools=agent')
+                cwd     = '${workspaceFolder}'
             }
             context7 = @{
                 type = 'sse'

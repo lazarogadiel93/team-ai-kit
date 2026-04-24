@@ -377,6 +377,12 @@ Describe 'New-VsCodeMcpConfig' {
         $config.servers.context7 | Should -Not -BeNullOrEmpty
         $config.servers.context7.url | Should -BeLike '*context7*'
     }
+
+    It 'includes cwd with workspaceFolder variable' {
+        $json = New-VsCodeMcpConfig -EngramBinaryPath 'C:\engram.exe'
+        $config = $json | ConvertFrom-Json
+        $config.servers.engram.cwd | Should -Be '${workspaceFolder}'
+    }
 }
 
 # -- Instructions Generation ---------------------------------------------------
@@ -2147,6 +2153,45 @@ Describe 'Set-GitAttributes' {
         $existing = "# [team-ai-kit] engram diff rules`n.engram/** linguist-generated=true`n.engram/** -diff`n"
         Set-Content $gaPath -Value $existing -NoNewline
         $result = Set-GitAttributes -ProjectRoot $script:gaTestDir
+        $result.created | Should -BeFalse
+        $result.updated | Should -BeFalse
+    }
+}
+
+Describe 'Set-GitIgnoreRules' {
+    BeforeEach {
+        $script:giTestDir = Join-Path $TestDrive "gi-test-$(Get-Random)"
+        New-Item -ItemType Directory -Path $script:giTestDir -Force | Out-Null
+    }
+    AfterEach {
+        if (Test-Path $script:giTestDir) { Remove-Item $script:giTestDir -Recurse -Force }
+    }
+
+    It 'creates .gitignore when file does not exist' {
+        $result = Set-GitIgnoreRules -ProjectRoot $script:giTestDir
+        $result.created | Should -BeTrue
+        $result.updated | Should -BeFalse
+        $giPath = Join-Path $script:giTestDir '.gitignore'
+        Test-Path $giPath | Should -BeTrue
+        $content = Get-Content $giPath -Raw
+        $content | Should -BeLike '*.team-ai-kit.json*'
+    }
+
+    It 'appends entry to existing .gitignore without it' {
+        $giPath = Join-Path $script:giTestDir '.gitignore'
+        "node_modules/`n" | Set-Content $giPath -NoNewline
+        $result = Set-GitIgnoreRules -ProjectRoot $script:giTestDir
+        $result.created | Should -BeFalse
+        $result.updated | Should -BeTrue
+        $content = Get-Content $giPath -Raw
+        $content | Should -BeLike '*node_modules/*'
+        $content | Should -BeLike '*.team-ai-kit.json*'
+    }
+
+    It 'is idempotent -- no-op when entry already present' {
+        $giPath = Join-Path $script:giTestDir '.gitignore'
+        ".team-ai-kit.json`n" | Set-Content $giPath -NoNewline
+        $result = Set-GitIgnoreRules -ProjectRoot $script:giTestDir
         $result.created | Should -BeFalse
         $result.updated | Should -BeFalse
     }

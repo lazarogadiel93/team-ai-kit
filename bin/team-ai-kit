@@ -696,6 +696,20 @@ cmd_init() {
         else
             step ".gitattributes already configured"
         fi
+
+        # 4d. Ensure .team-ai-kit.json is gitignored
+        local gi_json gi_created gi_updated
+        gi_json=$(set_gitignore_rules "$project_root")
+        gi_created=$(echo "$gi_json" | jq -r '.created')
+        gi_updated=$(echo "$gi_json" | jq -r '.updated')
+
+        if [[ "$gi_created" == "true" ]]; then
+            ok ".gitignore created -- .team-ai-kit.json excluded from git"
+        elif [[ "$gi_updated" == "true" ]]; then
+            ok ".gitignore updated -- .team-ai-kit.json excluded from git"
+        else
+            step ".gitignore already has .team-ai-kit.json"
+        fi
     fi
 
     # -- Save project config ---------------------------------------------------
@@ -728,7 +742,7 @@ cmd_init() {
 
         echo ""
         echo -e "  ${C_YELLOW}Next steps:${C_RESET}"
-        echo -e "    ${C_WHITE}1. Commit .team-ai-kit.json and $rel_instructions_path to your repo${C_RESET}"
+        echo -e "    ${C_WHITE}1. Commit $rel_instructions_path to your repo${C_RESET}"
         if [[ -n "$effective_team_repo" ]]; then
             local rel_skills_dir
             rel_skills_dir="$(get_ide_project_skills_directory "$effective_ide" "$project_root")"

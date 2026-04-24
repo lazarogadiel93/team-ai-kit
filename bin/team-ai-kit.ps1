@@ -720,6 +720,19 @@ function Invoke-InitCommand {
         else {
             Write-Step '.gitattributes already configured'
         }
+
+        # 4d. Ensure .team-ai-kit.json is gitignored
+        $giResult = Set-GitIgnoreRules -ProjectRoot $projectRoot
+
+        if ($giResult.created) {
+            Write-Ok '.gitignore created -- .team-ai-kit.json excluded from git'
+        }
+        elseif ($giResult.updated) {
+            Write-Ok '.gitignore updated -- .team-ai-kit.json excluded from git'
+        }
+        else {
+            Write-Step '.gitignore already has .team-ai-kit.json'
+        }
     }
 
     # -- Save project config ---------------------------------------------------
@@ -753,7 +766,7 @@ function Invoke-InitCommand {
 
         Write-Host ''
         Write-Host '  Next steps:' -ForegroundColor Yellow
-        Write-Host "    1. Commit .team-ai-kit.json and $relInstructionsPath to your repo" -ForegroundColor White
+        Write-Host "    1. Commit $relInstructionsPath to your repo" -ForegroundColor White
         if ($effectiveTeamRepo) {
             $relSkillsDir = (Get-IdeProjectSkillsDirectory -Ide $effectiveIde -ProjectRoot $projectRoot).Replace($projectRoot, '').TrimStart('\', '/')
             Write-Host "    2. Commit $relSkillsDir/ (team skills for this project)" -ForegroundColor White
@@ -1000,6 +1013,24 @@ function Invoke-UpdateCommand {
         }
         else {
             Write-Step '.gitattributes already configured'
+        }
+    }
+
+    # Step 4b: Ensure .team-ai-kit.json is gitignored
+    if ($DryRun) {
+        Write-Dry 'Would ensure .team-ai-kit.json is in .gitignore'
+    }
+    else {
+        $giResult = Set-GitIgnoreRules -ProjectRoot $projectRoot
+
+        if ($giResult.created) {
+            Write-Ok '.gitignore created -- .team-ai-kit.json excluded from git'
+        }
+        elseif ($giResult.updated) {
+            Write-Ok '.gitignore updated -- .team-ai-kit.json excluded from git'
+        }
+        else {
+            Write-Step '.gitignore already has .team-ai-kit.json'
         }
     }
 
