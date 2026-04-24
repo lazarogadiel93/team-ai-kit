@@ -57,20 +57,24 @@ Describe 'ConvertTo-SafeProjectName' {
         ConvertTo-SafeProjectName -Name 'my-project_v2.0' | Should -Be 'my-project_v2.0'
     }
 
-    It 'strips shell metacharacters' {
+    It 'strips shell metacharacters and lowercases' {
         ConvertTo-SafeProjectName -Name 'proj"; rm -rf /; echo "' | Should -Be 'projrm-rfecho'
     }
 
-    It 'strips spaces' {
+    It 'strips spaces and lowercases' {
         ConvertTo-SafeProjectName -Name 'my project' | Should -Be 'myproject'
     }
 
-    It 'strips dollar signs and backticks' {
-        ConvertTo-SafeProjectName -Name 'proj$HOME`cmd`' | Should -Be 'projHOMEcmd'
+    It 'strips dollar signs and backticks and lowercases' {
+        ConvertTo-SafeProjectName -Name 'proj$HOME`cmd`' | Should -Be 'projhomecmd'
     }
 
     It 'returns empty string for all-unsafe input' {
         ConvertTo-SafeProjectName -Name '$(rm -rf /)' | Should -Be 'rm-rf'
+    }
+
+    It 'normalizes uppercase to lowercase for engram compatibility' {
+        ConvertTo-SafeProjectName -Name 'fe-3pl-Template-next' | Should -Be 'fe-3pl-template-next'
     }
 
     It 'handles empty string' {
