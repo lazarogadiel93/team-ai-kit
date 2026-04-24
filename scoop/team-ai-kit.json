@@ -1,28 +1,31 @@
 {
-    "version": "2.6.3",
-    "description": "Team AI Kit - gentle-ai for teams. Standardizes AI usage across development teams with role-based skills, shared memory, and zero-friction onboarding.",
-    "homepage": "https://github.com/lazarogadiel93/team-ai-kit",
-    "license": "MIT",
-    "url": "https://github.com/lazarogadiel93/team-ai-kit/releases/download/v2.6.3/team-ai-kit-v2.6.3.zip",
-    "hash": "5c397ed3216db7b881b60e066bfb0748120c94b4141f44fe77de223c4f00b65f",
-    "extract_dir": "team-ai-kit",
-    "bin": [
-        ["bin\\team-ai-kit.ps1", "team-ai-kit"]
-    ],
-    "suggest": {
-        "gentle-ai": "team-ai-kit/gentle-ai",
-        "engram": "team-ai-kit/engram"
-    },
-    "post_install": "Write-Host 'Run \"team-ai-kit setup\" to configure your environment.' -ForegroundColor Cyan",
-    "checkver": {
-        "github": "https://github.com/lazarogadiel93/team-ai-kit"
-    },
-    "autoupdate": {
-        "url": "https://github.com/lazarogadiel93/team-ai-kit/releases/download/v$version/team-ai-kit-v$version.zip"
-    },
-    "notes": [
-        "Run 'team-ai-kit setup' to configure your IDE, role, and team repo.",
-        "Run 'team-ai-kit doctor' to verify your installation.",
-        "Run 'team-ai-kit help' for all available commands."
+  "version": "2.7.0",
+  "description": "Team AI Kit - gentle-ai for teams. Standardizes AI usage across development teams with role-based skills, shared memory, and zero-friction onboarding.",
+  "homepage": "https://github.com/lazarogadiel93/team-ai-kit",
+  "license": "MIT",
+  "url": "https://github.com/lazarogadiel93/team-ai-kit/releases/download/v2.7.0/team-ai-kit-v2.7.0.zip",
+  "hash": "8860dbca4ace5e1c0a48b45bd41c66ff97fbe831ee7b370cefc9ec3d187cd4be",
+  "extract_dir": "team-ai-kit",
+  "bin": [
+    [
+      "bin\\team-ai-kit.ps1",
+      "team-ai-kit"
     ]
+  ],
+  "suggest": {
+    "gentle-ai": "team-ai-kit/gentle-ai",
+    "engram": "team-ai-kit/engram"
+  },
+  "post_install": "Write-Host 'Run \"team-ai-kit setup\" to configure your environment.' -ForegroundColor Cyan",
+  "checkver": {
+    "github": "https://github.com/lazarogadiel93/team-ai-kit"
+  },
+  "autoupdate": {
+    "url": "https://github.com/lazarogadiel93/team-ai-kit/releases/download/v$version/team-ai-kit-v$version.zip"
+  },
+  "notes": [
+    "Run 'team-ai-kit setup' to configure your IDE, role, and team repo.",
+    "Run 'team-ai-kit doctor' to verify your installation.",
+    "Run 'team-ai-kit help' for all available commands."
+  ]
 }
