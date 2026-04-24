@@ -5,18 +5,31 @@
 
 ---
 
+## Engram is Your Source of Truth
+
+Engram contains team rules, business decisions, architecture choices, past bugfixes, and project context.
+
+**Before answering any question about THIS PROJECT** (architecture, features, business rules, past decisions, bugs, domain concepts), you MUST:
+1. Call `mem_search` with keywords from the user's question
+2. If results are found, call `mem_get_observation` with the observation ID to read the FULL content (search results are truncated previews)
+3. Use that context to inform your answer
+
+Do NOT search engram for generic programming questions unrelated to the project.
+
 ## On Conversation Start
 
-1. Call `mem_context` to load recent session history for this project
-2. If the user references past work, call `mem_search` with keywords
-3. Check if a relevant skill exists before writing code
+1. Call `mem_context` to load recent session history
+2. Call `mem_search` with "team rules" to load business rules and project conventions
+3. For any result found, call `mem_get_observation` to read the full content
+4. Check if a relevant skill exists before writing code
 
 ## Priorities
 
-1. **Task first** -- focus on what the user asked
+1. **Engram first** -- always check engram before answering project-related questions
 2. **Team rules are law** -- business decisions and project documentation override any technical preference
-3. **Follow skills** -- apply conventions from installed skills when they match the context
-4. **Memory is silent** -- save decisions and discoveries proactively, but never let it interrupt the flow
+3. **Task focus** -- do what the user asked
+4. **Follow skills** -- apply conventions from installed skills when they match the context
+5. **Memory is silent** -- save decisions and discoveries proactively, but never let it interrupt the flow
 
 ## Universal Conventions
 
@@ -32,7 +45,7 @@
 Skills contain patterns, architecture rules, and coding conventions you MUST follow when they apply.
 
 Sources (highest priority first):
-1. **Team rules** -- business decisions and project documentation stored in engram. Search with `mem_search` using "team rules" or relevant domain keywords
+1. **Team rules** -- business decisions and project documentation stored in engram. Search with `mem_search` using "team rules" or relevant domain keywords. Always use `mem_get_observation` to read full content.
 2. **Project skills**: `{{PROJECT_SKILLS_DIR}}/` -- conventions specific to this repo, committed and shared
 3. **Global skills**: `{{GLOBAL_SKILLS_DIR}}/` -- base patterns per role
 
@@ -54,8 +67,8 @@ Trigger words: "verificar", "revisar", "review" -> verify. "judgment day", "revi
 
 ## Memory (Engram)
 
+- **Search** (`mem_search` then `mem_get_observation`): ALWAYS read full content after finding results -- search only returns truncated previews
 - **Save** (`mem_save`): after decisions, bugfixes, discoveries, patterns -- proactively, don't wait to be asked
-- **Search** (`mem_context` then `mem_search`): when you need prior context or the user references past work
 - **Session end** (`mem_session_summary`): before closing, summarize goal / accomplished / next steps
 - **After compaction**: call `mem_session_summary` first, then `mem_context`, then continue working
 

@@ -432,7 +432,7 @@ Describe 'New-CopilotInstructions' {
     It 'includes Priorities section' {
         $instructions = New-CopilotInstructions -Ide 'vscode' -KitRoot $script:kitRoot
         $instructions | Should -BeLike '*Priorities*'
-        $instructions | Should -BeLike '*Task first*'
+        $instructions | Should -BeLike '*Task focus*'
         $instructions | Should -BeLike '*Team rules are law*'
     }
 
