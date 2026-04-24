@@ -300,6 +300,28 @@ remove_gitattributes_block() {
     fi
 }
 
+set_gitignore_rules() {
+    # Ensures .team-ai-kit.json is listed in the project .gitignore.
+    # Creates .gitignore if it does not exist. Idempotent.
+    # Usage: set_gitignore_rules "/path/to/project"
+    # Outputs JSON: {"created":bool,"updated":bool,"path":"..."}
+    local project_root="$1"
+    local gi_path="$project_root/.gitignore"
+    local entry=".team-ai-kit.json"
+
+    if [[ -f "$gi_path" ]]; then
+        if grep -qF "$entry" "$gi_path" 2>/dev/null; then
+            printf '{"created":false,"updated":false,"path":"%s"}' "$gi_path"
+            return
+        fi
+        printf '\n%s\n' "$entry" >> "$gi_path"
+        printf '{"created":false,"updated":true,"path":"%s"}' "$gi_path"
+    else
+        printf '%s\n' "$entry" > "$gi_path"
+        printf '{"created":true,"updated":false,"path":"%s"}' "$gi_path"
+    fi
+}
+
 initialize_engram_sync() {
     # Runs initial engram sync to export project memories to .engram/.
     # Uses native 'engram sync --project <name>' for team knowledge sharing via git.
@@ -1181,7 +1203,8 @@ new_vscode_mcp_config() {
         servers: {
             engram: {
                 command: $engram,
-                args: ["mcp", "--tools=agent"]
+                args: ["mcp", "--tools=agent"],
+                cwd: "${workspaceFolder}"
             },
             context7: {
                 type: "sse",
@@ -1197,7 +1220,8 @@ new_cursor_mcp_config() {
         mcpServers: {
             engram: {
                 command: $engram,
-                args: ["mcp", "--tools=agent"]
+                args: ["mcp", "--tools=agent"],
+                cwd: "${workspaceFolder}"
             },
             context7: {
                 url: "https://mcp.context7.com/mcp"
