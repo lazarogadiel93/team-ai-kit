@@ -28,7 +28,7 @@ _require_jq() {
 _sanitize_project_name() {
     # Strips unsafe characters from project name to prevent shell injection in git hooks.
     # Allows only: a-z A-Z 0-9 . _ -
-    echo "$1" | tr -cd 'a-zA-Z0-9._-'
+    echo "$1" | tr -cd 'a-zA-Z0-9._-' | tr '[:upper:]' '[:lower:]'
 }
 
 _resolve_team_repo() {

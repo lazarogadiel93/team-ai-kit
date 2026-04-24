@@ -40,7 +40,7 @@ function ConvertTo-SafeProjectName {
         Allows only: a-z A-Z 0-9 . _ -
     #>
     param([string]$Name)
-    return ($Name -replace '[^a-zA-Z0-9._-]', '')
+    return ($Name -replace '[^a-zA-Z0-9._-]', '').ToLower()
 }
 
 function Get-TeamAiKitConfigDir {
