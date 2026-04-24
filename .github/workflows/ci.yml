@@ -87,28 +87,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Verify bash, PS1, and scoop manifest versions match
+      - name: Verify bash and PS1 versions match
         run: |
           bash_version=$(sed -n "s/^KIT_VERSION='\(.*\)'/\1/p" bin/team-ai-kit)
           ps1_version=$(sed -n "s/^\$KitVersion = '\(.*\)'/\1/p" bin/team-ai-kit.ps1)
-          scoop_version=$(jq -r '.version' scoop/team-ai-kit.json)
-          if [ -z "$bash_version" ] || [ -z "$ps1_version" ] || [ -z "$scoop_version" ]; then
-            echo "::error::Could not extract version (bash='$bash_version' ps1='$ps1_version' scoop='$scoop_version')"
+          if [ -z "$bash_version" ] || [ -z "$ps1_version" ]; then
+            echo "::error::Could not extract version (bash='$bash_version' ps1='$ps1_version')"
             exit 1
           fi
           echo "Bash version:  $bash_version"
           echo "PS1 version:   $ps1_version"
-          echo "Scoop version: $scoop_version"
-          failed=0
           if [ "$bash_version" != "$ps1_version" ]; then
             echo "::error::Version mismatch! Bash=$bash_version PS1=$ps1_version"
-            failed=1
-          fi
-          if [ "$bash_version" != "$scoop_version" ]; then
-            echo "::error::Version mismatch! Bash=$bash_version Scoop=$scoop_version"
-            failed=1
-          fi
-          if [ "$failed" -eq 1 ]; then
             exit 1
           fi
-          echo "All versions match: $bash_version"
+          echo "All source versions match: $bash_version"
+          echo "(Scoop manifest is updated automatically by the release workflow)"
