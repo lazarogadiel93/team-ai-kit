@@ -42,7 +42,7 @@
 set -euo pipefail
 
 # -- Version -------------------------------------------------------------------
-KIT_VERSION='2.7.2'
+KIT_VERSION='2.7.3'
 
 # -- Resolve paths -------------------------------------------------------------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -372,14 +372,6 @@ cmd_setup() {
 
         if [[ -n "$gentle_bin" ]] && "$gentle_bin" install --agent "$agent_id" --preset ecosystem-only --persona gentleman 2>/dev/null; then
             ok "gentle-ai configured for $agent_id"
-
-            # Patch global mcp.json to add cwd=${workspaceFolder} to engram
-            local patch_json patch_result
-            patch_json=$(add_mcp_engram_cwd "$OPT_IDE")
-            patch_result=$(echo "$patch_json" | jq -r '.patched')
-            if [[ "$patch_result" == "true" ]]; then
-                ok 'Patched engram MCP config: added cwd=${workspaceFolder}'
-            fi
         else
             warn "gentle-ai install failed or exited with error"
             warn "Run gentle-ai manually after setup completes"
@@ -513,7 +505,7 @@ cmd_init() {
     project_root=$(pwd)
 
     # -- Step 1: Check global config -------------------------------------------
-    echo -e "  ${C_WHITE}[1/4] Checking global configuration...${C_RESET}"
+    echo -e "  ${C_WHITE}[1/5] Checking global configuration...${C_RESET}"
     local global_ide global_role
     global_ide=$(get_config_value "ide")
     global_role=$(get_config_value "role")
@@ -527,7 +519,7 @@ cmd_init() {
 
     # -- Step 2: Check if already initialized ----------------------------------
     echo ""
-    echo -e "  ${C_WHITE}[2/4] Checking project state...${C_RESET}"
+    echo -e "  ${C_WHITE}[2/5] Checking project state...${C_RESET}"
 
     if test_project_initialized "$project_root"; then
         local existing_role existing_ide existing_at
@@ -567,7 +559,7 @@ cmd_init() {
 
     # -- Step 3: Generate project files ----------------------------------------
     echo ""
-    echo -e "  ${C_WHITE}[3/4] Generating project files...${C_RESET}"
+    echo -e "  ${C_WHITE}[3/5] Generating project files...${C_RESET}"
 
     # 3a. Instructions file
     local instructions_path
@@ -649,9 +641,37 @@ cmd_init() {
         fi
     fi
 
-    # -- Step 4: Setup engram sync + git hooks --------------------------------
+    # -- Step 4: Setup project MCP config ----------------------------------------
     echo ""
-    echo -e "  ${C_WHITE}[4/4] Setting up engram sync and git hooks...${C_RESET}"
+    echo -e "  ${C_WHITE}[4/5] Setting up project MCP config...${C_RESET}"
+
+    if [[ "$OPT_DRY_RUN" == "true" ]]; then
+        dry "Would create/update .vscode/mcp.json with engram + context7"
+    else
+        local engram_path
+        engram_path=$(get_engram_binary_path 2>/dev/null) || true
+        if [[ -z "$engram_path" ]]; then engram_path="(path-to-engram)"; fi
+
+        local mcp_result mcp_created mcp_updated mcp_unchanged
+        mcp_result=$(install_project_mcp_config "$project_root" "$engram_path")
+        mcp_created=$(echo "$mcp_result" | jq -r '.created // empty')
+        mcp_updated=$(echo "$mcp_result" | jq -r '.updated // empty')
+        mcp_unchanged=$(echo "$mcp_result" | jq -r '.unchanged // empty')
+
+        if [[ "$mcp_created" == "true" ]]; then
+            ok "Created .vscode/mcp.json with engram + context7"
+        elif [[ "$mcp_updated" == "true" ]]; then
+            ok "Updated .vscode/mcp.json -- engram + context7 merged"
+        elif [[ "$mcp_unchanged" == "true" ]]; then
+            step ".vscode/mcp.json already up to date"
+        else
+            warn "MCP config issue: $mcp_result"
+        fi
+    fi
+
+    # -- Step 5: Setup engram sync + git hooks --------------------------------
+    echo ""
+    echo -e "  ${C_WHITE}[5/5] Setting up engram sync and git hooks...${C_RESET}"
 
     local project_name
     project_name=$(_sanitize_project_name "$(basename "$project_root")")
@@ -1034,20 +1054,6 @@ cmd_update() {
             ok ".gitattributes updated -- .engram/ diffs collapsed in PRs"
         else
             step ".gitattributes already configured"
-        fi
-    fi
-
-    # Step 4c: Ensure engram MCP has cwd=${workspaceFolder}
-    if [[ "$OPT_DRY_RUN" == "true" ]]; then
-        dry 'Would patch engram MCP config with cwd=${workspaceFolder}'
-    else
-        local patch_json patch_result
-        patch_json=$(add_mcp_engram_cwd "$config_ide")
-        patch_result=$(echo "$patch_json" | jq -r '.patched')
-        if [[ "$patch_result" == "true" ]]; then
-            ok 'Patched engram MCP config: added cwd=${workspaceFolder}'
-        else
-            step 'Engram MCP config already has cwd'
         fi
     fi
 
