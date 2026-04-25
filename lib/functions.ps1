@@ -1690,6 +1690,75 @@ function Install-ProjectSkills {
 
 # ── MCP Config Generation ────────────────────────────────────────────────────
 
+function Get-GlobalMcpJsonPath {
+    <#
+    .SYNOPSIS
+        Returns the path to the global mcp.json for the given IDE.
+    #>
+    param(
+        [Parameter(Mandatory)]
+        [string]$Ide
+    )
+    switch ($Ide.ToLower()) {
+        'vscode'  { return Join-Path $env:APPDATA 'Code\User\mcp.json' }
+        'cursor'  { return Join-Path (Get-UserHome) '.cursor\mcp.json' }
+        default   { return $null }
+    }
+}
+
+function Add-McpEngramCwd {
+    <#
+    .SYNOPSIS
+        Patches the global mcp.json to add cwd=${workspaceFolder} to the engram server entry.
+    .DESCRIPTION
+        Reads the global mcp.json, checks if engram server exists, and adds cwd if missing.
+        Idempotent: no-op if cwd is already present.
+        Returns hashtable with patched=$true/$false.
+    #>
+    param(
+        [Parameter(Mandatory)]
+        [string]$Ide
+    )
+
+    $mcpPath = Get-GlobalMcpJsonPath -Ide $Ide
+    if (-not $mcpPath -or -not (Test-Path $mcpPath)) {
+        return @{ patched = $false; reason = 'no-mcp-file' }
+    }
+
+    try {
+        $raw = Get-Content $mcpPath -Raw -ErrorAction Stop
+        $config = $raw | ConvertFrom-Json
+
+        # Find engram entry in servers or mcpServers
+        $serversKey = if ($config.PSObject.Properties['servers']) { 'servers' }
+                      elseif ($config.PSObject.Properties['mcpServers']) { 'mcpServers' }
+                      else { $null }
+
+        if (-not $serversKey) {
+            return @{ patched = $false; reason = 'no-servers-key' }
+        }
+
+        $servers = $config.$serversKey
+        if (-not $servers.PSObject.Properties['engram']) {
+            return @{ patched = $false; reason = 'no-engram-entry' }
+        }
+
+        $engram = $servers.engram
+        if ($engram.PSObject.Properties['cwd']) {
+            return @{ patched = $false; reason = 'already-has-cwd' }
+        }
+
+        $engram | Add-Member -NotePropertyName 'cwd' -NotePropertyValue '${workspaceFolder}'
+        $json = $config | ConvertTo-Json -Depth 10
+        $lfJson = $json -replace "`r`n", "`n"
+        [System.IO.File]::WriteAllText($mcpPath, $lfJson, [System.Text.UTF8Encoding]::new($false))
+        return @{ patched = $true; path = $mcpPath }
+    }
+    catch {
+        return @{ patched = $false; reason = "error: $_" }
+    }
+}
+
 function New-VsCodeMcpConfig {
     <#
     .SYNOPSIS

@@ -1197,6 +1197,80 @@ install_project_skills() {
 
 # -- MCP Config Generation ----------------------------------------------------
 
+get_global_mcp_json_path() {
+    # Returns the path to the global mcp.json for the given IDE.
+    # Usage: get_global_mcp_json_path "vscode"
+    local ide="$1"
+    local home_dir
+    home_dir=$(get_user_home)
+
+    case "$ide" in
+        vscode)
+            if [[ "$OSTYPE" == darwin* ]]; then
+                echo "$home_dir/Library/Application Support/Code/User/mcp.json"
+            else
+                echo "${XDG_CONFIG_HOME:-$home_dir/.config}/Code/User/mcp.json"
+            fi
+            ;;
+        cursor)
+            echo "$home_dir/.cursor/mcp.json"
+            ;;
+        *)
+            echo ""
+            ;;
+    esac
+}
+
+add_mcp_engram_cwd() {
+    # Patches the global mcp.json to add cwd=${workspaceFolder} to engram.
+    # Usage: add_mcp_engram_cwd "vscode"
+    # Outputs JSON: {"patched":bool,"reason":"..."}
+    local ide="$1"
+    local mcp_path
+    mcp_path=$(get_global_mcp_json_path "$ide")
+
+    if [[ -z "$mcp_path" || ! -f "$mcp_path" ]]; then
+        printf '{"patched":false,"reason":"no-mcp-file"}'
+        return
+    fi
+
+    # Check if engram entry exists
+    local servers_key
+    servers_key=$(jq -r 'if .servers then "servers" elif .mcpServers then "mcpServers" else "" end' "$mcp_path" 2>/dev/null)
+
+    if [[ -z "$servers_key" ]]; then
+        printf '{"patched":false,"reason":"no-servers-key"}'
+        return
+    fi
+
+    local has_engram
+    has_engram=$(jq -r ".$servers_key | has(\"engram\")" "$mcp_path" 2>/dev/null)
+
+    if [[ "$has_engram" != "true" ]]; then
+        printf '{"patched":false,"reason":"no-engram-entry"}'
+        return
+    fi
+
+    local has_cwd
+    has_cwd=$(jq -r ".$servers_key.engram | has(\"cwd\")" "$mcp_path" 2>/dev/null)
+
+    if [[ "$has_cwd" == "true" ]]; then
+        printf '{"patched":false,"reason":"already-has-cwd"}'
+        return
+    fi
+
+    # Patch it
+    local tmp_file="${mcp_path}.tmp"
+    jq ".$servers_key.engram.cwd = \"\${workspaceFolder}\"" "$mcp_path" > "$tmp_file" 2>/dev/null
+    if [[ $? -eq 0 ]]; then
+        mv "$tmp_file" "$mcp_path"
+        printf '{"patched":true,"path":"%s"}' "$mcp_path"
+    else
+        rm -f "$tmp_file"
+        printf '{"patched":false,"reason":"jq-error"}'
+    fi
+}
+
 new_vscode_mcp_config() {
     local engram_path="$1"
     jq -n --arg engram "$engram_path" '{
