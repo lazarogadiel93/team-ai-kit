@@ -1221,53 +1221,74 @@ get_global_mcp_json_path() {
     esac
 }
 
-add_mcp_engram_cwd() {
-    # Patches the global mcp.json to add cwd=${workspaceFolder} to engram.
-    # Usage: add_mcp_engram_cwd "vscode"
-    # Outputs JSON: {"patched":bool,"reason":"..."}
-    local ide="$1"
-    local mcp_path
-    mcp_path=$(get_global_mcp_json_path "$ide")
+install_project_mcp_config() {
+    # Creates or merges .vscode/mcp.json in the project with engram + context7.
+    # Usage: install_project_mcp_config "/path/to/project" "/path/to/engram"
+    # Outputs JSON: {"created":bool,"updated":bool,"unchanged":bool,"path":"..."}
+    local project_root="$1"
+    local engram_path="$2"
+    local vscode_dir="${project_root}/.vscode"
+    local mcp_path="${vscode_dir}/mcp.json"
 
-    if [[ -z "$mcp_path" || ! -f "$mcp_path" ]]; then
-        printf '{"patched":false,"reason":"no-mcp-file"}'
-        return
-    fi
+    if [[ -f "$mcp_path" ]]; then
+        # Merge into existing
+        local servers_key
+        servers_key=$(jq -r 'if .servers then "servers" elif .mcpServers then "mcpServers" else "" end' "$mcp_path" 2>/dev/null)
 
-    # Check if engram entry exists
-    local servers_key
-    servers_key=$(jq -r 'if .servers then "servers" elif .mcpServers then "mcpServers" else "" end' "$mcp_path" 2>/dev/null)
+        if [[ -z "$servers_key" ]]; then
+            servers_key="servers"
+        fi
 
-    if [[ -z "$servers_key" ]]; then
-        printf '{"patched":false,"reason":"no-servers-key"}'
-        return
-    fi
+        local has_engram has_context7 needs_update="false"
+        has_engram=$(jq -r ".$servers_key | has(\"engram\")" "$mcp_path" 2>/dev/null)
+        has_context7=$(jq -r ".$servers_key | has(\"context7\")" "$mcp_path" 2>/dev/null)
 
-    local has_engram
-    has_engram=$(jq -r ".$servers_key | has(\"engram\")" "$mcp_path" 2>/dev/null)
+        local tmp_file="${mcp_path}.tmp"
+        cp "$mcp_path" "$tmp_file"
 
-    if [[ "$has_engram" != "true" ]]; then
-        printf '{"patched":false,"reason":"no-engram-entry"}'
-        return
-    fi
+        if [[ "$has_engram" == "true" ]]; then
+            local current_cmd
+            current_cmd=$(jq -r ".$servers_key.engram.command" "$mcp_path" 2>/dev/null)
+            if [[ "$current_cmd" != "$engram_path" ]]; then
+                jq ".$servers_key.engram.command = \$cmd | .$servers_key.engram.args = [\"mcp\", \"--tools=agent\"] | del(.$servers_key.engram.cwd)" \
+                    --arg cmd "$engram_path" "$tmp_file" > "${tmp_file}.2" && mv "${tmp_file}.2" "$tmp_file"
+                needs_update="true"
+            fi
+        else
+            jq ".$servers_key.engram = {command: \$cmd, args: [\"mcp\", \"--tools=agent\"]}" \
+                --arg cmd "$engram_path" "$tmp_file" > "${tmp_file}.2" && mv "${tmp_file}.2" "$tmp_file"
+            needs_update="true"
+        fi
 
-    local has_cwd
-    has_cwd=$(jq -r ".$servers_key.engram | has(\"cwd\")" "$mcp_path" 2>/dev/null)
+        if [[ "$has_context7" != "true" ]]; then
+            jq ".$servers_key.context7 = {type: \"sse\", url: \"https://mcp.context7.com/mcp\"}" \
+                "$tmp_file" > "${tmp_file}.2" && mv "${tmp_file}.2" "$tmp_file"
+            needs_update="true"
+        fi
 
-    if [[ "$has_cwd" == "true" ]]; then
-        printf '{"patched":false,"reason":"already-has-cwd"}'
-        return
-    fi
-
-    # Patch it
-    local tmp_file="${mcp_path}.tmp"
-    jq ".$servers_key.engram.cwd = \"\${workspaceFolder}\"" "$mcp_path" > "$tmp_file" 2>/dev/null
-    if [[ $? -eq 0 ]]; then
-        mv "$tmp_file" "$mcp_path"
-        printf '{"patched":true,"path":"%s"}' "$mcp_path"
+        if [[ "$needs_update" == "true" ]]; then
+            mv "$tmp_file" "$mcp_path"
+            printf '{"updated":true,"path":"%s"}' "$mcp_path"
+        else
+            rm -f "$tmp_file"
+            printf '{"unchanged":true,"path":"%s"}' "$mcp_path"
+        fi
     else
-        rm -f "$tmp_file"
-        printf '{"patched":false,"reason":"jq-error"}'
+        # Create fresh
+        mkdir -p "$vscode_dir"
+        jq -n --arg engram "$engram_path" '{
+            servers: {
+                engram: {
+                    command: $engram,
+                    args: ["mcp", "--tools=agent"]
+                },
+                context7: {
+                    type: "sse",
+                    url: "https://mcp.context7.com/mcp"
+                }
+            }
+        }' > "$mcp_path"
+        printf '{"created":true,"path":"%s"}' "$mcp_path"
     fi
 }
 
@@ -1277,8 +1298,7 @@ new_vscode_mcp_config() {
         servers: {
             engram: {
                 command: $engram,
-                args: ["mcp", "--tools=agent"],
-                cwd: "${workspaceFolder}"
+                args: ["mcp", "--tools=agent"]
             },
             context7: {
                 type: "sse",
@@ -1294,8 +1314,7 @@ new_cursor_mcp_config() {
         mcpServers: {
             engram: {
                 command: $engram,
-                args: ["mcp", "--tools=agent"],
-                cwd: "${workspaceFolder}"
+                args: ["mcp", "--tools=agent"]
             },
             context7: {
                 url: "https://mcp.context7.com/mcp"
