@@ -386,12 +386,6 @@ function Invoke-SetupCommand {
             & $gentleBin @installArgs
             if ($LASTEXITCODE -eq 0) {
                 Write-Ok "gentle-ai configured for $gentleAiAgentId"
-
-                # Patch global mcp.json to add cwd=${workspaceFolder} to engram
-                $patchResult = Add-McpEngramCwd -Ide $Ide
-                if ($patchResult.patched) {
-                    Write-Ok 'Patched engram MCP config: added cwd=${workspaceFolder}'
-                }
             }
             else {
                 Write-Warn "gentle-ai install exited with code $LASTEXITCODE"
@@ -534,7 +528,7 @@ function Invoke-InitCommand {
     $projectRoot = (Get-Location).Path
 
     # -- Step 1: Check global config -------------------------------------------
-    Write-Host '  [1/4] Checking global configuration...' -ForegroundColor White
+    Write-Host '  [1/5] Checking global configuration...' -ForegroundColor White
     $globalConfig = Get-TeamAiKitConfig
     if (-not $globalConfig.ide) {
         Write-Err 'No global configuration found.'
@@ -545,7 +539,7 @@ function Invoke-InitCommand {
 
     # -- Step 2: Check if already initialized ----------------------------------
     Write-Host ''
-    Write-Host '  [2/4] Checking project state...' -ForegroundColor White
+    Write-Host '  [2/5] Checking project state...' -ForegroundColor White
 
     $existingConfig = $null
     if (Test-ProjectInitialized -ProjectRoot $projectRoot) {
@@ -585,7 +579,7 @@ function Invoke-InitCommand {
 
     # -- Step 3: Generate project files ----------------------------------------
     Write-Host ''
-    Write-Host '  [3/4] Generating project files...' -ForegroundColor White
+    Write-Host '  [3/5] Generating project files...' -ForegroundColor White
 
     # 3a. Instructions file
     $instructionsPath = Get-IdeInstructionsPath -Ide $effectiveIde -ProjectRoot $projectRoot
@@ -676,7 +670,34 @@ function Invoke-InitCommand {
 
     # -- Step 4: Setup engram sync + git hooks --------------------------------
     Write-Host ''
-    Write-Host '  [4/4] Setting up engram sync and git hooks...' -ForegroundColor White
+    Write-Host '  [4/5] Setting up project MCP config...' -ForegroundColor White
+
+    # 4a. Install .vscode/mcp.json (or IDE equivalent) with engram + context7
+    if ($DryRun) {
+        Write-Dry 'Would create/update .vscode/mcp.json with engram + context7'
+    }
+    else {
+        $engramPath = Get-EngramBinaryPath
+        if (-not $engramPath) { $engramPath = '(path-to-engram)' }
+
+        $mcpResult = Install-ProjectMcpConfig -ProjectRoot $projectRoot -EngramBinaryPath $engramPath
+        if ($mcpResult.created) {
+            Write-Ok 'Created .vscode/mcp.json with engram + context7'
+        }
+        elseif ($mcpResult.updated) {
+            Write-Ok 'Updated .vscode/mcp.json -- engram + context7 merged'
+        }
+        elseif ($mcpResult.unchanged) {
+            Write-Step '.vscode/mcp.json already up to date'
+        }
+        else {
+            Write-Warn "MCP config issue: $($mcpResult.error)"
+        }
+    }
+
+    # -- Step 5: Setup engram sync + git hooks --------------------------------
+    Write-Host ''
+    Write-Host '  [5/5] Setting up engram sync and git hooks...' -ForegroundColor White
 
     # Derive project name from directory
     $projectName = ConvertTo-SafeProjectName (Split-Path $projectRoot -Leaf)
@@ -1037,20 +1058,6 @@ function Invoke-UpdateCommand {
         }
         else {
             Write-Step '.gitignore already has .team-ai-kit.json'
-        }
-    }
-
-    # Step 4c: Ensure engram MCP has cwd=${workspaceFolder}
-    if ($DryRun) {
-        Write-Dry 'Would patch engram MCP config with cwd=${workspaceFolder}'
-    }
-    else {
-        $patchResult = Add-McpEngramCwd -Ide $config.ide
-        if ($patchResult.patched) {
-            Write-Ok 'Patched engram MCP config: added cwd=${workspaceFolder}'
-        }
-        else {
-            Write-Step 'Engram MCP config already has cwd'
         }
     }
 

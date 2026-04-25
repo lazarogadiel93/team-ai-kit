@@ -378,10 +378,10 @@ Describe 'New-VsCodeMcpConfig' {
         $config.servers.context7.url | Should -BeLike '*context7*'
     }
 
-    It 'includes cwd with workspaceFolder variable' {
+    It 'does not include cwd (global config does not support it)' {
         $json = New-VsCodeMcpConfig -EngramBinaryPath 'C:\engram.exe'
         $config = $json | ConvertFrom-Json
-        $config.servers.engram.cwd | Should -Be '${workspaceFolder}'
+        $config.servers.engram.PSObject.Properties['cwd'] | Should -BeNullOrEmpty
     }
 }
 
@@ -402,55 +402,78 @@ Describe 'Get-GlobalMcpJsonPath' {
     }
 }
 
-Describe 'Add-McpEngramCwd' {
+Describe 'Install-ProjectMcpConfig' {
     BeforeEach {
-        $script:mcpTestDir = Join-Path $TestDrive "mcp-test-$(Get-Random)"
-        New-Item -ItemType Directory -Path $script:mcpTestDir -Force | Out-Null
+        $script:projDir = Join-Path $TestDrive "proj-$(Get-Random)"
+        New-Item -ItemType Directory -Path $script:projDir -Force | Out-Null
     }
     AfterEach {
-        if (Test-Path $script:mcpTestDir) { Remove-Item $script:mcpTestDir -Recurse -Force }
+        if (Test-Path $script:projDir) { Remove-Item $script:projDir -Recurse -Force }
     }
 
-    It 'returns patched=$false when mcp.json does not exist' {
-        Mock Get-GlobalMcpJsonPath { return Join-Path $script:mcpTestDir 'nonexistent.json' }
-        $result = Add-McpEngramCwd -Ide 'vscode'
-        $result.patched | Should -BeFalse
-        $result.reason | Should -Be 'no-mcp-file'
+    It 'creates .vscode/mcp.json when it does not exist' {
+        $result = Install-ProjectMcpConfig -ProjectRoot $script:projDir -EngramBinaryPath 'C:\engram.exe'
+        $result.created | Should -BeTrue
+        $mcpPath = Join-Path $script:projDir '.vscode\mcp.json'
+        Test-Path $mcpPath | Should -BeTrue
+        $config = Get-Content $mcpPath -Raw | ConvertFrom-Json
+        $config.servers.engram.command | Should -Be 'C:\engram.exe'
+        $config.servers.context7.url | Should -BeLike '*context7*'
     }
 
-    It 'patches engram entry when cwd is missing' {
-        $mcpPath = Join-Path $script:mcpTestDir 'mcp.json'
-        $config = @{ servers = @{ engram = @{ command = 'engram'; args = @('mcp') } } }
-        $config | ConvertTo-Json -Depth 5 | Set-Content $mcpPath
-        Mock Get-GlobalMcpJsonPath { return $mcpPath }
+    It 'merges into existing mcp.json without removing other servers' {
+        $vscodeDir = Join-Path $script:projDir '.vscode'
+        New-Item -ItemType Directory -Path $vscodeDir -Force | Out-Null
+        $existing = @{ servers = @{ myserver = @{ command = 'my-tool' } } }
+        $existing | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $vscodeDir 'mcp.json')
 
-        $result = Add-McpEngramCwd -Ide 'vscode'
-        $result.patched | Should -BeTrue
+        $result = Install-ProjectMcpConfig -ProjectRoot $script:projDir -EngramBinaryPath 'C:\engram.exe'
+        $result.updated | Should -BeTrue
 
-        $patched = Get-Content $mcpPath -Raw | ConvertFrom-Json
-        $patched.servers.engram.cwd | Should -Be '${workspaceFolder}'
+        $config = Get-Content (Join-Path $vscodeDir 'mcp.json') -Raw | ConvertFrom-Json
+        $config.servers.myserver.command | Should -Be 'my-tool'
+        $config.servers.engram.command | Should -Be 'C:\engram.exe'
+        $config.servers.context7 | Should -Not -BeNullOrEmpty
     }
 
-    It 'is idempotent -- no-op when cwd already present' {
-        $mcpPath = Join-Path $script:mcpTestDir 'mcp.json'
-        $config = @{ servers = @{ engram = @{ command = 'engram'; args = @('mcp'); cwd = '${workspaceFolder}' } } }
-        $config | ConvertTo-Json -Depth 5 | Set-Content $mcpPath
-        Mock Get-GlobalMcpJsonPath { return $mcpPath }
+    It 'returns unchanged when engram and context7 already present' {
+        $vscodeDir = Join-Path $script:projDir '.vscode'
+        New-Item -ItemType Directory -Path $vscodeDir -Force | Out-Null
+        $existing = @{
+            servers = @{
+                engram   = @{ command = 'C:\engram.exe'; args = @('mcp', '--tools=agent') }
+                context7 = @{ type = 'sse'; url = 'https://mcp.context7.com/mcp' }
+            }
+        }
+        $existing | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $vscodeDir 'mcp.json')
 
-        $result = Add-McpEngramCwd -Ide 'vscode'
-        $result.patched | Should -BeFalse
-        $result.reason | Should -Be 'already-has-cwd'
+        $result = Install-ProjectMcpConfig -ProjectRoot $script:projDir -EngramBinaryPath 'C:\engram.exe'
+        $result.unchanged | Should -BeTrue
     }
 
-    It 'returns no-engram-entry when engram server is missing' {
-        $mcpPath = Join-Path $script:mcpTestDir 'mcp.json'
-        $config = @{ servers = @{ context7 = @{ url = 'https://example.com' } } }
-        $config | ConvertTo-Json -Depth 5 | Set-Content $mcpPath
-        Mock Get-GlobalMcpJsonPath { return $mcpPath }
+    It 'updates engram command when path differs' {
+        $vscodeDir = Join-Path $script:projDir '.vscode'
+        New-Item -ItemType Directory -Path $vscodeDir -Force | Out-Null
+        $existing = @{
+            servers = @{
+                engram   = @{ command = 'C:\old\engram.exe'; args = @('mcp', '--tools=agent') }
+                context7 = @{ type = 'sse'; url = 'https://mcp.context7.com/mcp' }
+            }
+        }
+        $existing | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $vscodeDir 'mcp.json')
 
-        $result = Add-McpEngramCwd -Ide 'vscode'
-        $result.patched | Should -BeFalse
-        $result.reason | Should -Be 'no-engram-entry'
+        $result = Install-ProjectMcpConfig -ProjectRoot $script:projDir -EngramBinaryPath 'C:\new\engram.exe'
+        $result.updated | Should -BeTrue
+
+        $config = Get-Content (Join-Path $vscodeDir 'mcp.json') -Raw | ConvertFrom-Json
+        $config.servers.engram.command | Should -Be 'C:\new\engram.exe'
+    }
+
+    It 'does not include cwd in the engram entry' {
+        $result = Install-ProjectMcpConfig -ProjectRoot $script:projDir -EngramBinaryPath 'C:\engram.exe'
+        $result.created | Should -BeTrue
+        $config = Get-Content (Join-Path $script:projDir '.vscode\mcp.json') -Raw | ConvertFrom-Json
+        $config.servers.engram.PSObject.Properties['cwd'] | Should -BeNullOrEmpty
     }
 }
 
