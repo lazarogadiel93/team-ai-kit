@@ -1042,7 +1042,7 @@ cmd_update() {
         dry 'Would patch engram MCP config with cwd=${workspaceFolder}'
     else
         local patch_json patch_result
-        patch_json=$(add_mcp_engram_cwd "$ide")
+        patch_json=$(add_mcp_engram_cwd "$config_ide")
         patch_result=$(echo "$patch_json" | jq -r '.patched')
         if [[ "$patch_result" == "true" ]]; then
             ok 'Patched engram MCP config: added cwd=${workspaceFolder}'
