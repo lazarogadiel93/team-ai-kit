@@ -386,6 +386,12 @@ function Invoke-SetupCommand {
             & $gentleBin @installArgs
             if ($LASTEXITCODE -eq 0) {
                 Write-Ok "gentle-ai configured for $gentleAiAgentId"
+
+                # Patch global mcp.json to add cwd=${workspaceFolder} to engram
+                $patchResult = Add-McpEngramCwd -Ide $Ide
+                if ($patchResult.patched) {
+                    Write-Ok 'Patched engram MCP config: added cwd=${workspaceFolder}'
+                }
             }
             else {
                 Write-Warn "gentle-ai install exited with code $LASTEXITCODE"
@@ -1031,6 +1037,20 @@ function Invoke-UpdateCommand {
         }
         else {
             Write-Step '.gitignore already has .team-ai-kit.json'
+        }
+    }
+
+    # Step 4c: Ensure engram MCP has cwd=${workspaceFolder}
+    if ($DryRun) {
+        Write-Dry 'Would patch engram MCP config with cwd=${workspaceFolder}'
+    }
+    else {
+        $patchResult = Add-McpEngramCwd -Ide $config.ide
+        if ($patchResult.patched) {
+            Write-Ok 'Patched engram MCP config: added cwd=${workspaceFolder}'
+        }
+        else {
+            Write-Step 'Engram MCP config already has cwd'
         }
     }
 

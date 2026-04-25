@@ -372,6 +372,14 @@ cmd_setup() {
 
         if [[ -n "$gentle_bin" ]] && "$gentle_bin" install --agent "$agent_id" --preset ecosystem-only --persona gentleman 2>/dev/null; then
             ok "gentle-ai configured for $agent_id"
+
+            # Patch global mcp.json to add cwd=${workspaceFolder} to engram
+            local patch_json patch_result
+            patch_json=$(add_mcp_engram_cwd "$OPT_IDE")
+            patch_result=$(echo "$patch_json" | jq -r '.patched')
+            if [[ "$patch_result" == "true" ]]; then
+                ok 'Patched engram MCP config: added cwd=${workspaceFolder}'
+            fi
         else
             warn "gentle-ai install failed or exited with error"
             warn "Run gentle-ai manually after setup completes"
@@ -1026,6 +1034,20 @@ cmd_update() {
             ok ".gitattributes updated -- .engram/ diffs collapsed in PRs"
         else
             step ".gitattributes already configured"
+        fi
+    fi
+
+    # Step 4c: Ensure engram MCP has cwd=${workspaceFolder}
+    if [[ "$OPT_DRY_RUN" == "true" ]]; then
+        dry 'Would patch engram MCP config with cwd=${workspaceFolder}'
+    else
+        local patch_json patch_result
+        patch_json=$(add_mcp_engram_cwd "$config_ide")
+        patch_result=$(echo "$patch_json" | jq -r '.patched')
+        if [[ "$patch_result" == "true" ]]; then
+            ok 'Patched engram MCP config: added cwd=${workspaceFolder}'
+        else
+            step 'Engram MCP config already has cwd'
         fi
     fi
 

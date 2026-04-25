@@ -385,6 +385,75 @@ Describe 'New-VsCodeMcpConfig' {
     }
 }
 
+Describe 'Get-GlobalMcpJsonPath' {
+    It 'returns a path for vscode' {
+        $path = Get-GlobalMcpJsonPath -Ide 'vscode'
+        $path | Should -BeLike '*Code*mcp.json'
+    }
+
+    It 'returns a path for cursor' {
+        $path = Get-GlobalMcpJsonPath -Ide 'cursor'
+        $path | Should -BeLike '*.cursor*mcp.json'
+    }
+
+    It 'returns $null for unsupported IDE' {
+        $path = Get-GlobalMcpJsonPath -Ide 'intellij'
+        $path | Should -BeNullOrEmpty
+    }
+}
+
+Describe 'Add-McpEngramCwd' {
+    BeforeEach {
+        $script:mcpTestDir = Join-Path $TestDrive "mcp-test-$(Get-Random)"
+        New-Item -ItemType Directory -Path $script:mcpTestDir -Force | Out-Null
+    }
+    AfterEach {
+        if (Test-Path $script:mcpTestDir) { Remove-Item $script:mcpTestDir -Recurse -Force }
+    }
+
+    It 'returns patched=$false when mcp.json does not exist' {
+        Mock Get-GlobalMcpJsonPath { return Join-Path $script:mcpTestDir 'nonexistent.json' }
+        $result = Add-McpEngramCwd -Ide 'vscode'
+        $result.patched | Should -BeFalse
+        $result.reason | Should -Be 'no-mcp-file'
+    }
+
+    It 'patches engram entry when cwd is missing' {
+        $mcpPath = Join-Path $script:mcpTestDir 'mcp.json'
+        $config = @{ servers = @{ engram = @{ command = 'engram'; args = @('mcp') } } }
+        $config | ConvertTo-Json -Depth 5 | Set-Content $mcpPath
+        Mock Get-GlobalMcpJsonPath { return $mcpPath }
+
+        $result = Add-McpEngramCwd -Ide 'vscode'
+        $result.patched | Should -BeTrue
+
+        $patched = Get-Content $mcpPath -Raw | ConvertFrom-Json
+        $patched.servers.engram.cwd | Should -Be '${workspaceFolder}'
+    }
+
+    It 'is idempotent -- no-op when cwd already present' {
+        $mcpPath = Join-Path $script:mcpTestDir 'mcp.json'
+        $config = @{ servers = @{ engram = @{ command = 'engram'; args = @('mcp'); cwd = '${workspaceFolder}' } } }
+        $config | ConvertTo-Json -Depth 5 | Set-Content $mcpPath
+        Mock Get-GlobalMcpJsonPath { return $mcpPath }
+
+        $result = Add-McpEngramCwd -Ide 'vscode'
+        $result.patched | Should -BeFalse
+        $result.reason | Should -Be 'already-has-cwd'
+    }
+
+    It 'returns no-engram-entry when engram server is missing' {
+        $mcpPath = Join-Path $script:mcpTestDir 'mcp.json'
+        $config = @{ servers = @{ context7 = @{ url = 'https://example.com' } } }
+        $config | ConvertTo-Json -Depth 5 | Set-Content $mcpPath
+        Mock Get-GlobalMcpJsonPath { return $mcpPath }
+
+        $result = Add-McpEngramCwd -Ide 'vscode'
+        $result.patched | Should -BeFalse
+        $result.reason | Should -Be 'no-engram-entry'
+    }
+}
+
 # -- Instructions Generation ---------------------------------------------------
 
 Describe 'Get-EngramProtocolContent' {
