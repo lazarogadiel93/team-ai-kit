@@ -1706,56 +1706,111 @@ function Get-GlobalMcpJsonPath {
     }
 }
 
-function Add-McpEngramCwd {
+function Install-ProjectMcpConfig {
     <#
     .SYNOPSIS
-        Patches the global mcp.json to add cwd=${workspaceFolder} to the engram server entry.
+        Creates or merges .vscode/mcp.json in the project with engram + context7 servers.
     .DESCRIPTION
-        Reads the global mcp.json, checks if engram server exists, and adds cwd if missing.
-        Idempotent: no-op if cwd is already present.
-        Returns hashtable with patched=$true/$false.
+        If the file exists, reads it and merges engram/context7 entries without touching
+        other servers. If it does not exist, creates it fresh.
+        Returns hashtable with created=$true/updated=$true/unchanged=$true.
     #>
     param(
         [Parameter(Mandatory)]
-        [string]$Ide
+        [string]$ProjectRoot,
+
+        [Parameter(Mandatory)]
+        [string]$EngramBinaryPath
     )
 
-    $mcpPath = Get-GlobalMcpJsonPath -Ide $Ide
-    if (-not $mcpPath -or -not (Test-Path $mcpPath)) {
-        return @{ patched = $false; reason = 'no-mcp-file' }
+    $vscodDir = Join-Path $ProjectRoot '.vscode'
+    $mcpPath = Join-Path $vscodDir 'mcp.json'
+
+    # Build the server entries we want
+    $engramEntry = [ordered]@{
+        command = $EngramBinaryPath
+        args    = @('mcp', '--tools=agent')
+    }
+    $context7Entry = [ordered]@{
+        type = 'sse'
+        url  = 'https://mcp.context7.com/mcp'
     }
 
-    try {
-        $raw = Get-Content $mcpPath -Raw -ErrorAction Stop
-        $config = $raw | ConvertFrom-Json
+    if (Test-Path $mcpPath) {
+        try {
+            $raw = Get-Content $mcpPath -Raw -ErrorAction Stop
+            $config = $raw | ConvertFrom-Json
 
-        # Find engram entry in servers or mcpServers
-        $serversKey = if ($config.PSObject.Properties['servers']) { 'servers' }
-                      elseif ($config.PSObject.Properties['mcpServers']) { 'mcpServers' }
-                      else { $null }
+            # Detect servers key (servers or mcpServers)
+            $serversKey = if ($config.PSObject.Properties['servers']) { 'servers' }
+                          elseif ($config.PSObject.Properties['mcpServers']) { 'mcpServers' }
+                          else { $null }
 
-        if (-not $serversKey) {
-            return @{ patched = $false; reason = 'no-servers-key' }
+            if (-not $serversKey) {
+                # File exists but no servers key — add one
+                $config | Add-Member -NotePropertyName 'servers' -NotePropertyValue ([PSCustomObject]@{})
+                $serversKey = 'servers'
+            }
+
+            $servers = $config.$serversKey
+            $changed = $false
+
+            # Merge engram
+            if ($servers.PSObject.Properties['engram']) {
+                $existing = $servers.engram
+                # Update command and args if different
+                $needsUpdate = ($existing.command -ne $EngramBinaryPath) -or
+                               (($existing.args -join ',') -ne ($engramEntry.args -join ','))
+                if ($needsUpdate) {
+                    $servers.engram.command = $EngramBinaryPath
+                    $servers.engram.args = $engramEntry.args
+                    # Remove cwd if present (project-level doesn't need it)
+                    if ($existing.PSObject.Properties['cwd']) {
+                        $servers.engram.PSObject.Properties.Remove('cwd')
+                    }
+                    $changed = $true
+                }
+            }
+            else {
+                $servers | Add-Member -NotePropertyName 'engram' -NotePropertyValue ([PSCustomObject]$engramEntry)
+                $changed = $true
+            }
+
+            # Merge context7
+            if (-not $servers.PSObject.Properties['context7']) {
+                $servers | Add-Member -NotePropertyName 'context7' -NotePropertyValue ([PSCustomObject]$context7Entry)
+                $changed = $true
+            }
+
+            if (-not $changed) {
+                return @{ unchanged = $true; path = $mcpPath }
+            }
+
+            $json = $config | ConvertTo-Json -Depth 10
+            $lfJson = $json -replace "`r`n", "`n"
+            [System.IO.File]::WriteAllText($mcpPath, $lfJson, [System.Text.UTF8Encoding]::new($false))
+            return @{ updated = $true; path = $mcpPath }
+        }
+        catch {
+            return @{ error = "Failed to merge: $_" }
+        }
+    }
+    else {
+        # Create fresh
+        if (-not (Test-Path $vscodDir)) {
+            New-Item -ItemType Directory -Path $vscodDir -Force | Out-Null
         }
 
-        $servers = $config.$serversKey
-        if (-not $servers.PSObject.Properties['engram']) {
-            return @{ patched = $false; reason = 'no-engram-entry' }
+        $config = [ordered]@{
+            servers = [ordered]@{
+                engram   = $engramEntry
+                context7 = $context7Entry
+            }
         }
-
-        $engram = $servers.engram
-        if ($engram.PSObject.Properties['cwd']) {
-            return @{ patched = $false; reason = 'already-has-cwd' }
-        }
-
-        $engram | Add-Member -NotePropertyName 'cwd' -NotePropertyValue '${workspaceFolder}'
-        $json = $config | ConvertTo-Json -Depth 10
+        $json = $config | ConvertTo-Json -Depth 5
         $lfJson = $json -replace "`r`n", "`n"
         [System.IO.File]::WriteAllText($mcpPath, $lfJson, [System.Text.UTF8Encoding]::new($false))
-        return @{ patched = $true; path = $mcpPath }
-    }
-    catch {
-        return @{ patched = $false; reason = "error: $_" }
+        return @{ created = $true; path = $mcpPath }
     }
 }
 
@@ -1773,7 +1828,6 @@ function New-VsCodeMcpConfig {
             engram = @{
                 command = $EngramBinaryPath
                 args    = @('mcp', '--tools=agent')
-                cwd     = '${workspaceFolder}'
             }
             context7 = @{
                 type = 'sse'
