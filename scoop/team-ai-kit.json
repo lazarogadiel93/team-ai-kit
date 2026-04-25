@@ -1,10 +1,10 @@
 {
-  "version": "2.7.1",
+  "version": "2.7.2",
   "description": "Team AI Kit - gentle-ai for teams. Standardizes AI usage across development teams with role-based skills, shared memory, and zero-friction onboarding.",
   "homepage": "https://github.com/lazarogadiel93/team-ai-kit",
   "license": "MIT",
-  "url": "https://github.com/lazarogadiel93/team-ai-kit/releases/download/v2.7.1/team-ai-kit-v2.7.1.zip",
-  "hash": "0297a0a027da9ca56f6ff37a1212b99c2cfaa3daf3cab876a3573eee2b09c740",
+  "url": "https://github.com/lazarogadiel93/team-ai-kit/releases/download/v2.7.2/team-ai-kit-v2.7.2.zip",
+  "hash": "5e742ca1a6758e3245da78f8d0cbd135ff693ea0c847765ade48e44c57f0d863",
   "extract_dir": "team-ai-kit",
   "bin": [
     [
